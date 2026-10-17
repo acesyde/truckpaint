@@ -6,6 +6,8 @@ mod syntax;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde_json::{Value, json};
@@ -364,13 +366,8 @@ impl<'a> Build<'a> {
     }
 
     fn definition_paths(&self) -> Vec<String> {
-        let mut paths = self
-            .sources
-            .files
-            .keys()
-            .filter(|p| p.starts_with(&self.root) && p.ends_with(".sii"))
-            .cloned()
-            .collect::<Vec<_>>();
+        let mut paths = self.sources.paths_under(&self.root);
+        paths.retain(|p| p.ends_with(".sii"));
         paths.sort_by_key(|p| !p.starts_with(&format!("{}cabin/", self.root)));
         paths
     }
@@ -827,6 +824,9 @@ pub fn run(options: &Options) -> Result<Batch, String> {
     let preliminary = reserve(Path::new("target/game-extraction"))?;
     let mut sources = Sources::new(&options.installation, &options.converter, &preliminary)?;
     sources.share_models(Path::new("target/game-extraction/cache"))?;
+    let kinds = [Kind::Truck, Kind::Trailer];
+    let folders = kinds.map(|k| format!("/def/vehicle/{}", k.folder()));
+    sources.inventory(&folders.each_ref().map(String::as_str))?;
     let mut evidence = BTreeSet::new();
     let version = definition(&mut sources, "/version.sii", &mut evidence)?;
     let version = units(&version)
@@ -841,17 +841,14 @@ pub fn run(options: &Options) -> Result<Batch, String> {
         Some(dir) => previous_packages(dir)?,
         None => BTreeMap::new(),
     };
-    let kinds = [Kind::Truck, Kind::Trailer];
-    let folders = kinds.map(|k| format!("/def/vehicle/{}", k.folder()));
-    sources.inventory(&folders.each_ref().map(String::as_str))?;
     let names = names(&mut sources)?;
     // Game id -> the kinds defining it; more than one is a collision, refused below.
     let mut discovered = BTreeMap::<String, BTreeSet<Kind>>::new();
     for kind in kinds {
         let prefix = format!("/def/vehicle/{}/", kind.folder());
         for id in sources
-            .files
-            .keys()
+            .paths_under(&prefix)
+            .iter()
             .filter_map(|p| p.strip_prefix(&prefix)?.strip_suffix("/data.sii"))
             .filter(|p| !p.contains('/') && tp_vehicles::is_valid_game_name(p))
         {
@@ -872,18 +869,14 @@ pub fn run(options: &Options) -> Result<Batch, String> {
     // Trucks first, then trailers, each in id order.
     vehicles.sort_by_key(|v| (discovered[v].first().copied(), v.clone()));
     let output = reserve(&options.output)?;
-    let mut results = Vec::new();
-    let mut failed = 0;
-    for vehicle in &vehicles {
+    let extract = |sources: &mut Sources, vehicle: &String| -> Value {
         eprintln!("extracting {vehicle}");
         let found = &discovered[vehicle];
         let [kind] = found.iter().copied().collect::<Vec<_>>()[..] else {
-            failed += 1;
-            results.push(json!({"vehicle":vehicle,"kinds":found.iter().map(|k| k.manifest()).collect::<Vec<_>>(),"status":"failure","stage":"discovery","error":"defined both as a truck and as an owned trailer"}));
-            continue;
+            return json!({"vehicle":vehicle,"kinds":found.iter().map(|k| k.manifest()).collect::<Vec<_>>(),"status":"failure","stage":"discovery","error":"defined both as a truck and as an owned trailer"});
         };
         let previous_package = previous.get(&format!("official.ets2.{vehicle}"));
-        let mut build = Build::new(&mut sources, &names, previous_package, kind, vehicle);
+        let mut build = Build::new(sources, &names, previous_package, kind, vehicle);
         let result = build
             .package(&game_version, &options.package_version)
             .and_then(|(packed, coverage)| {
@@ -899,19 +892,52 @@ pub fn run(options: &Options) -> Result<Batch, String> {
             ..
         } = build;
         match result {
-            Ok((filename, coverage)) => results.push(json!({"vehicle":vehicle,"kind":kind.manifest(),"status":"success","package":filename,"technical_validation":"passed","in_game_validation":"required","missing_dependencies":diagnostics.missing_dependencies,"dimension_diagnostics":diagnostics.dimensions,"textures":coverage,"sources":sources.provenance(&evidence)})),
+            Ok((filename, coverage)) => {
+                json!({"vehicle":vehicle,"kind":kind.manifest(),"status":"success","package":filename,"technical_validation":"passed","in_game_validation":"required","missing_dependencies":diagnostics.missing_dependencies,"dimension_diagnostics":diagnostics.dimensions,"textures":coverage,"sources":sources.provenance(&evidence)})
+            }
             Err(error) if error == NOT_PAINTABLE => {
-                results.push(json!({"vehicle":vehicle,"kind":kind.manifest(),"status":"skipped","reason":"not_paintable","error":error,"sources":sources.provenance(&evidence)}));
+                json!({"vehicle":vehicle,"kind":kind.manifest(),"status":"skipped","reason":"not_paintable","error":error,"sources":sources.provenance(&evidence)})
             }
             Err(error) => {
                 if let Some(path) = error.strip_prefix("missing game file ") {
                     diagnostics.missing_dependencies.push(json!({"kind":"game_file","disposition":"blocking","reference":path,"expected_dlc":null,"dlc_origin":"unknown"}));
                 }
-                failed += 1;
-                results.push(json!({"vehicle":vehicle,"kind":kind.manifest(),"status":"failure","stage":stage,"error":error,"missing_dependencies":diagnostics.missing_dependencies,"dimension_diagnostics":diagnostics.dimensions,"sources":sources.provenance(&evidence)}));
+                json!({"vehicle":vehicle,"kind":kind.manifest(),"status":"failure","stage":stage,"error":error,"missing_dependencies":diagnostics.missing_dependencies,"dimension_diagnostics":diagnostics.dimensions,"sources":sources.provenance(&evidence)})
             }
         }
-    }
+    };
+    // Half the cores: concurrent converters must leave the desktop memory and CPU.
+    let cores = std::thread::available_parallelism().map_or(1, |n| n.get());
+    let workers = (cores / 2).clamp(1, vehicles.len().max(1));
+    sources.share();
+    let mut views = (0..workers).map(|n| sources.worker(n)).collect::<Vec<_>>();
+    let next = AtomicUsize::new(0);
+    let done = Mutex::new(Vec::new());
+    std::thread::scope(|scope| {
+        for view in &mut views {
+            let (extract, next, done, vehicles) = (&extract, &next, &done, &vehicles);
+            scope.spawn(move || {
+                loop {
+                    let position = next.fetch_add(1, Ordering::Relaxed);
+                    let Some(vehicle) = vehicles.get(position) else {
+                        break;
+                    };
+                    let result = extract(view, vehicle);
+                    done.lock().unwrap().push((position, result));
+                }
+            });
+        }
+    });
+    // Report entries keep the sequential order, whatever order workers finished in.
+    let mut done = done.into_inner().map_err(|_| "a vehicle worker panicked")?;
+    done.sort_by_key(|(position, _)| *position);
+    let results = done
+        .into_iter()
+        .map(|(_, result)| result)
+        .collect::<Vec<_>>();
+    let failed = results.iter().filter(|r| r["status"] == "failure").count();
+    sources.converted = views.iter().map(|v| v.converted).sum();
+    sources.reused = views.iter().map(|v| v.reused).sum();
     let report = json!({"format":1,"installation":options.installation,"converter":{"executable":sources.converter,"version":null,"version_status":"not exposed by CLI"},"tool_version":env!("CARGO_PKG_VERSION"),"game_version":game_version,"package_version":options.package_version,"archives":sources.archives,"archive_precedence":"last mounted wins; base source order and sorted DLC as observed in ETS2 mount log","requested_vehicle":options.vehicle,"previous_batch":options.previous,"discovered_vehicles":discovered.keys().collect::<Vec<_>>(),"processed_vehicles":vehicles,"name_sources":NAME_FILES.iter().map(|p| sources.provenance(&BTreeSet::from([(*p).to_owned()]))[0].clone()).collect::<Vec<_>>(),"work_directory":preliminary,"work_directory_kept":failed > 0,"model_cache":{"directory":sources.models,"converted":sources.converted,"reused":sources.reused},"results":results,"failed":failed,"limits":["Truckpaint, tsnmap and tsnmapuv exterior models with optional airbrush/flipflake/altuv flavors and a/asafew.a alpha-test suffixes","All paint materials use the ordinary paint UVs (_TEXCOORD1), including altuv flavors; packages never set alternate_uvset","Finite UV overflow is preserved in SVG coordinates; the texture viewport clips the wireframe without wrapping or changing UV mode; out-of-bounds surfaces need game checks","Main templates union compatible painted options","Accessories without a truckpaint material in their selected look/variant are excluded from templates","Cabin size 4096 square; accessory dimensions from crop names; conflicting sizes use the largest, accessories with only unsized (shared fill) masks stay on the main texture","Package validation does not establish correctness in game"]});
     publish(
         &output.join("report.json"),

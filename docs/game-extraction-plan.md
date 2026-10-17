@@ -455,3 +455,27 @@ de 84 véhicules (69 paquets, 15 remorques ignorées), avec `--previous` sur
   identiques. Les deux passes ont supprimé leur dossier de travail.
 - Le cache `target/game-extraction/cache/` pèse 11 Go (9 978 modèles en texte
   `.pim`/`.pit`) ; le supprimer force une reconversion complète.
+
+
+## Extraction en parallèle
+
+Mesures du 17 octobre 2026, même installation et même passe de référence
+(`dist/ets2-1792249742419989337-849829-0/`), sur une machine à 16 cœurs :
+8 fils de travail (la moitié des cœurs), un listing récursif par archive.
+
+| Passe | Appels au convertisseur | Durée | Pic de mémoire (au-dessus du repos) |
+|---|---|---|---|
+| Séquentielle, cache vide | 28 484 | 55 min | — |
+| Parallèle, cache vide | 36 145 | 10 min | +2,2 Go |
+| Séquentielle, cache rempli | 18 506 | 4 min | — |
+| Parallèle, cache rempli | 25 351 | 54 s | +1,3 Go |
+
+- Les 69 paquets, les sources de chaque véhicule, l’ordre du rapport et les
+  sources des noms sont identiques à la passe de référence.
+- Plus d’appels qu’en séquentiel : chaque fil réextrait les fichiers hors des
+  dossiers de définitions dont il a besoin, et deux fils convertissent parfois
+  le même modèle (10 758 conversions contre 9 978). Accepté, le temps est
+  divisé par 5.
+- La moitié des cœurs seulement : une CI `cargo` sur tous les cœurs avait fait
+  tuer la session GNOME par `systemd-oomd` (24,4 Go sur 30). La passe
+  parallèle reste sous 6 Go au total.

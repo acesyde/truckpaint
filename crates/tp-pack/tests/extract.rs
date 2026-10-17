@@ -41,6 +41,16 @@ case "$action" in
             if [ -d "$file" ]; then echo "[D] $relative"; else echo "[F] $relative"; fi
         done
         ;;
+    --list-directory-recursive)
+        if [ ! -d "$root$path" ] || { [ "$path" = / ] && [ -e "$root/.noroot" ]; }; then
+            echo '<error> [system] : readDir returned null!'
+            exit 1
+        fi
+        find "$root${path%/}" -mindepth 1 | sort | while read -r file; do
+            relative="${file#"$root"}"
+            if [ -d "$file" ]; then echo "[D] $relative"; else echo "[F] $relative"; fi
+        done
+        ;;
     --extract-directory|--extract-file)
         mkdir -p "$(dirname "$export$path")"
         cp -R "$root$path" "$export$path"
@@ -1080,13 +1090,13 @@ fn a_trailer_whose_parts_all_have_their_own_region_gets_a_plain_main_texture() {
 }
 
 #[test]
-fn folders_are_listed_once_and_only_where_their_parent_is() {
+fn archives_are_listed_once_whole_or_folder_by_folder() {
     let fixture = fixture();
     let root = fixture.path();
     // base.scs lists its root, without /vehicle.
     write(&root.join("game/base.scs.files"), "material/a.mat", "");
-    // The model also lives in def.scs, whose root cannot be listed: both sources stay
-    // recorded, last mounted wins.
+    // The model also lives in def.scs, whose root cannot be listed (like locale.scs):
+    // both sources stay recorded, last mounted wins.
     let def = root.join("game/def.scs.files");
     write(&def, "vehicle/shared/example.good.pmd", "binary");
     write(&def, ".noroot", "");
@@ -1094,18 +1104,27 @@ fn folders_are_listed_once_and_only_where_their_parent_is() {
     assert!(output.status.success(), "{output:?}");
     let listings = calls(root)
         .into_iter()
-        .filter(|[action, ..]| action == "--list-directory")
-        .map(|[_, path, archive]| (path, archive))
+        .filter(|[action, ..]| action.starts_with("--list-directory"))
         .collect::<Vec<_>>();
     let unique = listings.iter().collect::<std::collections::BTreeSet<_>>();
     assert_eq!(unique.len(), listings.len(), "{listings:?}");
-    // base.scs has no /vehicle folder, so nothing below it is listed there.
-    assert!(listings.contains(&("/".into(), "base.scs".into())));
-    assert!(
-        !listings
+    for archive in ["base.scs", "def.scs", "version.scs"] {
+        let mine = listings
             .iter()
-            .any(|(path, archive)| archive == "base.scs" && path.starts_with("/vehicle"))
-    );
+            .filter(|[.., a]| a == archive)
+            .map(|[action, path, _]| (action.as_str(), path.as_str()))
+            .collect::<Vec<_>>();
+        assert_eq!(mine[0], ("--list-directory-recursive", "/"), "{archive}");
+        if archive == "def.scs" {
+            // No whole listing: its folders are listed one by one, where needed.
+            assert!(
+                mine.contains(&("--list-directory", "/vehicle/shared")),
+                "{mine:?}"
+            );
+        } else {
+            assert_eq!(mine.len(), 1, "{archive}: {mine:?}");
+        }
+    }
     let report = report(&batches(root)[0]);
     let model = report["results"][0]["sources"]
         .as_array()
@@ -1190,4 +1209,40 @@ fn successful_batches_remove_their_work_folder() {
     let error = report["results"][0]["error"].as_str().unwrap();
     let log = error.rsplit_once("see ").unwrap().1;
     assert!(root.join(log).is_file(), "{error}");
+}
+
+#[test]
+fn concurrent_builds_match_single_vehicle_batches() {
+    let fixture = fixture();
+    let root = fixture.path();
+    trailer(root, "scs.box", "");
+    trailer(root, "krone.coolliner", "Krone");
+    // example.broken fails: the batch fails, the others are still published.
+    assert!(!run(root, None).status.success());
+    let all = batches(root)[0].clone();
+    let order = report(&all)["results"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r["vehicle"].as_str().unwrap().to_owned())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        order,
+        [
+            "example.broken",
+            "example.good",
+            "krone.coolliner",
+            "scs.box"
+        ]
+    );
+    for vehicle in ["example.good", "krone.coolliner", "scs.box"] {
+        assert!(run(root, Some(vehicle)).status.success(), "{vehicle}");
+        let alone = batches(root).pop().unwrap();
+        let name = format!("official.ets2.{vehicle}-2.0.0.tpv");
+        assert_eq!(
+            std::fs::read(all.join(&name)).unwrap(),
+            std::fs::read(alone.join(&name)).unwrap(),
+            "{vehicle}"
+        );
+    }
 }
