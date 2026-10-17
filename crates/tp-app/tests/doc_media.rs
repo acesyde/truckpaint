@@ -422,6 +422,33 @@ fn sample_truck_project(h: &mut H) {
     common::open_project(h, project);
 }
 
+/// The sample truck 1.0.0 with the demo livery on its Standard cab, the
+/// sample truck 1.1.0 (which redraws that cab's layout) installed too.
+fn outdated_truck_project(h: &mut H) {
+    let older = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../examples/vehicles/community.truckpaint.sample_truck-1.0.0.tpv"
+    );
+    h.state_mut()
+        .vehicles
+        .install_file(std::path::Path::new(older))
+        .unwrap();
+    let truck = load_sample(h, tp_app::vehicles::SAMPLE_ID, "1.0.0");
+    let textures = tp_app::vehicle_project::default_textures(&truck.manifest);
+    let project =
+        tp_app::vehicle_project::fleet_project("ACE Logistics", &[(&truck, &textures)]).unwrap();
+    common::open_project(h, project);
+    demo_scene(h);
+}
+
+/// Update Template for the sample truck of [`outdated_truck_project`].
+fn update_template_dialog(h: &H) -> tp_app::ui::vehicle_dialogs::UpdateDialog {
+    let newer = load_sample(h, tp_app::vehicles::SAMPLE_ID, "1.1.0");
+    let plan =
+        tp_app::vehicle_project::plan(&h.state().workspace().unwrap().project, &newer).unwrap();
+    tp_app::ui::vehicle_dialogs::UpdateDialog::new(newer, plan)
+}
+
 /// The sample truck and the sample trailer.
 fn sample_fleet(h: &mut H) {
     sample_truck_project(h);
@@ -529,6 +556,18 @@ fn section_vehicles() {
         dialog.form.rows[1].game_ids = "sideskirt.a".into();
         modal(&mut h, Modal::CustomVehicle(Box::new(dialog)));
         shot(&mut h, language, "vehicles/custom-vehicle");
+        h.state_mut().modal = None;
+        h.run();
+
+        // The update summary of the sample truck, with the open project.
+        let mut h = harness(language);
+        outdated_truck_project(&mut h);
+        let library = tp_app::ui::vehicle_dialogs::LibraryDialog {
+            selected: Some(tp_app::vehicles::SAMPLE_ID.into()),
+            ..Default::default()
+        };
+        modal(&mut h, Modal::VehicleLibrary(library));
+        shot(&mut h, language, "vehicles/update-summary");
     });
 }
 
@@ -569,6 +608,13 @@ fn section_fleet() {
         };
         modal(&mut h, Modal::Textures(dialog));
         shot(&mut h, language, "fleet/textures-dialog");
+
+        // Update Template, with the objects to reposition.
+        let mut h = harness(language);
+        outdated_truck_project(&mut h);
+        let dialog = update_template_dialog(&h);
+        modal(&mut h, Modal::UpdateTemplate(Box::new(dialog)));
+        shot(&mut h, language, "fleet/update-template");
     });
 }
 
@@ -607,6 +653,17 @@ fn section_workshop() {
         let ids = livery_tree(&mut h);
         h.state_mut().workspace_mut().unwrap().selection = vec![ids[3]];
         shot(&mut h, language, "workshop/layers");
+
+        // After Update Template: the objects to reposition are marked.
+        let mut h = harness(language);
+        outdated_truck_project(&mut h);
+        let dialog = update_template_dialog(&h);
+        h.state_mut()
+            .workspace_mut()
+            .unwrap()
+            .apply_update(&dialog.package, &dialog.added, 1.0);
+        left_tab(&mut h, LeftTab::Layers);
+        shot(&mut h, language, "workshop/layers-to-reposition");
 
         // Drawing a rectangle: pick the tool, drag on the texture.
         let mut h = harness(language);

@@ -205,3 +205,36 @@ fn check_refuses_a_corrupt_file_and_usage_errors_fail() {
     assert!(text(&help.stdout).contains("Usage:"));
     assert!(text(&help.stdout).contains("[width, height]"));
 }
+
+#[test]
+fn changelog_is_packed_checked_and_limited() {
+    let dir = tempfile::tempdir().unwrap();
+    source(dir.path());
+    let manifest = dir.path().join("src/vehicle.json");
+    let mut value: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&manifest).unwrap()).unwrap();
+    value["changelog"] = serde_json::json!("Door layout redrawn.");
+    std::fs::write(&manifest, value.to_string()).unwrap();
+    for out in ["a.tpv", "b.tpv"] {
+        let packed = tpv(dir.path(), &["pack", "src", "-o", out]);
+        assert!(packed.status.success(), "{}", text(&packed.stderr));
+    }
+    // Repacking the same folder gives the same bytes.
+    assert_eq!(
+        std::fs::read(dir.path().join("a.tpv")).unwrap(),
+        std::fs::read(dir.path().join("b.tpv")).unwrap()
+    );
+    let out = tpv(dir.path(), &["check", "a.tpv"]);
+    assert!(text(&out.stdout).contains("changelog: Door layout redrawn."));
+
+    value["changelog"] = serde_json::json!("x".repeat(tp_vehicles::MAX_CHANGELOG + 1));
+    std::fs::write(&manifest, value.to_string()).unwrap();
+    let out = tpv(dir.path(), &["pack", "src", "-o", "long.tpv"]);
+    assert_eq!(out.status.code(), Some(1));
+    assert!(
+        text(&out.stderr).contains("changelog is longer than 1000"),
+        "{}",
+        text(&out.stderr)
+    );
+    assert!(!dir.path().join("long.tpv").exists());
+}

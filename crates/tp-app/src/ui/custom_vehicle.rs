@@ -180,6 +180,9 @@ pub fn problem_message(problem: &Problem) -> String {
         Problem::DuplicateGameId(_, id) => {
             tr!("custom-problem-duplicate-game-id", id = id.as_str())
         }
+        Problem::ChangelogTooLong => {
+            tr!("custom-problem-changelog", max = tp_vehicles::MAX_CHANGELOG)
+        }
     }
 }
 
@@ -388,14 +391,15 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut CustomVehicl
                 | ("brand", Problem::BrandMissing)
                 | ("path", Problem::BadGamePath)
                 | ("versions", Problem::BadGameVersions) => shown,
-                ("version", Problem::BadVersion | Problem::VersionNotHigher(_)) => true,
+                ("version", Problem::BadVersion | Problem::VersionNotHigher(_))
+                | ("changelog", Problem::ChangelogTooLong) => true,
                 _ => false,
             })
             .cloned()
             .collect()
     };
     let fields: Vec<(&'static str, Vec<Problem>)> =
-        ["version", "name", "brand", "path", "versions"]
+        ["version", "changelog", "name", "brand", "path", "versions"]
             .into_iter()
             .map(|f| (f, field_problems(f)))
             .collect();
@@ -433,6 +437,27 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut CustomVehicl
                         under(ui, "version");
                     }
                 });
+                let label = tr("custom-what-changed");
+                super::dialogs::labelled(ui, &label, |ui| {
+                    ui.add(
+                        TextEdit::multiline(&mut form.changelog)
+                            .hint_text(tr("custom-what-changed-hint"))
+                            .desired_rows(2)
+                            .desired_width(f32::INFINITY)
+                            .margin(egui::Margin::symmetric(8, 5)),
+                    )
+                    .widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, true, &label));
+                });
+                ui.label(
+                    RichText::new(tr!(
+                        "custom-what-changed-count",
+                        count = form.changelog.trim().chars().count(),
+                        max = tp_vehicles::MAX_CHANGELOG
+                    ))
+                    .small()
+                    .color(ui.visuals().weak_text_color()),
+                );
+                under(ui, "changelog");
             }
             super::dialogs::columns(ui, &[1.0, 1.0], |ui, column| match column {
                 0 => {

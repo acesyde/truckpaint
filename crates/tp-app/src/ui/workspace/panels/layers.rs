@@ -10,7 +10,7 @@ use egui::{
     WidgetInfo, WidgetType,
 };
 use tp_core::document::tree::{self, Placement};
-use tp_core::document::{Object, ObjectId};
+use tp_core::document::{Object, ObjectId, ShapeKind};
 use tp_ui::icons;
 use tp_ui::tokens::{color, radius, size, space, stroke};
 use tp_ui::widgets::{EmptyState, MenuRow, toggle_icon_button};
@@ -179,6 +179,26 @@ fn tile_glyph(object: &Object) -> egui::Color32 {
 }
 
 /// Draws one row; returns its rectangle.
+/// Whether `object`, or for a group an object inside it, is in `flagged`.
+fn has_flag(object: &Object, flagged: &std::collections::BTreeSet<ObjectId>) -> bool {
+    flagged.contains(&object.id)
+        || (object.kind == ShapeKind::Group && object.children.iter().any(|c| has_flag(c, flagged)))
+}
+
+/// The objects an update asked to reposition on the edited texture (none
+/// while a symbol is edited, or once the texture is checked).
+fn to_reposition(project: &tp_core::Project) -> Option<&std::collections::BTreeSet<ObjectId>> {
+    if project.edited_symbol().is_some() {
+        return None;
+    }
+    project
+        .surface()
+        .template
+        .as_ref()
+        .filter(|t| t.status == tp_core::TemplateStatus::LayoutChanged && !t.flagged.is_empty())
+        .map(|t| &t.flagged)
+}
+
 fn row_ui(
     ui: &mut Ui,
     cmds: &mut CommandUi<'_>,
@@ -201,8 +221,14 @@ fn row_ui(
     let selected = env.ws.selection.contains(&row.id);
     // The name as shown (a text named after its kind reads its first line).
     let (shown, kind_name) = crate::ui::workspace::inspector::name_and_kind(&object);
+    let flagged = to_reposition(&env.ws.project).is_some_and(|f| has_flag(&object, f));
+    let spoken = if flagged {
+        tr!("layers-name-to-reposition", name = shown.as_str())
+    } else {
+        shown.clone()
+    };
     response
-        .widget_info(|| WidgetInfo::selected(WidgetType::SelectableLabel, true, selected, &shown));
+        .widget_info(|| WidgetInfo::selected(WidgetType::SelectableLabel, true, selected, &spoken));
 
     // Background: selected rows are filled (their name in ink), as on the
     // Textures tab.
@@ -318,7 +344,18 @@ fn row_ui(
                 text_color,
             )
         });
-        let link_room = link.as_ref().map_or(0.0, |g| g.size().x + space::XS);
+        let mark = flagged.then(|| {
+            ui.painter().layout_no_wrap(
+                icons::WARNING.to_owned(),
+                icons::font(size::ICON - 4.0),
+                color::WARNING,
+            )
+        });
+        let link_room = [&link, &mark]
+            .iter()
+            .filter_map(|g| g.as_ref())
+            .map(|g| g.size().x + space::XS)
+            .sum::<f32>();
         let mut job = egui::text::LayoutJob::simple_singleline(
             shown.clone(),
             egui::FontId::proportional(tp_ui::tokens::typography::CONTROL),
@@ -334,12 +371,23 @@ fn row_ui(
         );
         let painter = ui.painter();
         painter.galley(text.min, galley, text_color);
+        let mut after = text.right() + space::XS;
         if let Some(link) = link {
-            let at = Pos2::new(
-                text.right() + space::XS,
-                rect.center().y - link.size().y / 2.0,
-            );
+            let at = Pos2::new(after, rect.center().y - link.size().y / 2.0);
+            after += link.size().x + space::XS;
             painter.galley(at, link, text_color);
+        }
+        // The update mark: an icon (never color alone) explained on hover.
+        if let Some(mark) = mark {
+            let at = Pos2::new(after, rect.center().y - mark.size().y / 2.0);
+            let mark_rect = Rect::from_min_size(at, mark.size());
+            painter.galley(at, mark, color::WARNING);
+            ui.interact(
+                mark_rect,
+                ui.id().with(("reposition", row.id)),
+                Sense::hover(),
+            )
+            .on_hover_text(tr("layers-to-reposition-tooltip"));
         }
         if elided {
             response.clone().on_hover_text(&shown);

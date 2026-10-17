@@ -3,7 +3,7 @@
 //! each surface's template with the vehicle texture it belongs to. Frozen once released: a new
 //! format version gets its own module and a migration from this one.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
@@ -226,6 +226,9 @@ pub struct FileTemplate {
     /// A main texture's position among the package's main textures.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub main_index: Option<usize>,
+    /// Objects an update asked to reposition (only with `LayoutChanged`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub flagged_objects: Vec<u64>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -964,6 +967,10 @@ pub fn from_project(project: &Project) -> FileProject {
                     game_ids: t.game_ids.clone(),
                     also_paints: t.also_paints.clone(),
                     main_index: t.main_index,
+                    flagged_objects: match t.status {
+                        TemplateStatus::LayoutChanged => t.flagged.iter().map(|id| id.0).collect(),
+                        _ => Vec::new(),
+                    },
                 }),
             })
             .collect(),
@@ -1308,6 +1315,19 @@ pub fn into_document(
                     if !assets.contains_key(&AssetId(t.asset)) {
                         return Err(format!("the template of {} is missing", s.name));
                     }
+                    // Only objects still on the surface, and only while the
+                    // texture is flagged: a stale record shows no mark.
+                    let on: BTreeSet<ObjectId> =
+                        tp_core::objects_on(&surface).into_iter().collect();
+                    let flagged = match t.status {
+                        FileTemplateStatus::LayoutChanged => t
+                            .flagged_objects
+                            .iter()
+                            .map(|&id| ObjectId(id))
+                            .filter(|id| on.contains(id))
+                            .collect(),
+                        _ => BTreeSet::new(),
+                    };
                     Some(SurfaceTemplate {
                         package_id: t.package_id.clone(),
                         texture_id: t.texture_id.clone(),
@@ -1331,6 +1351,7 @@ pub fn into_document(
                         game_ids: t.game_ids.clone(),
                         also_paints: t.also_paints.clone(),
                         main_index: t.main_index,
+                        flagged,
                     })
                 }
                 None => None,

@@ -125,6 +125,10 @@ pub fn describe(e: &PackageError) -> String {
             "the {texture} template is larger than {} px",
             tp_vehicles::MAX_IMAGE_SIDE
         ),
+        PackageError::BadChangelog => format!(
+            "the changelog is longer than {} characters",
+            tp_vehicles::MAX_CHANGELOG
+        ),
     }
 }
 
@@ -395,6 +399,12 @@ pub fn summary(m: &Manifest) -> String {
     }
     if g.colour_picker {
         out.push_str("  colour picker\n");
+    }
+    if let Some(changelog) = &m.changelog {
+        out.push_str(&format!(
+            "  changelog: {}\n",
+            changelog.replace('\n', "\n    ")
+        ));
     }
     for (title, parts) in [
         ("main textures", &m.paint_job.main),

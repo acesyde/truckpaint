@@ -157,6 +157,7 @@ fn template_for(
         opacity,
         visible,
         status: TemplateStatus::Current,
+        flagged: Default::default(),
     })
 }
 
@@ -322,6 +323,9 @@ pub enum TextureChange {
         layout_changed: bool,
         /// Old and new sizes when the texture's size changed.
         resized: Option<(Size, Size)>,
+        /// Objects to reposition when the layout changed (see
+        /// [`tp_core::objects_on`]), else 0.
+        objects: usize,
     },
     /// No longer in the package: the surface is kept, without template.
     Removed { name: String },
@@ -352,6 +356,8 @@ pub struct UpdatePlan {
     pub to: String,
     pub changes: Vec<TextureChange>,
     pub new: Vec<NewTexture>,
+    /// What the new version says changed.
+    pub changelog: Option<String>,
 }
 
 /// The plan to move the project's vehicle of `package` to that package
@@ -368,10 +374,16 @@ pub fn plan(project: &Project, package: &Package) -> Option<UpdatePlan> {
         match m.paint_job.part(&t.texture_id) {
             Some((_, part)) => {
                 let size = texture_size(part);
+                let layout_changed = part.texture.layout_version != t.layout_version;
                 changes.push(TextureChange::Replaced {
                     name,
-                    layout_changed: part.texture.layout_version != t.layout_version,
+                    layout_changed,
                     resized: (size != surface.size).then_some((surface.size, size)),
+                    objects: if layout_changed {
+                        tp_core::objects_on(surface).len()
+                    } else {
+                        0
+                    },
                 });
             }
             None => changes.push(TextureChange::Removed { name }),
@@ -394,7 +406,62 @@ pub fn plan(project: &Project, package: &Package) -> Option<UpdatePlan> {
         to: m.version.to_string(),
         changes,
         new,
+        changelog: m.changelog.clone(),
     })
+}
+
+/// What updating a project's vehicle to a newer version asks of it,
+/// compared with the layouts the project records (so the version it uses
+/// need not be installed).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct ProjectImpact {
+    /// Painted textures whose layout version differs.
+    pub textures: usize,
+    /// Objects on those textures (see [`tp_core::objects_on`]).
+    pub objects: usize,
+    pub resized: usize,
+    /// Painted textures the version no longer has.
+    pub removed: usize,
+}
+
+impl ProjectImpact {
+    /// "Nothing to reposition".
+    pub fn is_nothing(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// The impact of moving `summary`'s project to `manifest`'s version, or
+/// `None` when the project doesn't use the vehicle or already uses that
+/// version or a newer one.
+pub fn impact(summary: &tp_file::Summary, manifest: &Manifest) -> Option<ProjectImpact> {
+    let vehicle = summary
+        .vehicles
+        .iter()
+        .find(|v| v.package_id == manifest.id)?;
+    if semver::Version::parse(&vehicle.version).is_ok_and(|v| v >= manifest.version) {
+        return None;
+    }
+    let mut out = ProjectImpact::default();
+    for t in summary
+        .textures
+        .iter()
+        .filter(|t| t.package_id == manifest.id)
+    {
+        match manifest.paint_job.part(&t.texture_id) {
+            None => out.removed += 1,
+            Some((_, part)) => {
+                if part.texture.layout_version != t.layout_version {
+                    out.textures += 1;
+                    out.objects += t.objects;
+                }
+                if texture_size(part) != t.size {
+                    out.resized += 1;
+                }
+            }
+        }
+    }
+    Some(out)
 }
 
 /// `objects` of a texture of `old` pixels, scaled for a texture of `new`
@@ -637,6 +704,16 @@ impl Workspace {
                     let old = surface.size;
                     scale_surface(surface, old, size);
                 }
+                // Every object there now is to reposition, plus those still
+                // flagged by an earlier update.
+                if replaced.status == TemplateStatus::LayoutChanged {
+                    replaced.flagged = t
+                        .flagged
+                        .iter()
+                        .copied()
+                        .chain(tp_core::objects_on(surface))
+                        .collect();
+                }
                 surface.template = Some(replaced);
             }
             for (_, part) in m.paint_job.parts() {
@@ -670,6 +747,7 @@ impl Workspace {
                 && t.status == TemplateStatus::LayoutChanged
             {
                 t.status = TemplateStatus::Current;
+                t.flagged.clear();
             }
         });
     }
@@ -1362,6 +1440,13 @@ mod tests {
             1.0,
         );
         ws.project.surfaces[0].template.as_mut().unwrap().opacity = 0.3;
+        // A logo on the cabin, whose layout changes: one object to reposition.
+        ws.set_active_surface(0);
+        ws.create_shape(
+            ShapeKind::rectangle(),
+            Frame::new(Point::new(100.0, 100.0), Size::new(50.0, 50.0), 0.0),
+            1.0,
+        );
         let v2 = package(
             "1.3.0",
             &[
@@ -1378,12 +1463,14 @@ mod tests {
                 TextureChange::Replaced {
                     name: "Cabin".into(),
                     layout_changed: true,
-                    resized: None
+                    resized: None,
+                    objects: 1
                 },
                 TextureChange::Replaced {
                     name: "Chassis".into(),
                     layout_changed: false,
-                    resized: Some((Size::new(2048.0, 2048.0), Size::new(4096.0, 4096.0)))
+                    resized: Some((Size::new(2048.0, 2048.0), Size::new(4096.0, 4096.0))),
+                    objects: 0
                 },
                 TextureChange::Removed { name: "Old".into() },
             ]
@@ -1462,17 +1549,20 @@ mod tests {
                 TextureChange::Replaced {
                     name: "Standard cab".into(),
                     layout_changed: true,
-                    resized: None
+                    resized: None,
+                    objects: 0
                 },
                 TextureChange::Replaced {
                     name: "Chassis".into(),
                     layout_changed: false,
-                    resized: Some((Size::new(2048.0, 2048.0), Size::new(4096.0, 4096.0)))
+                    resized: Some((Size::new(2048.0, 2048.0), Size::new(4096.0, 4096.0))),
+                    objects: 0
                 },
                 TextureChange::Replaced {
                     name: "Cab accessories".into(),
                     layout_changed: false,
-                    resized: None
+                    resized: None,
+                    objects: 0
                 },
             ]
         );
@@ -1710,5 +1800,227 @@ mod tests {
             .position(|s| s.name == "Base")
             .unwrap();
         assert!(cabin_sources(&project, base).is_empty(), "a trailer");
+    }
+
+    #[test]
+    fn impact_compares_recorded_layouts_with_the_new_version() {
+        use tp_file::{Summary, SummaryTexture, SummaryVehicle};
+        let texture = |id: &str, layout: u32, side: f64, objects: usize| SummaryTexture {
+            package_id: "scs.sample.truck".into(),
+            texture_id: id.into(),
+            layout_version: layout,
+            size: Size::new(side, side),
+            objects,
+        };
+        let summary = |version: &str, textures: Vec<SummaryTexture>| Summary {
+            name: "Transports Ardent".into(),
+            vehicles: vec![SummaryVehicle {
+                package_id: "scs.sample.truck".into(),
+                version: version.into(),
+            }],
+            textures,
+        };
+        // 1.1.0 changes the cabin's layout and resizes the chassis; the
+        // project still has a texture 1.1.0 dropped. 1.0.0 need not be
+        // installed: only what the project records is compared.
+        let v2 = package(
+            "1.1.0",
+            &[
+                tex("cabin", "Cabin", 4096, 2),
+                tex("chassis", "Chassis", 4096, 1),
+            ],
+        );
+        let project = summary(
+            "1.0.0",
+            vec![
+                texture("cabin", 1, 4096.0, 3),
+                texture("chassis", 1, 2048.0, 5),
+                texture("old", 1, 512.0, 2),
+            ],
+        );
+        assert_eq!(
+            impact(&project, &v2.manifest),
+            Some(ProjectImpact {
+                textures: 1,
+                objects: 3,
+                resized: 1,
+                removed: 1
+            })
+        );
+        // Same layouts and sizes: nothing to reposition.
+        let unchanged = summary("1.0.0", vec![texture("cabin", 2, 4096.0, 4)]);
+        assert!(impact(&unchanged, &v2.manifest).unwrap().is_nothing());
+        // Up to date, or another vehicle: not listed.
+        assert_eq!(impact(&summary("1.1.0", vec![]), &v2.manifest), None);
+        let other = Summary {
+            vehicles: vec![SummaryVehicle {
+                package_id: "scs.other.truck".into(),
+                version: "1.0.0".into(),
+            }],
+            ..Summary::default()
+        };
+        assert_eq!(impact(&other, &v2.manifest), None);
+    }
+
+    /// A cabin flagged by an update from 1.0.0 to 1.1.0, holding the
+    /// rectangles a, b, c, d, a path, a group of two rectangles and one
+    /// rectangle never touched.
+    struct Flagged {
+        ws: Workspace,
+        a: ObjectId,
+        b: ObjectId,
+        c: ObjectId,
+        d: ObjectId,
+        path: ObjectId,
+        group: ObjectId,
+        child: ObjectId,
+    }
+
+    fn flagged_cabin() -> Flagged {
+        use tp_core::document::{Node, PathData, Subpath};
+        let v1 = package(
+            "1.0.0",
+            &[
+                tex("cabin", "Cabin", 4096, 1),
+                tex("chassis", "Chassis", 2048, 1),
+            ],
+        );
+        let mut ws = Workspace::new(fleet_project("T", &[(&v1, &ids(&["chassis"]))]).unwrap());
+        ws.set_active_surface(0);
+        let [a, b, c, d, path, child, other, _spare] = [(); 8].map(|()| rect(&mut ws));
+        ws.edit_object(path, "undo-move-points", 1.0, |o| {
+            o.kind = ShapeKind::Path;
+            o.path = Some(Arc::new(PathData::new(vec![Subpath::new(
+                vec![
+                    Node::corner(Point::new(0.0, 0.0)),
+                    Node::corner(Point::new(10.0, 0.0)),
+                    Node::corner(Point::new(10.0, 10.0)),
+                ],
+                true,
+            )])));
+        });
+        ws.selection = vec![child, other];
+        ws.group_selection(1.0);
+        let group = ws.selection[0];
+        let v2 = package(
+            "1.1.0",
+            &[
+                tex("cabin", "Cabin", 4096, 2),
+                tex("chassis", "Chassis", 2048, 1),
+            ],
+        );
+        let count = match &plan(&ws.project, &v2).unwrap().changes[0] {
+            TextureChange::Replaced { objects, .. } => *objects,
+            other => panic!("{other:?}"),
+        };
+        assert!(ws.apply_update(&v2, &[], 2.0));
+        let f = Flagged {
+            ws,
+            a,
+            b,
+            c,
+            d,
+            path,
+            group,
+            child,
+        };
+        assert_eq!(
+            flags(&f.ws).len(),
+            count,
+            "the dialog's count is what gets flagged"
+        );
+        assert_eq!(count, 8);
+        f
+    }
+
+    fn flags(ws: &Workspace) -> std::collections::BTreeSet<ObjectId> {
+        ws.project.surfaces[0]
+            .template
+            .as_ref()
+            .unwrap()
+            .flagged
+            .clone()
+    }
+
+    #[test]
+    fn update_flags_objects_and_undo_removes_the_flags() {
+        let mut f = flagged_cabin();
+        assert!(flags(&f.ws).contains(&f.child) && !flags(&f.ws).contains(&f.group));
+        f.ws.undo();
+        assert!(flags(&f.ws).is_empty());
+        f.ws.redo();
+        assert_eq!(flags(&f.ws).len(), 8);
+        // A second update keeps the flags and adds the objects drawn since.
+        {
+            f.ws.selection = vec![f.a];
+            f.ws.nudge(1.0, 0.0, 1.0);
+        }
+        let e = rect(&mut f.ws);
+        let v3 = package(
+            "1.2.0",
+            &[
+                tex("cabin", "Cabin", 4096, 3),
+                tex("chassis", "Chassis", 2048, 1),
+            ],
+        );
+        assert!(f.ws.apply_update(&v3, &[], 5.0));
+        assert!(flags(&f.ws).contains(&e) && flags(&f.ws).contains(&f.a));
+        assert_eq!(flags(&f.ws).len(), 9);
+    }
+
+    #[test]
+    fn moving_clears_a_flag_and_looks_keep_it() {
+        let mut f = flagged_cabin();
+        let ws = &mut f.ws;
+        // Look, text-free renames and opacity keep the flag.
+        ws.edit_object(f.a, "undo-change-fill", 3.0, |o| {
+            o.fill = tp_core::document::Paint::Solid(tp_core::document::Rgba::rgb(255, 255, 255))
+        });
+        ws.rename(f.a, "Logo", 3.1);
+        ws.edit_object(f.a, "undo-change-opacity", 3.2, |o| o.opacity = 0.5);
+        assert!(flags(ws).contains(&f.a));
+        // Nudge (move), then undo brings the flag back.
+        {
+            ws.selection = vec![f.a];
+            ws.nudge(1.0, 0.0, 4.0);
+        }
+        assert!(!flags(ws).contains(&f.a));
+        ws.undo();
+        assert!(flags(ws).contains(&f.a));
+        // Resize and rotate: a changed frame.
+        ws.edit_object(f.b, "undo-resize", 5.0, |o| {
+            o.frame.size = Size::new(80.0, 80.0)
+        });
+        ws.edit_object(f.c, "undo-rotate", 6.0, |o| o.frame.rotation_deg = 30.0);
+        assert!(!flags(ws).contains(&f.b) && !flags(ws).contains(&f.c));
+        // Align: b is larger now, so aligning left edges moves d.
+        ws.selection = vec![f.d, f.b];
+        ws.align_selection(tp_core::document::Edge::Left, 8.0);
+        assert!(!flags(ws).contains(&f.d));
+        // Node edit: a changed path.
+        ws.edit_object(f.path, "undo-move-points", 9.0, |o| {
+            let mut data = (**o.path.as_ref().unwrap()).clone();
+            data.transform(tp_core::kurbo::Affine::translate((5.0, 0.0)));
+            o.path = Some(Arc::new(data));
+        });
+        assert!(!flags(ws).contains(&f.path));
+        // Moving a group clears its children.
+        {
+            ws.selection = vec![f.group];
+            ws.nudge(1.0, 0.0, 10.0);
+        }
+        assert!(!flags(ws).contains(&f.child));
+        // Deleting drops the id; Mark as Checked clears all.
+        ws.selection = vec![f.a];
+        ws.delete_selection(11.0);
+        assert!(!flags(ws).contains(&f.a));
+        assert_eq!(flags(ws).len(), 1, "only the spare is still flagged");
+        ws.dismiss_layout_change(0, 12.0);
+        assert!(flags(ws).is_empty());
+        ws.undo();
+        assert!(
+            !flags(ws).is_empty(),
+            "Undo of Mark as Checked restores them"
+        );
     }
 }

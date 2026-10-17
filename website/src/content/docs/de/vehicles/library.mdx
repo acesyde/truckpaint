@@ -43,6 +43,19 @@ Klicken Sie auf <Ui id="vehicles-install" /> und wählen Sie eine oder mehrere `
 
 Ist kein Fahrzeug installiert, erklärt die Bibliothek, was Pakete sind, und bietet <Ui id="vehicles-install-sample" /> an.
 
+## Sehen, was ein Update ändert
+
+Sind mehrere Versionen eines Fahrzeugs installiert, zeigen seine Details eine Übersicht der neuesten, verglichen mit der Version davor:
+
+- die Änderungen, die der Autor des Pakets beschrieben hat, sofern vorhanden;
+- was TruckPaint beim Vergleich der beiden Versionen findet: Texturen mit geändertem Layout, Texturen mit geänderter Größe sowie hinzugefügte oder entfernte Texturen. Gibt es nichts zu zeigen, steht dort <Ui id="vehicles-no-changes" />.
+
+Darunter listet <Ui id="vehicles-projects" /> Ihre letzten Projekte, die eine ältere Version verwenden, und das geöffnete Projekt, mit der Arbeit, die das Update verlangt: „Transports Ardent: 1 Textur, 3 Objekte neu zu positionieren“. TruckPaint weiß nicht, welche Bereiche einer Vorlage sich verschoben haben, daher zählt jedes Objekt auf einer Textur mit geändertem Layout. Die Projekte werden gelesen, ohne sie zu öffnen oder zu ändern. Wie die Liste sagt, werden nur die letzten Projekte aufgeführt.
+
+<Shot name="vehicles/update-summary" alt="Die Fahrzeugbibliothek mit der Update-Übersicht des Beispiel-Lkw: Layout von Standard cab geändert, Side skirts hinzugefügt und das Projekt ACE Logistics mit den neu zu positionierenden Objekten." />
+
+<Ui id="vehicles-later" /> schließt die Bibliothek. <Ui id="update-apply" /> führt <Ui id="cmd-update-template" /> im geöffneten Projekt aus, wenn es dieses Fahrzeug verwendet; sonst ist die Schaltfläche deaktiviert, und die anderen Projekte werden beim Öffnen aktualisiert.
+
 ## Das Fahrzeug eines Projekts aktualisieren
 
 Lautet der Status eines Fahrzeugs <Ui id="vehicles-status-update" />, bieten seine Details <Ui id="cmd-update-template" /> an. Damit schließt sich die Bibliothek, und dieses Fahrzeug des geöffneten Projekts wechselt zur neueren Version: Die Vorlagen werden ersetzt, Ihre Grafik bleibt erhalten. Texturen, deren Layout sich geändert hat, werden zur Prüfung markiert. Sie können die Aktualisierung auch über die Karte des Fahrzeugs im [Bereich Projekt](../../fleet/project/) starten.

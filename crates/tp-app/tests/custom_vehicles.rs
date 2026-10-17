@@ -902,3 +902,53 @@ fn custom_vehicle_dialog_stays_in_the_window() {
     assert!(h.query_all_by_label("Role").next().is_some());
     assert!(h.query_all_by_label("Height").next().is_some());
 }
+
+#[test]
+fn new_version_records_what_changed() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = app(dir.path());
+    install_custom_truck(&mut h, Game::Ets2);
+    h.state_mut().modal = Some(Modal::VehicleLibrary(Default::default()));
+    settle(&mut h);
+    let changelog = |h: &H, version: (u64, u64, u64)| {
+        h.state()
+            .vehicles
+            .load(
+                "custom.scania.r_2024",
+                &semver::Version::new(version.0, version.1, version.2),
+            )
+            .unwrap()
+            .manifest
+            .changelog
+    };
+
+    h.get_by_label("New version of R 2024").click();
+    settle(&mut h);
+    assert_eq!(form(&mut h).changelog, "", "starts empty");
+    assert!(
+        h.query_by_role_and_label(Role::TextInput, "What changed")
+            .is_some()
+    );
+    form(&mut h).changelog = "x".repeat(tp_vehicles::MAX_CHANGELOG + 1);
+    settle(&mut h);
+    assert!(!create_enabled(&h));
+    assert!(
+        h.query_by_label("“What changed” is longer than 1000 characters.")
+            .is_some()
+    );
+    assert!(h.query_by_label("1001 / 1000 characters").is_some());
+    form(&mut h).changelog = "Cabin template redrawn after game update 1.57".into();
+    settle(&mut h);
+    build(&mut h);
+    assert_eq!(
+        changelog(&h, (1, 1, 0)).as_deref(),
+        Some("Cabin template redrawn after game update 1.57")
+    );
+
+    // Left empty: the next version has no changelog.
+    h.get_by_label("New version of R 2024").click();
+    settle(&mut h);
+    assert_eq!(form(&mut h).changelog, "", "not copied from 1.1.0");
+    build(&mut h);
+    assert_eq!(changelog(&h, (1, 2, 0)), None);
+}

@@ -43,6 +43,19 @@ Click <Ui id="vehicles-install" /> and choose one or more `.tpv` files. You can 
 
 With no vehicle installed, the library explains what packages are and offers <Ui id="vehicles-install-sample" />.
 
+## See what an update changes
+
+When a vehicle has several versions installed, its details show an update summary of the newest one, compared with the version before it:
+
+- the changes the package's author wrote, when there are some;
+- what TruckPaint finds by comparing the two versions: textures whose layout changed, textures resized, and textures added or removed. With nothing to show, it says <Ui id="vehicles-no-changes" />.
+
+Under it, <Ui id="vehicles-projects" /> lists your recent projects that use an older version, and the open project, with the work the update asks for: "Transports Ardent: 1 texture, 3 objects to reposition". TruckPaint can't tell which areas of a template moved, so every object on a texture whose layout changed is counted. The projects are read without being opened or changed. Only recent projects are listed, as the list says.
+
+<Shot name="vehicles/update-summary" alt="The Vehicle Library showing the sample truck’s update summary: the layout changed on Standard cab, Side skirts added, and the project ACE Logistics with the objects to reposition." />
+
+<Ui id="vehicles-later" /> closes the library. <Ui id="update-apply" /> runs <Ui id="cmd-update-template" /> on the open project when it uses that vehicle; otherwise it is disabled, and the other projects are updated when you open them.
+
 ## Update a project's vehicle
 
 When the status of a vehicle reads <Ui id="vehicles-status-update" />, its details offer <Ui id="cmd-update-template" />. It closes the library and moves that vehicle of the open project to the newer version: the templates are replaced and your artwork is kept. Textures whose layout changed are marked to check. You can also start it from the vehicle's card in the [Project space](../../fleet/project/).
