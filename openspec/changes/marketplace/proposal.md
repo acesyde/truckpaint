@@ -4,7 +4,7 @@ Community vehicle packages (`.tpv`) can only be installed by hand today: the pla
 
 ## What Changes
 
-- **A public catalog,** kept in its own repository (`acesyde/truckpaint-marketplace`). Each `.tpv` is an asset of a GitHub Release (no Git LFS, no submodule in this repository). A single `catalog.json` lists every published package: id, game, kind, name, brand, version, size, SHA-256, download address, minimum app version, game version, preview.
+- **A public catalog,** kept in its own repository (`acesyde/truckpaint-marketplace`). The `.tpv` files are committed there under `packages/`, so every version is kept in git history (no Git LFS, no submodule in this repository). A single `catalog.json` lists every published package: id, game, kind, name, brand, version, size, SHA-256, download address, minimum app version, game version, preview. It is not committed: a workflow rebuilds it on every merge to `main` and publishes it on GitHub Pages.
 - **`tpv index`,** a new command that builds `catalog.json` from a folder of `.tpv` files, and `tpv index --check` that fails when a package is invalid, a published version changed, or a version does not go up. The marketplace repository's CI uses it on every pull request and on release.
 - **A published version never changes.** A fix is a new version. The catalog keeps older versions listed so a project can still get the one it uses.
 - **The app browses the catalog:** Vehicle › Vehicle Library… gets a **Marketplace** tab (search, game and kind filters, size, **Install** / **Update** / **Installed**). The catalog is downloaded when the tab opens, cached on disk, and used from the cache when offline.
@@ -24,12 +24,13 @@ Open questions:
 - **Redistribution rights.** Packages built from the game contain templates owned by SCS Software, and similar content is already shared on SCS's official forums. The Marketplace therefore shows a legal notice (below), and the catalog keeps `license` and a `notice` on each entry. Confirming that SCS's modding policy allows this sharing stays with the repository owner; the notice does not grant any right by itself.
 - Whether GitHub Pages or the repository's raw `catalog.json` is the default address. Proposed: Pages (stable address, CORS, CDN); the address is a setting, so it can change without a release.
 - How many versions of a vehicle the catalog keeps. Proposed: all of them.
+- Repository size: 69 packages are about 76 MB, the largest 12 MB, and git history keeps every version. If the repository nears 1 GB, move `.tpv` files to release assets; only the entries' `url` changes.
 
 ## Capabilities
 
 ### New Capabilities
 - `marketplace`: the Marketplace tab, listing, filters, install and update, cache and offline behavior, address setting, what is sent and when.
-- `marketplace-catalog`: the format of `catalog.json`, the rules every published package follows (immutable versions, release assets, integrity), and the repository's CI checks.
+- `marketplace-catalog`: the format of `catalog.json`, the rules every published package follows (immutable versions, files in git, integrity), and the repository's CI checks.
 
 ### Modified Capabilities
 - `vehicle-authoring`: `tpv index` and `tpv index --check`.
@@ -37,7 +38,7 @@ Open questions:
 
 ## Impact
 
-- **New repository content** (outside this repo): `acesyde/truckpaint-marketplace` holds `catalog.json` (generated), a validation workflow and a release workflow. No `.tpv` in git.
+- **New repository content** (outside this repo): `acesyde/truckpaint-marketplace` holds the `.tpv` files, a validation workflow and a publish workflow; `catalog.json` is generated and published on Pages, never committed.
 - **tp-pack:** `tpv index`; the catalog types are shared with the app (in `tp-vehicles`).
 - **tp-vehicles:** catalog types, parsing and the choice of the newest compatible version; unit-tested.
 - **tp-app:**

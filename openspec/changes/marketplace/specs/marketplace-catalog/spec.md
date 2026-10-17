@@ -28,15 +28,15 @@ A published version of a vehicle SHALL never change. A correction SHALL be a new
 - **WHEN** a pull request replaces the file of an already published `1.2.0` with different content
 - **THEN** the repository's check fails and says the version is published and must be raised
 
-### Requirement: Release assets and integrity
-Each `.tpv` SHALL be downloadable from a stable HTTPS address (a GitHub Release asset). The entry's `size` and `sha256` SHALL describe exactly the file at `url`.
+### Requirement: Package files and integrity
+Each `.tpv` SHALL be kept in the catalog repository and downloadable from a stable HTTPS address that names a commit, not a branch. The entry's `size` and `sha256` SHALL describe exactly the file at `url`.
 
 #### Scenario: Wrong checksum
 - **WHEN** the file at an entry's address does not match its `sha256`
 - **THEN** the repository's check fails, and the app, if it ever downloads it, refuses to install it
 
 ### Requirement: Repository checks
-Every pull request on the catalog repository SHALL be checked: each `.tpv` is a valid package, ids and versions are unique and well formed, versions only go up, `license` is present, and the generated `catalog.json` matches what the packages say. A release SHALL publish the `.tpv` files and the regenerated catalog together.
+Every pull request on the catalog repository SHALL be checked: each `.tpv` is a valid package, ids and versions are unique and well formed, versions only go up, `license` is present, and the generated `catalog.json` matches what the packages say. On every merge to the main branch, `catalog.json` SHALL be regenerated and published; it SHALL NOT be committed to the repository, so it always matches the packages on the main branch.
 
 #### Scenario: Invalid package in a pull request
 - **WHEN** a pull request adds a `.tpv` that `tpv check` refuses

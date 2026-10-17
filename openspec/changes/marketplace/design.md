@@ -5,7 +5,7 @@ Packages are installed from bytes (`install_bytes` in `tp-app/src/vehicles.rs`),
 ## Goals / Non-Goals
 
 **Goals:**
-- One static file and plain release assets: no server code to run.
+- One static file and plain git files: no server code to run.
 - The same validation for a downloaded package as for a dropped file.
 - The catalog format shared by the app and `tpv index`, so they can't drift.
 
@@ -14,9 +14,11 @@ Packages are installed from bytes (`install_bytes` in `tp-app/src/vehicles.rs`),
 
 ## Decisions
 
-**Hosting: GitHub Release assets for `.tpv`, `catalog.json` on GitHub Pages.** Not Git LFS: raw URLs return the pointer file, and the free bandwidth quota runs out. Not `.tpv` in git: the history grows with every version. Not a submodule: the app reads the catalog at run time, not at build time. Pages gives a stable address, a CDN and CORS. The address is a setting, so moving it later costs no release. The default address is one constant in the app.
+**Hosting: `.tpv` files committed in the catalog repository under `packages/`; `catalog.json` generated and published on GitHub Pages.** Git history versions every package, and there is one place to review. Not Git LFS: raw URLs return the pointer file, and the free bandwidth quota runs out. Not release assets: a second place to keep in step with the pull request. Not a submodule: the app reads the catalog at run time, not at build time. Each entry's `url` is a `raw.githubusercontent.com` address pinned to the commit that published the catalog (given to `tpv index` as `--base-url`), never to `main`; versions are immutable, so the bytes behind a SHA-256 stay the same. Pages gives a stable address, a CDN and CORS. The address is a setting, so moving it later costs no release. The default address is one constant in the app.
 
-**One catalog, all versions, immutable.** A flat `packages` list, one entry per `(id, version)`. Immutability is checked by `tpv index --check` against the committed catalog (an existing version's SHA-256 must not change). The app picks the newest version with `min_app <= app version`; older ones stay available in the detail pane, which serves projects pinned to an earlier layout (`template-update-impact`).
+**Catalog is built, not committed.** A workflow on every merge to `main` runs `tpv index` and deploys the file to Pages. No bot commits, so no loops and no conflicts between pull requests, and the catalog can't lag behind the packages. Pull requests run `tpv index --check` only.
+
+**One catalog, all versions, immutable.** A flat `packages` list, one entry per `(id, version)`. Immutability is checked by `tpv index --check` against the committed catalog (an existing version's SHA-256 must not change; it compares with the catalog currently published on Pages). The app picks the newest version with `min_app <= app version`; older ones stay available in the detail pane, which serves projects pinned to an earlier layout (`template-update-impact`).
 
 **Catalog types live in `tp-vehicles`,** next to `Manifest`: `Catalog`, `Entry`, parsing, and `newest_compatible`. `tp-pack` builds it, `tp-app` reads it. Pure code, unit-tested, no I/O.
 
@@ -38,14 +40,15 @@ Packages are installed from bytes (`install_bytes` in `tp-app/src/vehicles.rs`),
 
 - **Redistribution of SCS assets** → catalog entries need `license`, and the repository only accepts packages whose author states the right to share them. This is a legal question the repository owner decides; the design does not solve it.
 - **Checksum is not authenticity.** Anyone who can change the repository can change the catalog and the hash together → the repository is protected (reviewed pull requests); signing is a later change if contributions open up.
-- **GitHub availability and rate limits on assets** → the cache keeps browsing working offline; installed packages never depend on the network.
+- **Repository grows with every version** → measured at about 76 MB for 69 packages; if it nears 1 GB, move files to release assets (only `url` changes).
+- **GitHub availability and rate limits on raw files** → the cache keeps browsing working offline; installed packages never depend on the network.
 - **A bad catalog address makes the tab useless** → Clearing the setting restores the official one; the environment variable is documented for testing only.
 - **New dependencies add build time and binary size** → measured at the start (task 1) before the rest is built.
 - **A pinned older version removed from the catalog by mistake** → `tpv index --check` fails when an entry disappears from the existing catalog.
 
 ## Migration Plan
 
-1. Create the catalog repository's workflows and an empty `catalog.json`; publish the sample packages first as a real test.
+1. Create the catalog repository's workflows; commit the sample packages first and let the workflow publish the first catalog as a real test.
 2. Ship the app change with the built-in address pointing there.
 3. Rollback: the setting can point elsewhere; the tab can be hidden by an empty catalog without breaking installed vehicles.
 

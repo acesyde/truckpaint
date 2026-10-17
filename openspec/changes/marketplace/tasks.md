@@ -35,9 +35,9 @@
 
 ## 6. Catalog repository (acesyde/truckpaint-marketplace)
 
-- [ ] 6.1 `validate` workflow: build `tpv` from a pinned app tag, run `tpv index --check` on pull requests
-- [ ] 6.2 `release` workflow: create the release with the `.tpv` assets, regenerate and publish `catalog.json` (Pages)
-- [ ] 6.3 `CONTRIBUTING.md` (how to submit, immutable versions, license required) and the sample packages as first entries
+- [ ] 6.1 `validate` workflow: build `tpv` from a pinned app tag, run `tpv index --check` on pull requests (against the catalog published on Pages)
+- [ ] 6.2 `publish` workflow on merge to `main`: run `tpv index` with URLs pinned to the commit, deploy `catalog.json` to Pages (never committed)
+- [ ] 6.3 `CONTRIBUTING.md` (how to submit under `packages/`, immutable versions, license required) and the sample packages as first entries
 - [ ] 6.4 README legal notice and contribution rule on game-derived templates; confirm SCS's modding policy allows the sharing before the first release
 
 ## 7. Documentation
