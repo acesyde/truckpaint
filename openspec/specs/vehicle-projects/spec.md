@@ -75,7 +75,9 @@ It SHALL show what will change for every texture of the vehicle in the project. 
 - **Texture of the project missing from the new version:** the surface and its artwork are kept, marked "Not in this version" and drawn without a template.
 - The vehicle's recorded package version becomes the new one. The project's other vehicles are unchanged.
 
-Undo SHALL restore the previous templates, surfaces and recorded version.
+The dialog SHALL also show the new version's changelog when it has one and, for each texture flagged "Layout changed", the number of objects on it that will have to be repositioned (see the template-update-impact capability). On confirmation, those objects SHALL be flagged (see the layers-panel capability) and remembered with the project.
+
+Undo SHALL restore the previous templates, surfaces and recorded version. Undo SHALL also remove the flags the update added.
 
 #### Scenario: Patch that changed the cabin layout
 - **WHEN** a vehicle in a project uses version 1.2.0 (Standard cab layout 1, Chassis layout 1) and the user updates it to 1.3.0 (Standard cab layout 2, Chassis layout 1)
@@ -96,6 +98,14 @@ Undo SHALL restore the previous templates, surfaces and recorded version.
 #### Scenario: Update from the Project space
 - **WHEN** the Project space is shown and the user starts Update Template from the sample truck's vehicle card
 - **THEN** the same Update Template dialog opens for the sample truck
+
+#### Scenario: Objects to reposition in the dialog
+- **WHEN** the Standard cab texture holds a logo, a text and a group of two rectangles, and the user opens Update Template to a version that changed its layout
+- **THEN** the dialog lists Standard cab as "Layout changed" with 4 objects to reposition, and shows the version's changelog
+
+#### Scenario: Update without a changelog
+- **WHEN** the new version has no changelog
+- **THEN** the dialog shows no changelog section
 
 ### Requirement: Templates travel with the project
 A project SHALL open with its templates on any computer, whether or not its packages are installed. When a package isn't installed, the Textures tab and the Project space SHALL still show the recorded vehicle, its version and its textures. Update Template and adding textures stay disabled for that vehicle.

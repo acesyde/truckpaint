@@ -127,7 +127,8 @@ Vehicle › Vehicle Library… SHALL open a dialog with two tabs, a list and a d
   - its name, brand, kind and game;
   - the newest installed version and its supported game versions, or "any version" when the package sets no limit;
   - its paint job: the names of its main textures and the number of accessories;
-  - every installed version, each with **Export…** and **Remove**.
+  - every installed version, each with **Export…** and **Remove**;
+  - for a vehicle with several installed versions, what its newest version changes and which known projects it touches (see the template-update-impact capability).
 
 It SHALL offer:
 - **Install…**;
@@ -185,3 +186,18 @@ The button SHALL install both samples like any other package, with the same conf
 #### Scenario: Library with vehicles
 - **WHEN** at least one vehicle is installed
 - **THEN** neither the Vehicle Library nor New Project shows Install the sample vehicles
+
+### Requirement: Package changelog
+A package's manifest MAY have an optional `changelog`: plain text of at most 1000 characters saying what changed in that version ("Door layout redrawn, islands moved. Low cabin added."). A package without it SHALL be valid and behave as before. A `changelog` over the limit, or that is not text, SHALL refuse the package with a message naming the field. An application that doesn't know the field SHALL ignore it. The changelog describes the version it is in and SHALL NOT change which version is newer, the texture layouts or the export.
+
+#### Scenario: Package with a changelog
+- **WHEN** a package whose manifest has `"changelog": "Door layout redrawn."` is installed
+- **THEN** it is installed like any other package and its newest version carries that text
+
+#### Scenario: Package without a changelog
+- **WHEN** a package whose manifest has no `changelog` is installed
+- **THEN** it is installed and listed as before
+
+#### Scenario: Changelog too long
+- **WHEN** a package has a `changelog` of 1001 characters
+- **THEN** installation is refused with a message saying the changelog is longer than 1000 characters
