@@ -11,6 +11,7 @@ Packages are installed from bytes (`install_bytes` in `tp-app/src/vehicles.rs`),
 
 **Non-Goals:**
 - Package signing, accounts, upload from the app, delta downloads, mirrors.
+- Generating packages in CI. Game-derived `.tpv` files are built on the maintainer's computer with `tpv extract` (the game and ConverterPIX are needed) and committed; CI only validates them and builds the catalog.
 
 ## Decisions
 
