@@ -10,6 +10,7 @@ Community vehicle packages (`.tpv`) can only be installed by hand today: the pla
 - **The app browses the catalog:** Vehicle › Vehicle Library… gets a **Marketplace** tab (search, game and kind filters, size, **Install** / **Update** / **Installed**). The catalog is downloaded when the tab opens, cached on disk, and used from the cache when offline.
 - **Install checks before writing:** the download must match the catalog's size and SHA-256, then goes through the same validation as any package. Nothing is installed otherwise.
 - **The catalog address can be changed:** in Preferences, or with the environment variable `TRUCKPAINT_CATALOG_URL` (which wins), for testing a catalog before publishing it.
+- **A legal notice:** the Marketplace tab, the catalog repository's README and each game-derived package say that the game's content belongs to SCS Software, that TruckPaint and the catalog are unofficial and not endorsed by SCS, and that the content is shared only for personal modding, never for sale.
 - **No background traffic:** the app only contacts the catalog when the player opens the Marketplace tab or presses Refresh. It sends no identifier.
 
 Non-goals:
@@ -20,7 +21,7 @@ Non-goals:
 - automatic updates.
 
 Open questions:
-- **Redistribution rights.** Packages extracted from the game contain SCS-owned templates. Until it is settled that they may be redistributed, the catalog only lists packages whose author states the right to share them; `license` becomes required in catalog entries. Who decides, and what the player is told, is left to the repository owner.
+- **Redistribution rights.** Packages built from the game contain templates owned by SCS Software, and similar content is already shared on SCS's official forums. The Marketplace therefore shows a legal notice (below), and the catalog keeps `license` and a `notice` on each entry. Confirming that SCS's modding policy allows this sharing stays with the repository owner; the notice does not grant any right by itself.
 - Whether GitHub Pages or the repository's raw `catalog.json` is the default address. Proposed: Pages (stable address, CORS, CDN); the address is a setting, so it can change without a release.
 - How many versions of a vehicle the catalog keeps. Proposed: all of them.
 

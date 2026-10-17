@@ -29,15 +29,16 @@
 - [ ] 5.1 Third tab in the Vehicle Library: list, search, game and kind filters with counts, status, detail pane
 - [ ] 5.2 Install / Update with several selected, progress, Cancel, confirmation, error messages
 - [ ] 5.3 Preferences: Catalog address field, the environment note, error on a refused address
-- [ ] 5.4 Strings in en, fr, es, de (same ids; check German widths)
-- [ ] 5.5 Headless UI tests (`egui_kittest`): listing, filter, install state, offline, update
+- [ ] 5.4 The legal notice in the tab and the entry `notice` in the detail pane
+- [ ] 5.5 Strings in en, fr, es, de (same ids; check German widths)
+- [ ] 5.6 Headless UI tests (`egui_kittest`): listing, filter, install state, offline, update
 
 ## 6. Catalog repository (acesyde/truckpaint-marketplace)
 
 - [ ] 6.1 `validate` workflow: build `tpv` from a pinned app tag, run `tpv index --check` on pull requests
 - [ ] 6.2 `release` workflow: create the release with the `.tpv` assets, regenerate and publish `catalog.json` (Pages)
 - [ ] 6.3 `CONTRIBUTING.md` (how to submit, immutable versions, license required) and the sample packages as first entries
-- [ ] 6.4 Decide and write down the redistribution rule for game-derived packages before accepting any
+- [ ] 6.4 README legal notice and contribution rule on game-derived templates; confirm SCS's modding policy allows the sharing before the first release
 
 ## 7. Documentation
 

@@ -9,7 +9,7 @@ The catalog SHALL be one JSON file, `catalog.json`, with:
 - `generated`: the time it was built, in UTC;
 - `packages`: one entry per published version of a vehicle.
 
-Each entry SHALL have `id`, `version`, `name`, `brand`, `kind` (`truck` or `trailer`), `game` (`ets2` or `ats`), `size` (bytes), `sha256` (lowercase hex of the `.tpv`), `url` (HTTPS address of the `.tpv`), `license`, and `min_app` (the oldest TruckPaint that can install it). It MAY have `game_versions` (the range from the package), `preview` (an HTTPS image address), `authors` and `changelog`.
+Each entry SHALL have `id`, `version`, `name`, `brand`, `kind` (`truck` or `trailer`), `game` (`ets2` or `ats`), `size` (bytes), `sha256` (lowercase hex of the `.tpv`), `url` (HTTPS address of the `.tpv`), `license`, and `min_app` (the oldest TruckPaint that can install it). It MAY have `game_versions` (the range from the package), `preview` (an HTTPS image address), `authors`, `changelog` and `notice` (a short rights statement shown with the vehicle).
 
 A reader SHALL ignore unknown fields. A catalog whose `schema` it does not know SHALL be refused with a message saying the app must be updated.
 
@@ -41,3 +41,10 @@ Every pull request on the catalog repository SHALL be checked: each `.tpv` is a 
 #### Scenario: Invalid package in a pull request
 - **WHEN** a pull request adds a `.tpv` that `tpv check` refuses
 - **THEN** the check fails with the same message as `tpv check`
+
+### Requirement: Rights statement
+Every entry SHALL have a non-empty `license`. The catalog repository SHALL carry a notice in its README saying that game-derived content belongs to SCS Software, that the catalog is unofficial, and that packages are for personal modding and not for sale, and its contribution guide SHALL require authors to state where a game-derived template comes from.
+
+#### Scenario: Entry without license
+- **WHEN** a pull request adds a package whose entry has no `license`
+- **THEN** the repository's check fails and says the license is required

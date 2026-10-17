@@ -56,3 +56,14 @@ The app SHALL contact the catalog's server only for Marketplace actions the play
 #### Scenario: Nothing at startup
 - **WHEN** TruckPaint starts and the Marketplace tab is never opened
 - **THEN** no request is sent to the catalog
+
+### Requirement: Legal notice
+The Marketplace tab SHALL show, always visible and in the player's language, a notice saying that the content of game-derived vehicles belongs to SCS Software, that TruckPaint and the Marketplace are unofficial and not endorsed by SCS Software, and that the packages are for personal modding and not for sale. A vehicle whose catalog entry has a `notice` SHALL show it in the detail pane. Installing SHALL not require accepting the notice.
+
+#### Scenario: Notice shown
+- **WHEN** the player opens the Marketplace tab
+- **THEN** the notice is visible above the list without scrolling
+
+#### Scenario: Entry notice
+- **WHEN** a vehicle's entry has a `notice`
+- **THEN** the detail pane shows its text
