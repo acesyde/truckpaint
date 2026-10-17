@@ -157,7 +157,8 @@ A vehicle whose id starts with `custom.` SHALL offer **New Version…** in the V
 In that dialog:
 - the id, the kind and the game SHALL be shown and can't be changed;
 - a **Version** field SHALL default to the next minor version (1.0.0 gives 1.1.0). It SHALL be refused unless it is a valid version higher than every installed version of the vehicle;
-- the other fields and the rows SHALL be edited as when creating a vehicle.
+- the other fields and the rows SHALL be edited as when creating a vehicle;
+- a **What changed** field, empty by default, SHALL hold the text of at most 1000 characters written as the new version's `changelog` (an empty field writes none). It SHALL be refused when too long, with a counter shown.
 
 Create SHALL build and install the new version, alongside the older ones:
 - a texture kept from the previous version keeps its texture id, even when renamed;
@@ -182,3 +183,11 @@ The checks, the building and the errors SHALL be those of creating a vehicle.
 #### Scenario: Not offered for other packages
 - **WHEN** the Vehicle Library lists the sample truck
 - **THEN** it offers no New Version… action
+
+#### Scenario: What changed
+- **WHEN** the player enters "Cabin template redrawn after game update 1.57" in What changed and clicks Create
+- **THEN** version 1.1.0 is installed with that text as its changelog, and the Vehicle Library shows it for that version
+
+#### Scenario: What changed left empty
+- **WHEN** the player leaves What changed empty
+- **THEN** the new version has no changelog
