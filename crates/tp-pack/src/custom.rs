@@ -246,6 +246,8 @@ pub enum Problem {
     MissingAccessoryIds(usize),
     BadGameId(usize, String),
     DuplicateGameId(usize, String),
+    /// "What changed" is longer than [`tp_vehicles::MAX_CHANGELOG`] characters.
+    ChangelogTooLong,
 }
 
 impl Problem {
@@ -279,6 +281,8 @@ pub struct CustomVehicle {
     pub alt_uv: bool,
     pub colour_picker: bool,
     pub rows: Vec<CustomPart>,
+    /// What changed in a new version; empty writes no changelog.
+    pub changelog: String,
 }
 
 impl CustomVehicle {
@@ -296,6 +300,7 @@ impl CustomVehicle {
             alt_uv: false,
             colour_picker: false,
             rows: Vec::new(),
+            changelog: String::new(),
         }
     }
 
@@ -352,6 +357,8 @@ impl CustomVehicle {
             alt_uv: g.alt_uv,
             colour_picker: g.colour_picker,
             rows,
+            // Starts empty: the previous version's text describes that version.
+            changelog: String::new(),
             base: Some(m.clone()),
         }
     }
@@ -379,6 +386,9 @@ impl CustomVehicle {
     /// the installed vehicle versions (id, version).
     pub fn problems(&self, installed: &[(String, semver::Version)]) -> Vec<Problem> {
         let mut out = Vec::new();
+        if self.changelog.trim().chars().count() > tp_vehicles::MAX_CHANGELOG {
+            out.push(Problem::ChangelogTooLong);
+        }
         if self.name.trim().is_empty() {
             out.push(Problem::NameMissing);
         }
@@ -532,6 +542,9 @@ impl CustomVehicle {
         m.insert("name".into(), json!(self.name.trim()));
         m.insert("brand".into(), json!(self.brand.trim()));
         m.insert("kind".into(), json!(self.kind.code()));
+        if !self.changelog.trim().is_empty() {
+            m.insert("changelog".into(), json!(self.changelog.trim()));
+        }
         if let Some(base) = &self.base {
             if !base.authors.is_empty() {
                 m.insert("authors".into(), json!(base.authors));

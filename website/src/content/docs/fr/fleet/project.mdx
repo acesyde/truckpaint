@@ -32,9 +32,11 @@ Chaque carte affiche :
 - son nom, son type et la version de son paquet. Survolez la version pour voir les versions du jeu qu’il prend en charge ;
 - pour un camion, les <Ui id="project-cabins" /> qu’il peint. Survolez-les pour voir les noms internes des cabines dans le jeu ;
 - le mode de <Ui id="project-main-texture" />, qui vient du véhicule et ne peut pas être changé : <Ui id="project-mode-per-layout" />, <Ui id="project-mode-every-cabin" /> ou <Ui id="project-mode-single" /> pour une remorque ;
-- quand une version plus récente du véhicule est installée, un avis avec <Ui id="cmd-update-template" /> ;
+- quand une version plus récente du véhicule est installée, un avis avec <Ui id="cmd-update-template" />. La boîte de dialogue affiche ce qu’a écrit l’auteur de la version et, pour chaque texture dont la disposition a changé, le nombre d’objets à repositionner. Après la mise à jour, ces objets sont signalés dans l’onglet <Ui id="cmd-tab-layers" /> (voir [Calques](../../workshop/layers/)) ;
 - <Ui id="vehicles-textures" />, pour choisir les textures du véhicule que le projet peint, et un menu ⋯ qui contient aussi <Ui id="vehicles-remove-from-project" /> ;
 - les textures du véhicule, sous <Ui id="vehicles-main-textures" /> et <Ui id="vehicles-accessories" />, chacune avec une vignette, son type, sa taille et son état.
+
+<Shot name="fleet/update-template" alt="La boîte de dialogue Update Template du camion d’exemple, indiquant Standard cab comme disposition modifiée avec ses objets à repositionner." />
 
 **Cliquez sur une texture** pour l’ouvrir dans l’<Ui id="cmd-space-workshop" /> et la peindre.
 

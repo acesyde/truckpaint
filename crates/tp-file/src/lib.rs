@@ -8,6 +8,7 @@
 //! the current one; writing always uses the current version.
 
 pub mod library;
+mod summary;
 pub mod v1;
 
 use std::io::{Cursor, Read, Write};
@@ -27,6 +28,8 @@ const DOCUMENT: &str = "project.ron";
 
 /// The current format's module.
 pub use v1 as current;
+
+pub use summary::{Summary, SummaryTexture, SummaryVehicle};
 
 /// Why a file could not be read or written.
 #[derive(Debug)]
@@ -300,6 +303,21 @@ fn migrate(format: u32, text: &str) -> Result<(current::FileProject, bool), Erro
 /// Reads a project file.
 pub fn read(path: &Path) -> Result<Opened, Error> {
     from_bytes(&std::fs::read(path)?)
+}
+
+/// The vehicles and textures of a project file, read from its document
+/// only: no image is decoded and the file is not changed.
+pub fn summary(path: &Path) -> Result<Summary, Error> {
+    let bytes = std::fs::read(path)?;
+    let (_, text) = open_zip(&bytes, MIMETYPE, DOCUMENT)?;
+    let header = header(&text)?;
+    if header.format == 1 && is_development_v1(&text) {
+        return Err(Error::Unsupported {
+            found: header.format,
+        });
+    }
+    let (document, _) = migrate(header.format, &text)?;
+    Ok(Summary::of_file(&document))
 }
 
 /// Writes a project file atomically: the content goes to a temporary file

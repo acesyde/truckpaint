@@ -23,6 +23,6 @@ pub use project::{
 };
 pub use symbols::Symbol;
 pub use texture_status::{
-    CheckReason, OffPalette, TextureFilter, TextureState, is_drawn, off_palette,
+    CheckReason, OffPalette, TextureFilter, TextureState, is_drawn, objects_on, off_palette,
 };
 pub use usage::{Count, Usage};

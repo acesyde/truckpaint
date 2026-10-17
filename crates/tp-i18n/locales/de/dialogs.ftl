@@ -106,6 +106,7 @@ pkg-bad-manifest = sein Manifest ist ungültig ({ $reason }).
 pkg-newer-format = es wurde für eine neuere TruckPaint-Version erstellt.
 pkg-bad-id = seine ID „{ $id }“ ist ungültig.
 pkg-no-main-texture = es hat keine Haupttextur.
+pkg-bad-changelog = sein Änderungsprotokoll ist länger als 1000 Zeichen.
 pkg-bad-game-path = sein Spielpfad „{ $path }“ ist ungültig (Wörter aus a–z, 0–9 und _, durch Punkte getrennt).
 pkg-bad-game-id = die Spiel-ID „{ $id }“ ist ungültig (Wörter aus a–z, 0–9 und _, durch Punkte getrennt).
 pkg-missing-game-ids = „{ $texture }“ hat keine Spiel-ID.
@@ -134,6 +135,10 @@ custom-new-version-title = Neue Version von { $name }
 custom-open = Eigenes Fahrzeug…
 custom-open-library = Eigenes Fahrzeug…
 custom-version = Version
+custom-what-changed = Änderungen
+custom-what-changed-hint = Türvorlage nach dem Spielupdate neu gezeichnet …
+custom-what-changed-count = { $count } / { $max } Zeichen
+custom-problem-changelog = „Änderungen“ ist länger als { $max } Zeichen.
 custom-name = Name
 custom-brand = Marke
 custom-kind = Art
@@ -236,12 +241,42 @@ vehicles-mine-empty = Eigene Fahrzeuge werden aus den Vorlagendateien des Spiels
 vehicles-preview = Vorlage von { $name }
 vehicles-details-of = Details zu { $name }
 vehicles-installed-versions = Installierte Versionen
+vehicles-update-summary = Update-Übersicht: { $version }
+vehicles-changes-layout = Layout geändert: { $names }
+vehicles-changes-resized = Größe geändert: { $names }
+vehicles-changes-added = Neu: { $names }
+vehicles-changes-removed = Entfernt: { $names }
+vehicles-no-changes = Keine Änderungen angegeben
+vehicles-projects = Projekte mit einer älteren Version
+vehicles-projects-reading = Letzte Projekte werden gelesen …
+vehicles-recent-only = Nur die letzten Projekte werden aufgeführt
+vehicles-later = Später
+vehicles-update-vehicle = { $name } aktualisieren
+vehicles-update-hint = Öffnen Sie ein Projekt, das dieses Fahrzeug verwendet, um es zu aktualisieren.
+vehicles-impact-textures = { $count ->
+    [one] 1 Textur
+   *[other] { $count } Texturen
+}
+vehicles-impact-resized = { $count ->
+    [one] 1 Textur in der Größe geändert
+   *[other] { $count } Texturen in der Größe geändert
+}
+vehicles-impact-removed = { $count } nicht mehr in dieser Version
+vehicles-impact-nothing = Nichts neu zu positionieren
+vehicles-impact-line = { $name }: { $impact }
+vehicles-impact-unreadable = { $name }: nicht lesbar
 vehicles-export = Exportieren…
 vehicles-exported = { $file } exportiert
 vehicles-export-failed = { $file } konnte nicht geschrieben werden: { $reason }
 update-versions = { $name }: Version { $from } → { $to }
 update-replaced = { $name }: Vorlage ersetzt
-update-layout-changed = { $name }: Layout geändert, Grafik prüfen
+update-layout-changed = { $name }: Layout geändert, { $objects }
+update-objects = { $count ->
+    [0] nichts neu zu positionieren
+    [one] 1 Objekt neu zu positionieren
+   *[other] { $count } Objekte neu zu positionieren
+}
+update-changelog = Änderungen in Version { $version }:
 update-resized = { $name }: Größe { $old } → { $new } px, Grafik skaliert
 update-new-textures = Neu in dieser Version:
 update-removed = { $name }: in dieser Version nicht mehr enthalten, Grafik bleibt erhalten

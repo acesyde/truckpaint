@@ -443,6 +443,10 @@ impl Workspace {
         // Links to swatches and styles hold while the values still match:
         // whatever changed a look detached it.
         self.project.relink();
+        // An update scales and re-flags objects itself.
+        if label != "undo-update-template" {
+            self.project.unflag_moved(&before);
+        }
         let after = self.snapshot();
         if before.same_document(&after) {
             return;

@@ -182,6 +182,7 @@ When a trailer's main template also covers its body, the game can paint the body
 | `kind` | yes | `truck` or `trailer`. Filters the library and chooses the game folder of the mod. |
 | `authors`, `license`, `homepage`, `description` | no | Shown in the library. |
 | `preview` | no | Image shown in the library. |
+| `changelog` | no | What changed in this version, plain text of at most 1000 characters ("Door layout redrawn, islands moved."). Shown in the library and in Update Template; `tpv check` prints it. Longer text refuses the package. |
 
 ### `game`: what the package targets in the game
 
@@ -282,10 +283,12 @@ When SCS updates a game and a vehicle's textures change:
 
 1. update the templates that changed and increase their `layout_version`;
 2. adjust `game.versions`;
-3. release the package with a higher `version`.
+3. say what changed in `changelog`: painters see it before they update;
+4. release the package with a higher `version`.
 
 Keep the order of `paint_job.main` between versions: an exported mod names the paint job of each main texture after its position (`<name>_a` for the first, `<name>_b` for the second…), so reordering them would change those names, and players who bought the paint job would lose it after a mod update.
 
 Painters install the new version alongside the old one. Their projects keep working with the templates they embed. **Vehicle › Update Template…** moves a project's vehicle to the new version:
-- it flags the textures whose layout changed;
+- it shows your `changelog`, and for each texture whose layout changed, how many objects the painter will have to reposition;
+- it flags the textures whose layout changed, and marks the objects that were on them in the Layers tab;
 - it offers the textures that are new in that version.

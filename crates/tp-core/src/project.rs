@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::Arc;
 
 use kurbo::{Point, Rect, Size, Vec2};
@@ -142,6 +142,9 @@ pub struct SurfaceTemplate {
     /// Not part of the undo history.
     pub visible: bool,
     pub status: TemplateStatus,
+    /// Objects an update asked to reposition; shown only while `status` is
+    /// `LayoutChanged` (see [`crate::objects_on`]).
+    pub flagged: BTreeSet<ObjectId>,
 }
 
 impl SurfaceTemplate {
@@ -181,6 +184,7 @@ impl SurfaceTemplate {
         &[String],
         Option<usize>,
         TemplateStatus,
+        &BTreeSet<ObjectId>,
     ) {
         (
             &self.package_id,
@@ -192,6 +196,7 @@ impl SurfaceTemplate {
             &self.also_paints,
             self.main_index,
             self.status,
+            &self.flagged,
         )
     }
 }
@@ -865,6 +870,39 @@ impl Project {
 
     /// Restores a snapshot and returns its selection. Ids stay unique because
     /// the id counter is never rewound.
+    /// Drops the update flags of objects deleted or moved since `before`:
+    /// a changed frame or path, so look and text edits keep them. Flags
+    /// added since `before` are kept.
+    pub fn unflag_moved(&mut self, before: &Snapshot) {
+        let was_flagged: BTreeSet<ObjectId> = before
+            .meta
+            .iter()
+            .filter_map(|m| m.template.as_ref())
+            .flat_map(|t| t.flagged.iter().copied())
+            .collect();
+        if was_flagged.is_empty() {
+            return;
+        }
+        let old = |id: ObjectId| before.surfaces.iter().find_map(|o| tree::get(o, id));
+        for surface in &mut self.surfaces {
+            let Some(t) = surface.template.as_mut() else {
+                continue;
+            };
+            t.flagged
+                .retain(|&id| match tree::get(&surface.objects, id) {
+                    None => false,
+                    Some(now) => match old(id) {
+                        // Typing resizes a text's frame: an edit, not a move.
+                        Some(then) if was_flagged.contains(&id) => {
+                            (then.frame == now.frame && then.path == now.path)
+                                || then.text != now.text
+                        }
+                        _ => true,
+                    },
+                });
+        }
+    }
+
     pub fn restore(&mut self, snapshot: &Snapshot) -> Vec<ObjectId> {
         // Library origins are not part of the history either: an element
         // that still exists keeps its current one.
@@ -1375,6 +1413,7 @@ mod tests {
             opacity: SurfaceTemplate::DEFAULT_OPACITY,
             visible: true,
             status: TemplateStatus::Current,
+            flagged: BTreeSet::new(),
         }
     }
 
@@ -1586,5 +1625,45 @@ mod tests {
         let mut q = p.clone();
         q.surfaces[2].template.as_mut().unwrap().part = TexturePart::Main;
         assert!(!p.snapshot(&[]).same_document(&q.snapshot(&[])));
+    }
+
+    #[test]
+    fn typing_keeps_a_flag_and_moving_drops_it() {
+        use crate::document::{CharStyle, TextBlock};
+        let mut p = Project::new("p", TextureResolution::R2048);
+        let mut text = Object::new(
+            ObjectId(0),
+            ShapeKind::Text,
+            Frame::new(Point::new(100.0, 100.0), Size::new(80.0, 20.0), 0.0),
+        );
+        text.text = Some(TextBlock::new("ACE", CharStyle::default()));
+        let id = p.add(text);
+        let mut t = template("cabin", AssetId(1));
+        t.status = TemplateStatus::LayoutChanged;
+        t.flagged = BTreeSet::from([id]);
+        p.surfaces[0].template = Some(t);
+        let flagged = |p: &Project| {
+            p.surfaces[0]
+                .template
+                .as_ref()
+                .unwrap()
+                .flagged
+                .contains(&id)
+        };
+        let edit = |p: &mut Project, f: &dyn Fn(&mut Object)| {
+            let before = p.snapshot(&[]);
+            let mut o = (**p.surface().get(id).unwrap()).clone();
+            f(&mut o);
+            p.surface_mut().replace(&[o]);
+            p.unflag_moved(&before);
+        };
+        // New text, wider frame: still flagged.
+        edit(&mut p, &|o| {
+            o.text = Some(TextBlock::new("ACE LOGISTICS", CharStyle::default()));
+            o.frame.size = Size::new(300.0, 20.0);
+        });
+        assert!(flagged(&p));
+        edit(&mut p, &|o| o.frame.center = Point::new(400.0, 100.0));
+        assert!(!flagged(&p));
     }
 }

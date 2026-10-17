@@ -59,6 +59,7 @@ fn surface(objects: Vec<Object>) -> Surface {
         opacity: SurfaceTemplate::DEFAULT_OPACITY,
         visible: true,
         status: TemplateStatus::Current,
+        flagged: Default::default(),
     });
     s
 }
@@ -238,4 +239,28 @@ fn images_have_no_colors() {
     let mut i = rect(1, RED);
     i.kind = ShapeKind::Image { asset: AssetId(3) };
     assert_eq!(colors(vec![i]), OffPalette::default());
+}
+
+#[test]
+fn objects_on_counts_leaves_hidden_ones_and_instances_once() {
+    let s = surface(vec![
+        rect(1, BLACK),
+        hidden(rect(2, BLACK)),
+        group(
+            3,
+            ShapeKind::Group,
+            vec![
+                rect(4, BLACK),
+                group(5, ShapeKind::Group, vec![rect(6, BLACK)]),
+            ],
+        ),
+        instance(7, vec![rect(8, BLACK), rect(9, BLACK)]),
+        group(10, ShapeKind::Group, vec![]),
+    ]);
+    assert_eq!(
+        objects_on(&s),
+        [1, 2, 4, 6, 7].map(ObjectId),
+        "groups are left out, an instance is one object"
+    );
+    assert!(objects_on(&surface(vec![])).is_empty());
 }

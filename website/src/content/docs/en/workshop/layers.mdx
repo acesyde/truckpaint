@@ -55,6 +55,12 @@ Collapse a group row to keep a long list short; selecting one of its objects on 
 
 Hiding or locking a selected object deselects it.
 
+## Objects to reposition
+
+After an update changes a texture's layout, every object that was on it is marked with a warning sign in the list: hover the sign to see why. A group shows the mark when an object inside it is marked. Move, resize or rotate an object to clear its mark; changing its colors, text or name keeps it. <Ui id="texture-mark-checked" /> clears every mark of the texture, and Undo brings marks back.
+
+<Shot name="workshop/layers-to-reposition" alt="The Layers tab after an update: each object of the redrawn texture is marked with a warning sign." />
+
 ## Rename
 
 Double-click a name, or right-click the row and choose <Ui id="undo-rename" />. Type the new name and press Enter; Escape cancels. An empty name goes back to the default one, such as "Rectangle" or "Group".

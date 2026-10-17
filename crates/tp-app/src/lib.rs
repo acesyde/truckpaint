@@ -31,6 +31,7 @@ pub mod paths;
 pub mod placement;
 pub mod prefs;
 pub mod project_io;
+pub mod project_summaries;
 pub mod recent_thumbnails;
 pub mod recovery;
 pub mod saver;

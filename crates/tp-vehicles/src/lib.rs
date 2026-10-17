@@ -225,8 +225,55 @@ pub struct Manifest {
     pub description: Option<String>,
     #[serde(default)]
     pub preview: Option<String>,
+    /// What changed in this version, plain text of at most
+    /// [`MAX_CHANGELOG`] characters.
+    #[serde(default)]
+    pub changelog: Option<String>,
     pub game: GameTarget,
     pub paint_job: PaintJob,
+}
+
+/// What a version changes compared with an older one, by texture name and
+/// in package order; parts are matched by id.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ManifestDiff {
+    /// Kept textures whose layout version differs.
+    pub layout_changed: Vec<String>,
+    /// Kept textures whose size differs.
+    pub resized: Vec<String>,
+    pub added: Vec<String>,
+    pub removed: Vec<String>,
+}
+
+impl ManifestDiff {
+    pub fn is_empty(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// What `new` changes compared with `old`.
+pub fn diff(old: &Manifest, new: &Manifest) -> ManifestDiff {
+    let mut out = ManifestDiff::default();
+    for (_, part) in new.paint_job.parts() {
+        match old.paint_job.part(&part.id) {
+            None => out.added.push(part.name.clone()),
+            Some((_, before)) => {
+                if before.texture.layout_version != part.texture.layout_version {
+                    out.layout_changed.push(part.name.clone());
+                }
+                if before.texture.size != part.texture.size {
+                    out.resized.push(part.name.clone());
+                }
+            }
+        }
+    }
+    out.removed = old
+        .paint_job
+        .parts()
+        .filter(|(_, p)| new.paint_job.part(&p.id).is_none())
+        .map(|(_, p)| p.name.clone())
+        .collect();
+    out
 }
 
 /// Why a package is refused. Messages are built by the application.
@@ -271,7 +318,12 @@ pub enum PackageError {
     TemplateTooLarge {
         texture: String,
     },
+    /// The changelog is longer than [`MAX_CHANGELOG`] characters.
+    BadChangelog,
 }
+
+/// The longest changelog a package may carry, in characters.
+pub const MAX_CHANGELOG: usize = 1000;
 
 impl std::fmt::Display for PackageError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -460,6 +512,12 @@ fn validate(m: &Manifest) -> Result<(), PackageError> {
     }
     if !is_valid_game_name(&m.game.path) {
         return Err(PackageError::BadGamePath(m.game.path.clone()));
+    }
+    if m.changelog
+        .as_ref()
+        .is_some_and(|c| c.chars().count() > MAX_CHANGELOG)
+    {
+        return Err(PackageError::BadChangelog);
     }
     let job = &m.paint_job;
     if job.main.is_empty() {

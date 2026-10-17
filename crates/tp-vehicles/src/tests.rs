@@ -446,3 +446,66 @@ fn documented_example_manifests_are_valid() {
         "a truck with several layouts, one layout, a trailer"
     );
 }
+
+#[test]
+fn changelog_is_optional_text_of_limited_length() {
+    // A manifest without the field reads as before.
+    assert_eq!(
+        Package::read(&with_manifest(|_| {}))
+            .unwrap()
+            .manifest
+            .changelog,
+        None
+    );
+    let note = "Door layout redrawn.";
+    let package = Package::read(&with_manifest(|m| m["changelog"] = json!(note))).unwrap();
+    assert_eq!(package.manifest.changelog.as_deref(), Some(note));
+    // The limit counts characters, not bytes.
+    let longest = "é".repeat(MAX_CHANGELOG);
+    assert!(Package::read(&with_manifest(|m| m["changelog"] = json!(longest))).is_ok());
+    assert_eq!(
+        err(&with_manifest(
+            |m| m["changelog"] = json!("é".repeat(MAX_CHANGELOG + 1))
+        )),
+        PackageError::BadChangelog
+    );
+    assert!(matches!(
+        err(&with_manifest(|m| m["changelog"] = json!(12))),
+        PackageError::BadManifest(_)
+    ));
+}
+
+#[test]
+fn diff_lists_layout_size_added_and_removed_parts() {
+    let manifest = |textures: &[SampleTexture]| -> Manifest {
+        serde_json::from_value(sample::manifest(
+            "scs.sample.truck",
+            "Sample Truck",
+            "1.0.0",
+            textures,
+        ))
+        .unwrap()
+    };
+    let old = sample::truck_textures();
+    assert!(diff(&manifest(&old), &manifest(&old)).is_empty());
+
+    let mut new = old.clone();
+    new[0].layout = 2; // main texture
+    new[1].size = TextureSize::new(4096, 4096); // accessory
+    new[2].layout = 3;
+    new.push(SampleTexture {
+        id: "side_skirts",
+        name: "Side skirts",
+        size: TextureSize::new(1024, 512),
+        layout: 1,
+    });
+    let d = diff(&manifest(&old), &manifest(&new));
+    assert_eq!(d.layout_changed, ["Cabin", "Accessories"]);
+    assert_eq!(d.resized, ["Chassis"]);
+    assert_eq!(d.added, ["Side skirts"]);
+    assert!(d.removed.is_empty());
+
+    let d = diff(&manifest(&new), &manifest(&old));
+    assert_eq!(d.removed, ["Side skirts"]);
+    assert!(d.added.is_empty());
+}

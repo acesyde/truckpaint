@@ -549,6 +549,108 @@ const DETAIL_WIDTH: f32 = 380.0;
 const LIBRARY_ROW: f32 = 69.0;
 const LIBRARY_THUMB: egui::Vec2 = egui::vec2(64.0, 44.0);
 
+/// What the newest version of the shown vehicle changes, and for whom.
+#[derive(Default)]
+struct UpdateView {
+    /// The newest version, its changelog and what it changes compared with
+    /// the version before it (only with several versions installed).
+    summary: Option<(String, Option<String>, tp_vehicles::ManifestDiff)>,
+    /// One line per known project using an older version.
+    projects: Vec<String>,
+    /// Recent projects are still being read.
+    reading: bool,
+    /// The open project uses the vehicle at an older version.
+    can_update: bool,
+}
+
+/// "Transports Ardent: 1 texture, 3 objects to reposition".
+fn impact_line(name: &str, impact: &crate::vehicle_project::ProjectImpact) -> String {
+    let mut parts = Vec::new();
+    if impact.textures > 0 {
+        parts.push(tr!("vehicles-impact-textures", count = impact.textures));
+        parts.push(tr!("update-objects", count = impact.objects));
+    }
+    if impact.resized > 0 {
+        parts.push(tr!("vehicles-impact-resized", count = impact.resized));
+    }
+    if impact.removed > 0 {
+        parts.push(tr!("vehicles-impact-removed", count = impact.removed));
+    }
+    if parts.is_empty() {
+        parts.push(tr("vehicles-impact-nothing"));
+    }
+    tr!(
+        "vehicles-impact-line",
+        name = name,
+        impact = parts.join(", ")
+    )
+}
+
+/// The recent project files that still exist, each once, without the open
+/// project's.
+fn recent_paths(state: &AppState) -> Vec<std::path::PathBuf> {
+    let canonical = |p: &std::path::Path| p.canonicalize().unwrap_or_else(|_| p.to_path_buf());
+    let open = state
+        .workspace()
+        .and_then(|ws| ws.path.as_deref())
+        .map(canonical);
+    let mut seen = std::collections::HashSet::new();
+    state
+        .prefs
+        .recent
+        .iter()
+        .filter(|r| crate::prefs::recent_exists(&r.path))
+        .map(|r| canonical(&r.path))
+        .filter(|p| Some(p) != open.as_ref() && seen.insert(p.clone()))
+        .collect()
+}
+
+/// The update view of `vehicle`: the open project counted from memory,
+/// then the recent projects as they are read.
+fn update_view(
+    state: &AppState,
+    vehicle: &InstalledVehicle,
+    paths: &[std::path::PathBuf],
+) -> UpdateView {
+    use crate::project_summaries::Known;
+    let newest = &vehicle.newest().manifest;
+    let mut view = UpdateView {
+        summary: vehicle.versions.get(1).map(|previous| {
+            (
+                newest.version.to_string(),
+                newest.changelog.clone(),
+                tp_vehicles::diff(&previous.manifest, newest),
+            )
+        }),
+        ..UpdateView::default()
+    };
+    if let Some(ws) = state.workspace() {
+        let summary = tp_file::Summary::of(&ws.project);
+        if let Some(impact) = crate::vehicle_project::impact(&summary, newest) {
+            view.can_update = true;
+            view.projects.push(impact_line(&summary.name, &impact));
+        }
+    }
+    for path in paths {
+        match state.project_summaries.get(path) {
+            None => view.reading = true,
+            Some(Known::Read(summary)) => {
+                if let Some(impact) = crate::vehicle_project::impact(summary, newest) {
+                    view.projects.push(impact_line(&summary.name, &impact));
+                }
+            }
+            Some(Known::Unreadable) => {
+                let name = path
+                    .file_stem()
+                    .map_or_else(String::new, |n| n.to_string_lossy().into_owned());
+                view.projects
+                    .push(tr!("vehicles-impact-unreadable", name = name.as_str()));
+            }
+        }
+    }
+    view
+}
+
 /// What the Vehicle Library asks for this frame.
 #[derive(Default)]
 struct LibraryClicks {
@@ -560,6 +662,8 @@ struct LibraryClicks {
     confirm: bool,
     new_version: Option<String>,
     update: Option<String>,
+    /// Update in the update summary: the shown vehicle of the open project.
+    update_open: bool,
     export: Option<(std::path::PathBuf, String)>,
     remove: Option<(String, semver::Version, String)>,
 }
@@ -599,6 +703,12 @@ pub fn library(ctx: &egui::Context, state: &mut AppState, dialog: &mut LibraryDi
             .package_previews
             .update(ctx, &newest.manifest, &newest.path);
     }
+    let shown_id = shown.map(|v| v.id.clone());
+    let paths = recent_paths(state);
+    state.project_summaries.update(ctx, &paths);
+    let view = shown
+        .map(|v| update_view(state, v, &paths))
+        .unwrap_or_default();
     let previews = &state.package_previews;
 
     super::dialogs::modal("vehicle_library_modal").show(ctx, |ui| {
@@ -703,7 +813,7 @@ pub fn library(ctx: &egui::Context, state: &mut AppState, dialog: &mut LibraryDi
                         ui.set_min_height(body_height);
                         if let Some(v) = shown {
                             let status = VehicleStatus::of(v, library, &project);
-                            detail(ui, v, status, previews, &mut clicks);
+                            detail(ui, v, status, previews, &view, &mut clicks);
                         }
                     },
                 );
@@ -757,7 +867,10 @@ pub fn library(ctx: &egui::Context, state: &mut AppState, dialog: &mut LibraryDi
             )),
         }];
     }
-    if let Some(id) = clicks.update {
+    let update = clicks
+        .update
+        .or_else(|| clicks.update_open.then(|| shown_id.clone()).flatten());
+    if let Some(id) = update {
         state.open_update_dialog(Some(&id));
         return false;
     }
@@ -955,6 +1068,7 @@ fn detail(
     vehicle: &InstalledVehicle,
     status: VehicleStatus,
     previews: &crate::package_previews::PackagePreviews,
+    view: &UpdateView,
     clicks: &mut LibraryClicks,
 ) {
     use crate::package_previews::Preview;
@@ -1063,6 +1177,7 @@ fn detail(
                             }
                         }
                     });
+                    update_section(ui, &m.name, view, clicks);
                     ui.add_space(space::XS);
                     super::dialogs::field_label(ui, &tr("vehicles-installed-versions"));
                     for v in &vehicle.versions {
@@ -1130,6 +1245,70 @@ fn detail(
         });
 }
 
+/// The newest version's update summary, with Later and Update, and the
+/// known projects it touches.
+fn update_section(ui: &mut Ui, name: &str, view: &UpdateView, clicks: &mut LibraryClicks) {
+    let small = |ui: &mut Ui, text: String| {
+        ui.add(egui::Label::new(RichText::new(text).color(color::TEXT_SECONDARY)).wrap());
+    };
+    if let Some((version, changelog, diff)) = &view.summary {
+        ui.add_space(space::XS);
+        super::dialogs::field_label(
+            ui,
+            &tr!("vehicles-update-summary", version = version.as_str()),
+        );
+        if let Some(changelog) = changelog {
+            ui.add(egui::Label::new(changelog.as_str()).wrap());
+        }
+        for (key, names) in [
+            ("vehicles-changes-layout", &diff.layout_changed),
+            ("vehicles-changes-resized", &diff.resized),
+            ("vehicles-changes-added", &diff.added),
+            ("vehicles-changes-removed", &diff.removed),
+        ] {
+            if !names.is_empty() {
+                small(ui, tr!(key, names = names.join(", ")));
+            }
+        }
+        if diff.is_empty() && changelog.is_none() {
+            small(ui, tr("vehicles-no-changes"));
+        }
+    }
+    if !view.projects.is_empty() || view.reading {
+        ui.add_space(space::XS);
+        super::dialogs::field_label(ui, &tr("vehicles-projects"));
+        for line in &view.projects {
+            ui.add(egui::Label::new(line.as_str()).wrap());
+        }
+        if view.reading {
+            small(ui, tr("vehicles-projects-reading"));
+        }
+        ui.label(
+            RichText::new(tr("vehicles-recent-only"))
+                .small()
+                .color(color::TEXT_SECONDARY),
+        );
+    }
+    if view.summary.is_some() {
+        ui.horizontal_wrapped(|ui| {
+            clicks.close |= ui.add(secondary_button(&tr("vehicles-later"))).clicked();
+            let update = ui.add_enabled(view.can_update, primary_button(&tr("update-apply")));
+            let spoken = tr!("vehicles-update-vehicle", name = name);
+            update
+                .widget_info(|| WidgetInfo::labeled(WidgetType::Button, view.can_update, &spoken));
+            if update
+                .on_disabled_hover_text(tr("vehicles-update-hint"))
+                .clicked()
+            {
+                clicks.update_open = true;
+            }
+        });
+        if !view.can_update {
+            small(ui, tr("vehicles-update-hint"));
+        }
+    }
+}
+
 /// State of the Update Template dialog.
 #[derive(Clone, Debug)]
 pub struct UpdateDialog {
@@ -1163,16 +1342,31 @@ pub fn change_text(change: &TextureChange) -> String {
             name,
             layout_changed,
             resized,
-        } => match (layout_changed, resized) {
-            (_, Some((old, new))) => tr!(
-                "update-resized",
-                name = name.as_str(),
-                old = tp_core::size_label(*old),
-                new = tp_core::size_label(*new)
-            ),
-            (true, None) => tr!("update-layout-changed", name = name.as_str()),
-            (false, None) => tr!("update-replaced", name = name.as_str()),
-        },
+            objects,
+        } => {
+            let objects = tr!("update-objects", count = *objects);
+            match (layout_changed, resized) {
+                (layout_changed, Some((old, new))) => {
+                    let resized = tr!(
+                        "update-resized",
+                        name = name.as_str(),
+                        old = tp_core::size_label(*old),
+                        new = tp_core::size_label(*new)
+                    );
+                    if *layout_changed {
+                        format!("{resized}, {objects}")
+                    } else {
+                        resized
+                    }
+                }
+                (true, None) => tr!(
+                    "update-layout-changed",
+                    name = name.as_str(),
+                    objects = objects.as_str()
+                ),
+                (false, None) => tr!("update-replaced", name = name.as_str()),
+            }
+        }
         TextureChange::Removed { name } => tr!("update-removed", name = name.as_str()),
     }
 }
@@ -1191,6 +1385,15 @@ pub fn update(ctx: &egui::Context, state: &mut AppState, dialog: &mut UpdateDial
             from = dialog.plan.from.as_str(),
             to = dialog.plan.to.as_str()
         ));
+        if let Some(changelog) = &dialog.plan.changelog {
+            ui.add_space(space::SM);
+            ui.label(
+                RichText::new(tr!("update-changelog", version = dialog.plan.to.as_str()))
+                    .small()
+                    .color(color::TEXT_SECONDARY),
+            );
+            ui.add(egui::Label::new(changelog.as_str()).wrap());
+        }
         ui.add_space(space::SM);
         for change in &dialog.plan.changes {
             ui.label(RichText::new(format!("• {}", change_text(change))).small());

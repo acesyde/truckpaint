@@ -1091,3 +1091,52 @@ fn long_texture_name_ends_with_an_ellipsis_and_shows_in_full_on_hover() {
     // The tooltip with the whole name.
     assert_eq!(h.query_all_by_label(NAME).count(), before + 1);
 }
+
+// --- Objects to reposition ---------------------------------------------------
+
+#[test]
+fn layers_mark_objects_to_reposition() {
+    let mut h = open();
+    let logo = rect(&mut h, "Ace logo", (300.0, 300.0), (100.0, 50.0));
+    rect(&mut h, "Stripe", (600.0, 300.0), (100.0, 50.0));
+    let inner = rect(&mut h, "Inner", (300.0, 600.0), (50.0, 50.0));
+    let other = rect(&mut h, "Other", (400.0, 600.0), (50.0, 50.0));
+    select(&mut h, &[inner, other]);
+    ws_mut(&mut h).group_selection(1.0);
+    // As Update Template leaves them: the texture "Layout changed", the
+    // logo and the group's first rectangle flagged.
+    {
+        let t = ws_mut(&mut h)
+            .project
+            .surface_mut()
+            .template
+            .as_mut()
+            .unwrap();
+        t.status = tp_core::TemplateStatus::LayoutChanged;
+        t.flagged = [logo, inner].into();
+    }
+    select(&mut h, &[]);
+    let marked = |h: &H, name: &str| {
+        h.query_by_label(&format!("{name}, to reposition"))
+            .is_some()
+    };
+    assert!(marked(&h, "Ace logo"));
+    assert!(
+        marked(&h, "Group"),
+        "a collapsed group shows its child's mark"
+    );
+    assert!(!marked(&h, "Stripe") && h.query_all_by_label("Stripe").next().is_some());
+
+    // Moving the logo clears its mark; Undo brings it back.
+    select(&mut h, &[logo]);
+    ws_mut(&mut h).nudge(10.0, 0.0, 2.0);
+    h.run();
+    assert!(!marked(&h, "Ace logo") && h.query_all_by_label("Ace logo").next().is_some());
+    ws_mut(&mut h).undo();
+    h.run();
+    assert!(marked(&h, "Ace logo"));
+
+    // An object drawn after the update has no mark.
+    rect(&mut h, "Later", (800.0, 800.0), (50.0, 50.0));
+    assert!(h.query_all_by_label("Later").next().is_some() && !marked(&h, "Later"));
+}

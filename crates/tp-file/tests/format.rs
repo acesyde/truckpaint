@@ -233,6 +233,7 @@ fn add_vehicle(p: &mut Project) {
                 opacity,
                 visible,
                 status,
+                flagged: Default::default(),
             }
         };
     const VOLVO: &str = "scs.volvo.fh16_2012";
@@ -1302,4 +1303,89 @@ fn shadow_values_are_clamped_on_opening() {
     assert_eq!(s.blur, 200.0);
     assert_eq!(s.opacity, 1.0);
     assert_eq!(s.offset, Vec2::new(1000.0, -3.0));
+}
+
+#[test]
+fn flagged_objects_round_trip_and_stale_records_are_dropped() {
+    use std::collections::BTreeSet;
+    let rect = || {
+        Object::new(
+            ObjectId(0),
+            ShapeKind::rectangle(),
+            Frame::new(Point::new(100.0, 100.0), Size::new(50.0, 50.0), 0.0),
+        )
+    };
+    let mut p = plain_project();
+    let index = |p: &Project, name: &str| p.surfaces.iter().position(|s| s.name == name).unwrap();
+    // Mirrors is flagged "Layout changed", Chassis is not.
+    let mirrors = index(&p, "Mirrors");
+    p.active_surface = mirrors;
+    let logo = p.add(rect());
+    let text = p.add(rect());
+    let chassis = index(&p, "Chassis");
+    p.active_surface = chassis;
+    let other = p.add(rect());
+
+    // Without flags the file is as before.
+    let opened = tp_file::from_bytes(&tp_file::to_bytes(&p).unwrap()).unwrap();
+    assert!(!opened.migrated);
+    assert!(
+        opened
+            .project
+            .surfaces
+            .iter()
+            .all(|s| { s.template.as_ref().is_none_or(|t| t.flagged.is_empty()) })
+    );
+
+    p.surfaces[mirrors].template.as_mut().unwrap().flagged =
+        BTreeSet::from([logo, text, ObjectId(999_999)]);
+    p.surfaces[chassis].template.as_mut().unwrap().flagged = BTreeSet::from([other]);
+    let opened = tp_file::from_bytes(&tp_file::to_bytes(&p).unwrap()).unwrap();
+    assert!(!opened.migrated);
+    let flagged = |i: usize| {
+        opened.project.surfaces[i]
+            .template
+            .as_ref()
+            .unwrap()
+            .flagged
+            .clone()
+    };
+    assert_eq!(
+        flagged(mirrors),
+        BTreeSet::from([logo, text]),
+        "unknown id dropped"
+    );
+    assert!(
+        flagged(chassis).is_empty(),
+        "not kept on a texture that isn't flagged"
+    );
+}
+
+#[test]
+fn summary_reads_the_document_without_changing_the_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("ace.truckpaint");
+    let p = rich_project();
+    tp_file::write(&p, &path).unwrap();
+    let bytes = std::fs::read(&path).unwrap();
+    let modified = std::fs::metadata(&path).unwrap().modified().unwrap();
+
+    let summary = tp_file::summary(&path).unwrap();
+    let opened = tp_file::read(&path).unwrap().project;
+    assert_eq!(
+        summary,
+        tp_file::Summary::of(&opened),
+        "same counts as the opened project"
+    );
+    assert!(!summary.vehicles.is_empty());
+    assert!(summary.textures.iter().any(|t| t.objects > 0));
+    assert_eq!(std::fs::read(&path).unwrap(), bytes);
+    assert_eq!(
+        std::fs::metadata(&path).unwrap().modified().unwrap(),
+        modified
+    );
+
+    std::fs::write(&path, &bytes[..bytes.len() / 2]).unwrap();
+    assert!(matches!(tp_file::summary(&path), Err(Error::Damaged(_))));
+    assert!(tp_file::summary(&dir.path().join("missing.truckpaint")).is_err());
 }

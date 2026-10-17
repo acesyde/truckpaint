@@ -37,6 +37,23 @@ pub fn is_drawn(o: &Object) -> bool {
     o.visible && (!o.kind.has_content() || o.children.iter().any(|c| is_drawn(c)))
 }
 
+/// The objects a template update asks to reposition on `surface`: every
+/// object, hidden ones too, inside groups but not the groups themselves; a
+/// symbol instance is one object. In layer order, bottom first.
+pub fn objects_on(surface: &Surface) -> Vec<ObjectId> {
+    fn walk(objects: &[Arc<Object>], out: &mut Vec<ObjectId>) {
+        for o in objects {
+            match o.kind {
+                ShapeKind::Group => walk(&o.children, out),
+                _ => out.push(o.id),
+            }
+        }
+    }
+    let mut out = Vec::new();
+    walk(&surface.objects, &mut out);
+    out
+}
+
 impl Surface {
     /// The texture's state (see [`TextureState`]).
     pub fn state(&self) -> TextureState {

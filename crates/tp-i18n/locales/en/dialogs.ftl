@@ -107,6 +107,7 @@ pkg-bad-manifest = its manifest is invalid ({ $reason }).
 pkg-newer-format = it was made for a newer version of TruckPaint.
 pkg-bad-id = its id “{ $id }” is invalid.
 pkg-no-main-texture = it has no main texture.
+pkg-bad-changelog = its changelog is longer than 1000 characters.
 pkg-bad-game-path = its game path “{ $path }” is not valid (words of a–z, 0–9 and _ separated by dots).
 pkg-bad-game-id = the game id “{ $id }” is not valid (words of a–z, 0–9 and _ separated by dots).
 pkg-missing-game-ids = “{ $texture }” has no game id.
@@ -135,6 +136,10 @@ custom-new-version-title = New Version of { $name }
 custom-open = Custom Vehicle…
 custom-open-library = Custom Vehicle…
 custom-version = Version
+custom-what-changed = What changed
+custom-what-changed-hint = Door layout redrawn after the game update…
+custom-what-changed-count = { $count } / { $max } characters
+custom-problem-changelog = “What changed” is longer than { $max } characters.
 custom-name = Name
 custom-brand = Brand
 custom-kind = Kind
@@ -238,12 +243,42 @@ vehicles-mine-empty = Custom vehicles are made from the game's template files (D
 vehicles-preview = Template of { $name }
 vehicles-details-of = Details of { $name }
 vehicles-installed-versions = Installed versions
+vehicles-update-summary = Update summary: { $version }
+vehicles-changes-layout = Layout changed: { $names }
+vehicles-changes-resized = Resized: { $names }
+vehicles-changes-added = New: { $names }
+vehicles-changes-removed = Removed: { $names }
+vehicles-no-changes = No changes listed
+vehicles-projects = Projects using an older version
+vehicles-projects-reading = Reading recent projects…
+vehicles-recent-only = Only recent projects are listed
+vehicles-later = Later
+vehicles-update-vehicle = Update { $name }
+vehicles-update-hint = Open a project that uses this vehicle to update it.
+vehicles-impact-textures = { $count ->
+    [one] 1 texture
+   *[other] { $count } textures
+}
+vehicles-impact-resized = { $count ->
+    [one] 1 texture resized
+   *[other] { $count } textures resized
+}
+vehicles-impact-removed = { $count } no longer in this version
+vehicles-impact-nothing = Nothing to reposition
+vehicles-impact-line = { $name }: { $impact }
+vehicles-impact-unreadable = { $name }: Can’t be read
 vehicles-export = Export…
 vehicles-exported = Exported { $file }
 vehicles-export-failed = { $file } could not be written: { $reason }
 update-versions = { $name }: version { $from } → { $to }
 update-replaced = { $name }: template replaced
-update-layout-changed = { $name }: layout changed, check the artwork
+update-layout-changed = { $name }: layout changed, { $objects }
+update-objects = { $count ->
+    [0] nothing to reposition
+    [one] 1 object to reposition
+   *[other] { $count } objects to reposition
+}
+update-changelog = What changed in { $version }:
 update-resized = { $name }: size { $old } → { $new } px, artwork scaled
 update-new-textures = New in this version:
 update-removed = { $name }: no longer in this version, artwork kept

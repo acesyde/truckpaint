@@ -126,6 +126,7 @@ pub fn package_error_reason(e: &PackageError) -> String {
         PackageError::TemplateTooLarge { texture } => {
             tr!("pkg-template-too-large", texture = texture.as_str())
         }
+        PackageError::BadChangelog => tr("pkg-bad-changelog"),
     }
 }
 

@@ -43,6 +43,19 @@ Cliquez sur <Ui id="vehicles-install" /> et choisissez un ou plusieurs fichiers 
 
 Quand aucun véhicule n’est installé, la bibliothèque explique ce que sont les paquets et propose <Ui id="vehicles-install-sample" />.
 
+## Voir ce que change une mise à jour
+
+Quand plusieurs versions d’un véhicule sont installées, ses détails affichent un résumé de la plus récente, comparée à la version précédente :
+
+- les modifications écrites par l’auteur du paquet, s’il y en a ;
+- ce que TruckPaint trouve en comparant les deux versions : textures dont la disposition a changé, textures redimensionnées, textures ajoutées ou retirées. S’il n’y a rien à montrer, il indique <Ui id="vehicles-no-changes" />.
+
+En dessous, <Ui id="vehicles-projects" /> liste vos projets récents qui utilisent une version plus ancienne, ainsi que le projet ouvert, avec le travail que demande la mise à jour : « Transports Ardent : 1 texture, 3 objets à repositionner ». TruckPaint ne sait pas quelles zones d’un gabarit ont bougé : chaque objet d’une texture dont la disposition a changé est compté. Les projets sont lus sans être ouverts ni modifiés. Seuls les projets récents sont listés, comme l’indique la liste.
+
+<Shot name="vehicles/update-summary" alt="La bibliothèque de véhicules affichant le résumé de mise à jour du camion d’exemple : disposition modifiée sur Standard cab, Side skirts ajouté, et le projet ACE Logistics avec les objets à repositionner." />
+
+<Ui id="vehicles-later" /> ferme la bibliothèque. <Ui id="update-apply" /> lance <Ui id="cmd-update-template" /> sur le projet ouvert quand il utilise ce véhicule ; sinon le bouton est désactivé, et les autres projets se mettent à jour quand vous les ouvrez.
+
 ## Mettre à jour le véhicule d’un projet
 
 Quand le statut d’un véhicule indique <Ui id="vehicles-status-update" />, ses détails proposent <Ui id="cmd-update-template" />. Cela ferme la bibliothèque et passe ce véhicule du projet ouvert à la version plus récente : les gabarits sont remplacés et votre motif est conservé. Les textures dont la disposition a changé sont marquées à vérifier. Vous pouvez aussi lancer la mise à jour depuis la carte du véhicule dans l’[espace Projet](../../fleet/project/).

@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use egui::accesskit::Role;
 use egui::{Key, Modifiers, Vec2};
 use egui_kittest::Harness;
-use egui_kittest::kittest::{NodeT, Queryable};
+use egui_kittest::kittest::{By, NodeT, Queryable};
 use tp_app::AppState;
 use tp_app::file_dialogs::ScriptedDialogs;
 use tp_app::prefs::Prefs;
@@ -1434,4 +1434,297 @@ fn search_fields_as_tall_as_the_filters() {
         height(&h, "Kind"),
         "Add Vehicle"
     );
+}
+
+/// Installs version `version` of the sample truck with `changelog`.
+fn install_with_changelog(h: &mut H, version: &str, textures: &[SampleTexture], changelog: &str) {
+    let mut manifest = sample::manifest(ID, "Sample Truck", version, textures);
+    manifest["changelog"] = serde_json::json!(changelog);
+    let bytes = sample::zip(&manifest, &sample::templates(textures));
+    h.state_mut().vehicles.install_bytes(&bytes).unwrap();
+    h.run();
+}
+
+#[test]
+fn update_template_counts_objects_to_reposition_and_shows_the_changelog() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = app(dir.path());
+    install_v120(&mut h, dir.path());
+    create_vehicle_project(&mut h);
+    // A logo, a text and a group of two rectangles on the Cabin: 4 objects.
+    let shape = |h: &mut H, x: f64| {
+        ws_mut(h).create_shape(
+            ShapeKind::rectangle(),
+            Frame::new(Point::new(x, 500.0), Size::new(100.0, 100.0), 0.0),
+            1.0,
+        )
+    };
+    ws_mut(&mut h).set_active_surface(0);
+    shape(&mut h, 300.0);
+    shape(&mut h, 600.0);
+    let a = shape(&mut h, 900.0);
+    let b = shape(&mut h, 1200.0);
+    ws_mut(&mut h).selection = vec![a, b];
+    ws_mut(&mut h).group_selection(2.0);
+    h.run();
+
+    let v13 = [
+        tex("cabin", "Cabin", 4096, 2),
+        tex("chassis", "Chassis", 2048, 1),
+        tex("accessories", "Accessories", 1024, 1),
+    ];
+    // Without a changelog: no changelog section.
+    h.state_mut()
+        .vehicles
+        .install_file(&package_file(dir.path(), "1.3.0", &v13))
+        .unwrap();
+    h.run();
+    h.get_by_label("Update the template of Sample Truck")
+        .click();
+    h.run();
+    assert!(h.query_by_label_contains("What changed in").is_none());
+    assert!(
+        h.query_by_label("• Cabin: layout changed, 4 objects to reposition")
+            .is_some()
+    );
+    assert!(
+        h.query_by_label("• Chassis: template replaced").is_some(),
+        "no count"
+    );
+    h.key_press(Key::Escape);
+    h.run();
+
+    install_with_changelog(&mut h, "1.4.0", &v13, "Door layout redrawn.");
+    h.get_by_label("Update the template of Sample Truck")
+        .click();
+    h.run();
+    assert!(h.query_by_label("What changed in 1.4.0:").is_some());
+    assert!(h.query_by_label("Door layout redrawn.").is_some());
+    h.get_by_label("Update").click();
+    h.run();
+    let t = ws(&h).project.surfaces[0].template.as_ref().unwrap();
+    assert_eq!(t.flagged.len(), 4, "the count shown is what gets flagged");
+}
+
+/// Version 1.3.0 of the sample truck: the Cabin's layout raised and Side
+/// skirts added.
+fn v13_textures() -> Vec<SampleTexture> {
+    vec![
+        tex("cabin", "Cabin", 4096, 2),
+        tex("chassis", "Chassis", 2048, 1),
+        tex("accessories", "Accessories", 1024, 1),
+        tex("side_skirts", "Side skirts", 1024, 1),
+    ]
+}
+
+/// Opens the Vehicle Library and waits until the recent projects are read.
+fn open_library(h: &mut H) {
+    h.state_mut().modal = Some(Modal::VehicleLibrary(Default::default()));
+    for _ in 0..200 {
+        settle(h);
+        if !h.state().project_summaries.is_reading() {
+            break;
+        }
+    }
+    settle(h);
+}
+
+/// Writes a project made with version `version` holding `objects`
+/// rectangles on its Cabin, and lists it among the recent projects.
+fn recent_project(h: &mut H, dir: &Path, name: &str, version: &str, objects: usize) -> PathBuf {
+    let package = h
+        .state()
+        .vehicles
+        .load(ID, &version.parse().unwrap())
+        .unwrap();
+    let textures = tp_app::vehicle_project::default_textures(&package.manifest);
+    let mut project =
+        tp_app::vehicle_project::fleet_project(name, &[(&package, &textures)]).unwrap();
+    project.active_surface = 0;
+    for i in 0..objects {
+        project.add(tp_core::document::Object::new(
+            tp_core::document::ObjectId(0),
+            ShapeKind::rectangle(),
+            Frame::new(
+                Point::new(100.0 + i as f64 * 200.0, 100.0),
+                Size::new(50.0, 50.0),
+                0.0,
+            ),
+        ));
+    }
+    let path = dir.join(format!("{name}.truckpaint"));
+    tp_file::write(&project, &path).unwrap();
+    h.state_mut()
+        .prefs
+        .recent
+        .push(tp_app::prefs::RecentProject {
+            name: name.into(),
+            path: path.clone(),
+            last_opened: 0,
+        });
+    path
+}
+
+#[test]
+fn library_update_summary_and_projects_touched() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = app(dir.path());
+    install_v120(&mut h, dir.path());
+    // One version: no summary.
+    open_library(&mut h);
+    assert!(h.query_by_label_contains("Update summary").is_none());
+    h.key_press(Key::Escape);
+    h.run();
+
+    let ardent = recent_project(&mut h, dir.path(), "Transports Ardent", "1.2.0", 3);
+    let bytes = std::fs::read(&ardent).unwrap();
+    let modified = std::fs::metadata(&ardent).unwrap().modified().unwrap();
+    // A deleted file, a damaged one, and the same file under another path.
+    recent_project(&mut h, dir.path(), "Gone", "1.2.0", 1);
+    std::fs::remove_file(dir.path().join("Gone.truckpaint")).unwrap();
+    std::fs::write(dir.path().join("Broken.truckpaint"), b"not a project").unwrap();
+    h.state_mut()
+        .prefs
+        .recent
+        .push(tp_app::prefs::RecentProject {
+            name: "Broken".into(),
+            path: dir.path().join("Broken.truckpaint"),
+            last_opened: 0,
+        });
+    h.state_mut()
+        .prefs
+        .recent
+        .push(tp_app::prefs::RecentProject {
+            name: "Transports Ardent".into(),
+            path: dir.path().join(".").join("Transports Ardent.truckpaint"),
+            last_opened: 0,
+        });
+    h.state_mut()
+        .vehicles
+        .install_file(&package_file(dir.path(), "1.3.0", &v13_textures()))
+        .unwrap();
+    let up_to_date = recent_project(&mut h, dir.path(), "New fleet", "1.3.0", 2);
+
+    // From the home screen: the dialog shows at once, the projects follow.
+    h.state_mut().modal = Some(Modal::VehicleLibrary(Default::default()));
+    h.step();
+    assert!(h.query_by_label("Reading recent projects…").is_some());
+    open_library(&mut h);
+    assert!(h.query_by_label("Update summary: 1.3.0").is_some());
+    assert!(h.query_by_label("Layout changed: Cabin").is_some());
+    assert!(h.query_by_label("New: Side skirts").is_some());
+    assert_eq!(
+        h.query_all_by_label("Transports Ardent: 1 texture, 3 objects to reposition")
+            .count(),
+        1,
+        "listed once"
+    );
+    assert!(h.query_by_label("Broken: Can’t be read").is_some());
+    assert!(h.query_by_label_contains("Gone:").is_none());
+    assert!(
+        h.query_by_label_contains("New fleet:").is_none(),
+        "up to date"
+    );
+    assert!(
+        h.query_by_label("Only recent projects are listed")
+            .is_some()
+    );
+    // Nothing to update from the home screen.
+    assert!(
+        h.get_by_label("Update Sample Truck")
+            .accesskit_node()
+            .is_disabled()
+    );
+    assert!(
+        h.query_by_label("Open a project that uses this vehicle to update it.")
+            .is_some()
+    );
+    assert_eq!(std::fs::read(&ardent).unwrap(), bytes, "files untouched");
+    assert_eq!(
+        std::fs::metadata(&ardent).unwrap().modified().unwrap(),
+        modified
+    );
+    assert!(up_to_date.is_file());
+
+    // Later closes the library, changing nothing.
+    h.get_by_label("Later").click();
+    settle(&mut h);
+    assert!(h.state().modal.is_none());
+}
+
+#[test]
+fn library_update_runs_update_template_on_the_open_project() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = app(dir.path());
+    install_v120(&mut h, dir.path());
+    create_vehicle_project(&mut h);
+    h.state_mut()
+        .vehicles
+        .install_file(&package_file(dir.path(), "1.3.0", &v13_textures()))
+        .unwrap();
+    open_library(&mut h);
+    // The open project is counted from memory, unsaved.
+    assert!(
+        h.query_by_label_contains("1 texture, nothing to reposition")
+            .is_some()
+    );
+    h.get_by_label("Update Sample Truck").click();
+    settle(&mut h);
+    assert!(matches!(h.state().modal, Some(Modal::UpdateTemplate(_))));
+}
+
+/// At 960 × 600 in German, the update summary, a project line and the
+/// Update Template counts stay inside the window.
+#[test]
+fn german_update_impact_fits_the_minimum_window() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = app(dir.path());
+    install_v120(&mut h, dir.path());
+    recent_project(&mut h, dir.path(), "Transports Ardent", "1.2.0", 3);
+    create_vehicle_project(&mut h);
+    ws_mut(&mut h).set_active_surface(0);
+    ws_mut(&mut h).create_shape(
+        ShapeKind::rectangle(),
+        Frame::new(Point::new(300.0, 300.0), Size::new(100.0, 100.0), 0.0),
+        1.0,
+    );
+    install_with_changelog(
+        &mut h,
+        "1.3.0",
+        &v13_textures(),
+        "Türlayout nach dem Spielupdate neu gezeichnet.",
+    );
+    h.set_size(Vec2::new(960.0, 600.0));
+    h.state_mut()
+        .prefs
+        .set_language(Some(tp_i18n::Language::German));
+    open_library(&mut h);
+    let inside = |h: &H, label: &str| {
+        let r = h.get_by_label(label).rect();
+        assert!(r.left() >= 0.0 && r.right() <= 960.0, "{label}: {r:?}");
+    };
+    inside(&h, "Update-Übersicht: 1.3.0");
+    inside(
+        &h,
+        "Transports Ardent: 1 Textur, 3 Objekte neu zu positionieren",
+    );
+    h.key_press(Key::Escape);
+    h.run();
+    h.state_mut()
+        .queue
+        .push(tp_app::commands::CommandId::UpdateTemplate);
+    settle(&mut h);
+    // Wrapped lines: every node of the dialog naming the Cabin fits.
+    let lines: Vec<_> = h
+        .query_all(By::new().predicate(|n| {
+            n.value()
+                .is_some_and(|v| v.contains("Cabin: Layout geändert"))
+        }))
+        .map(|n| n.rect())
+        .collect();
+    assert!(!lines.is_empty());
+    for r in lines {
+        assert!(r.left() >= 0.0 && r.right() <= 960.0, "{r:?}");
+    }
+    inside(&h, "Türlayout nach dem Spielupdate neu gezeichnet.");
 }
