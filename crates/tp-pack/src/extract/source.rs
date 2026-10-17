@@ -1,17 +1,35 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Component, Path, PathBuf};
 use std::process::Command;
+use std::sync::Arc;
 
 use serde_json::{Value, json};
+
+/// What the inventory found, read by every worker of a batch.
+#[derive(Default)]
+pub struct Shared {
+    pub files: BTreeMap<String, Vec<usize>>,
+    pub listed: BTreeMap<(usize, String), Option<Vec<String>>>,
+}
 
 pub struct Sources {
     pub converter: PathBuf,
     pub archives: Vec<PathBuf>,
+    pub shared: Arc<Shared>,
+    /// Archive indices of each file found here, beyond `shared`.
     pub files: BTreeMap<String, Vec<usize>>,
     pub work: PathBuf,
+    /// The batch work folder, where the inventory extracted definitions before workers
+    /// started; workers only read it.
+    pub inventory_work: PathBuf,
     pub log_index: usize,
-    /// `[D]`/`[F]` entries of each (archive, folder) seen so far; `None` when known absent.
+    /// `[D]`/`[F]` entries of each (archive, folder) seen here, beyond `shared`; `None`
+    /// when known absent.
     pub listed: BTreeMap<(usize, String), Option<Vec<String>>>,
+    /// Archives listed recursively: every file they hold is already in `files`.
+    pub whole: BTreeSet<usize>,
+    /// Folders whose files were looked up in the other archives.
+    pub scanned: BTreeSet<String>,
     /// Converted `.pim`/`.pit` models; shared by batches once `share_models` succeeds.
     pub models: PathBuf,
     pub converted: usize,
@@ -114,10 +132,14 @@ impl Sources {
         Ok(Self {
             converter,
             archives,
+            shared: Arc::default(),
             files: BTreeMap::new(),
             work: work.to_owned(),
+            inventory_work: work.to_owned(),
             log_index: 0,
             listed: BTreeMap::new(),
+            whole: BTreeSet::new(),
+            scanned: BTreeSet::new(),
             models: work.join("models"),
             converted: 0,
             reused: 0,
@@ -183,7 +205,9 @@ impl Sources {
             .join(format!("converter-{:06}.log", self.log_index));
         self.log_index += 1;
         std::fs::write(&log, &diagnostic).map_err(|e| format!("{}: {e}", log.display()))?;
-        let absent_directory = args.first() == Some(&"--list-directory")
+        let absent_directory = args
+            .first()
+            .is_some_and(|a| a.starts_with("--list-directory"))
             && diagnostic.contains("<error> [system] : readDir returned null!");
         let checked = if absent_directory {
             diagnostic.replace("<error> [system] : readDir returned null!", "")
@@ -208,6 +232,7 @@ impl Sources {
     /// from every archive and records which archives provide each file.
     pub fn inventory(&mut self, folders: &[&str]) -> Result<(), String> {
         for index in 0..self.archives.len() {
+            self.list_whole(index)?;
             for folder in folders {
                 self.inventory_folder(index, folder)?;
             }
@@ -215,19 +240,129 @@ impl Sources {
         Ok(())
     }
 
+    /// Lists a whole archive once, filling `files` and the folder listings. An archive
+    /// that cannot list its root (`locale.scs`) keeps per-folder listings.
+    fn list_whole(&mut self, index: usize) -> Result<(), String> {
+        let export = self.work.join(format!("archive-{index}"));
+        std::fs::create_dir_all(&export).map_err(|e| e.to_string())?;
+        let listing = self.command(&[index], &export, &["--list-directory-recursive", "/"])?;
+        let entries = parse_listing(&listing)?;
+        if entries.is_empty() {
+            return Ok(());
+        }
+        self.listed
+            .insert((index, "/".to_owned()), Some(Vec::new()));
+        for entry in entries {
+            let path = &entry[4..];
+            if entry.starts_with("[D] ") {
+                self.listed
+                    .insert((index, path.to_owned()), Some(Vec::new()));
+            } else {
+                self.record(path, index);
+            }
+            let parent = path.rsplit_once('/').map_or("/", |(p, _)| p);
+            let parent = if parent.is_empty() { "/" } else { parent };
+            if let Some(Some(siblings)) = self.listed.get_mut(&(index, parent.to_owned())) {
+                siblings.push(entry.clone());
+            }
+        }
+        self.whole.insert(index);
+        Ok(())
+    }
+
+    /// Moves what was found so far into `shared`, for `worker` views.
+    pub fn share(&mut self) {
+        self.shared = Arc::new(Shared {
+            files: std::mem::take(&mut self.files),
+            listed: std::mem::take(&mut self.listed),
+        });
+    }
+
+    /// A view for worker `n`: shared findings, its own work folder and converter logs.
+    pub fn worker(&self, n: usize) -> Sources {
+        Sources {
+            converter: self.converter.clone(),
+            archives: self.archives.clone(),
+            shared: Arc::clone(&self.shared),
+            files: self.files.clone(),
+            work: self.work.join(format!("worker-{n}")),
+            inventory_work: self.inventory_work.clone(),
+            log_index: 0,
+            listed: self.listed.clone(),
+            whole: self.whole.clone(),
+            scanned: self.scanned.clone(),
+            models: self.models.clone(),
+            converted: 0,
+            reused: 0,
+        }
+    }
+
+    /// Archive indices holding `path`, in mount order.
+    fn sources_of(&self, path: &str) -> Vec<usize> {
+        let mut indices = [&self.shared.files, &self.files]
+            .iter()
+            .filter_map(|files| files.get(path))
+            .flatten()
+            .copied()
+            .collect::<Vec<_>>();
+        indices.sort_unstable();
+        indices.dedup();
+        indices
+    }
+
+    /// Known game files whose path starts with `prefix`.
+    pub fn paths_under(&self, prefix: &str) -> Vec<String> {
+        let paths = [&self.shared.files, &self.files].map(|files| {
+            files
+                .range(prefix.to_owned()..)
+                .map(|(path, _)| path)
+                .take_while(|path| path.starts_with(prefix))
+        });
+        let [shared, own] = paths;
+        shared
+            .chain(own)
+            .cloned()
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect()
+    }
+
+    fn memo(&self, key: &(usize, String)) -> Option<&Option<Vec<String>>> {
+        self.listed.get(key).or_else(|| self.shared.listed.get(key))
+    }
+
+    fn record(&mut self, path: &str, index: usize) {
+        if self
+            .shared
+            .files
+            .get(path)
+            .is_some_and(|i| i.contains(&index))
+        {
+            return;
+        }
+        let indices = self.files.entry(path.to_owned()).or_default();
+        if !indices.contains(&index) {
+            indices.push(index);
+            indices.sort_unstable();
+        }
+    }
+
     /// Lists `folder` in one archive at most once per batch. A folder missing from its
     /// parent's listing is absent without a call; an empty listing proves nothing, since
     /// some archives (`locale.scs`) cannot list their root, so children are then listed.
     fn listing(&mut self, index: usize, folder: &str) -> Result<Vec<String>, String> {
         let key = (index, folder.to_owned());
-        if let Some(entries) = self.listed.get(&key) {
+        if let Some(entries) = self.memo(&key) {
             return Ok(entries.clone().unwrap_or_default());
         }
         let present = match folder.rsplit_once('/') {
             Some((parent, _)) if folder != "/" => {
                 let parent = if parent.is_empty() { "/" } else { parent };
                 self.listing(index, parent)?;
-                match &self.listed[&(index, parent.to_owned())] {
+                match self
+                    .memo(&(index, parent.to_owned()))
+                    .ok_or("unlisted parent")?
+                {
                     Some(entries) => {
                         entries.is_empty() || entries.contains(&format!("[D] {folder}"))
                     }
@@ -242,15 +377,7 @@ impl Sources {
             std::fs::create_dir_all(&export).map_err(|e| e.to_string())?;
             // Listing absent directories is allowed; actual extraction errors are not.
             let listing = self.command(&[index], &export, &["--list-directory", folder])?;
-            let found = listing
-                .lines()
-                .filter_map(|line| {
-                    let (kind, path) = line.split_at_checked(4)?;
-                    matches!(kind, "[D] " | "[F] ")
-                        .then(|| virtual_path("/", path.trim()).map(|path| format!("{kind}{path}")))
-                })
-                .collect::<Result<Vec<_>, _>>()?;
-            entries = Some(found);
+            entries = Some(parse_listing(&listing)?);
         }
         self.listed.insert(key, entries.clone());
         Ok(entries.unwrap_or_default())
@@ -271,7 +398,7 @@ impl Sources {
         for path in files(&root)? {
             let relative = path.strip_prefix(&export).map_err(|e| e.to_string())?;
             let virtual_name = format!("/{}", relative.to_string_lossy().replace('\\', "/"));
-            self.files.entry(virtual_name).or_default().push(index);
+            self.record(&virtual_name, index);
         }
         Ok(())
     }
@@ -283,25 +410,28 @@ impl Sources {
 
     pub fn locate(&mut self, path: &str) -> Result<PathBuf, String> {
         let path = virtual_path("/", path)?;
-        if !self.files.contains_key(&path) {
-            let parent = path.rsplit_once('/').unwrap().0;
-            let parent = if parent.is_empty() { "/" } else { parent };
-            for index in 0..self.archives.len() {
+        let parent = path.rsplit_once('/').unwrap().0;
+        let parent = if parent.is_empty() { "/" } else { parent };
+        // Wholly listed archives are already in `files`; the others may override them.
+        if self.scanned.insert(parent.to_owned()) {
+            let partial = (0..self.archives.len()).filter(|i| !self.whole.contains(i));
+            for index in partial.collect::<Vec<_>>() {
                 let listing = self.listing(index, parent)?;
                 for entry in listing.iter().filter_map(|line| line.strip_prefix("[F] ")) {
-                    let entry = entry.to_owned();
-                    let indices = self.files.entry(entry).or_default();
-                    if !indices.contains(&index) {
-                        indices.push(index);
-                        indices.sort_unstable();
-                    }
+                    self.record(entry, index);
                 }
             }
-            if !self.files.contains_key(&path) {
-                return Err(format!("missing game file {path}"));
-            }
         }
-        let index = *self.files[&path].last().ok_or("missing source")?;
+        let Some(&index) = self.sources_of(&path).last() else {
+            return Err(format!("missing game file {path}"));
+        };
+        let inventoried = self
+            .inventory_work
+            .join(format!("archive-{index}"))
+            .join(path.trim_start_matches('/'));
+        if inventoried.is_file() {
+            return Ok(inventoried);
+        }
         let local = self
             .work
             .join(format!("archive-{index}"))
@@ -357,26 +487,33 @@ impl Sources {
                 .iter()
                 .map(|path| {
                     let sources = self
-                        .files
-                        .get(path)
-                        .map(|indices| {
-                            indices
-                                .iter()
-                                .map(|i| {
-                                    self.archives[*i]
-                                        .file_name()
-                                        .unwrap()
-                                        .to_string_lossy()
-                                        .to_string()
-                                })
-                                .collect::<Vec<_>>()
+                        .sources_of(path)
+                        .iter()
+                        .map(|i| {
+                            self.archives[*i]
+                                .file_name()
+                                .unwrap()
+                                .to_string_lossy()
+                                .to_string()
                         })
-                        .unwrap_or_default();
+                        .collect::<Vec<_>>();
                     json!({"path": path, "source": sources.last(), "mounted_sources": sources})
                 })
                 .collect::<Vec<_>>()
         )
     }
+}
+
+/// The `[D] /path` and `[F] /path` entries of a converter listing, paths normalized.
+fn parse_listing(listing: &str) -> Result<Vec<String>, String> {
+    listing
+        .lines()
+        .filter_map(|line| {
+            let (kind, path) = line.split_at_checked(4)?;
+            matches!(kind, "[D] " | "[F] ")
+                .then(|| virtual_path("/", path.trim()).map(|path| format!("{kind}{path}")))
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -414,13 +551,18 @@ mod tests {
         let mut sources = Sources {
             converter: "unused".into(),
             archives: vec!["def.scs".into(), "dlc_tuning.scs".into()],
+            shared: Arc::default(),
             files: BTreeMap::from([
                 ("/def/main.sii".into(), vec![0, 1]),
                 ("/def/common.sui".into(), vec![0, 1]),
             ]),
             work: temp.path().to_owned(),
+            inventory_work: temp.path().to_owned(),
             log_index: 0,
             listed: BTreeMap::new(),
+            // Both archives are fully known from `files`: no converter call.
+            whole: BTreeSet::from([0, 1]),
+            scanned: BTreeSet::new(),
             models: temp.path().join("models"),
             converted: 0,
             reused: 0,
@@ -432,6 +574,16 @@ mod tests {
         assert!(text.contains("source1"));
         assert!(text.contains("/shared/model.pmd"));
         assert_eq!(sources.provenance(&evidence)[0]["source"], "dlc_tuning.scs");
+        // Worker views read the shared findings and never share a work folder.
+        sources.share();
+        let (first, second) = (sources.worker(0), sources.worker(1));
+        assert_eq!(first.provenance(&evidence)[0]["source"], "dlc_tuning.scs");
+        assert_eq!(
+            first.provenance(&evidence)[0]["mounted_sources"],
+            json!(["def.scs", "dlc_tuning.scs"])
+        );
+        assert_ne!(first.work, second.work);
+        assert!(first.work.starts_with(&sources.work));
         std::fs::write(
             temp.path().join("archive-1/def/common.sui"),
             "@include \"main.sii\"\n",
