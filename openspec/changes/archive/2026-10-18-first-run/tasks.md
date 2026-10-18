@@ -28,4 +28,4 @@
 
 ## 5. Wrap up
 
-- [ ] 5.1 `mise run ci` passes; run docs-drift-checker; re-sync the shared specs with the parallel changes before archiving.
+- [x] 5.1 `mise run ci` passes; run docs-drift-checker; re-sync the shared specs with the parallel changes before archiving.
