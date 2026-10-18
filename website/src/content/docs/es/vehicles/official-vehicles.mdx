@@ -1,13 +1,13 @@
 ---
 title: Vehículos oficiales
-description: Generar paquetes de camiones y remolques ETS2 desde el juego instalado.
+description: Instalar camiones y remolques oficiales de ETS2 desde el Marketplace, o generar sus paquetes desde el juego instalado.
 sidebar:
   order: 2
 ---
 import Shot from '~/components/Shot.astro';
 import Ui from '~/components/Ui.astro';
 
-Los camiones y remolques oficiales se usan mediante paquetes `.tpv` instalados manualmente. <Ui id="home-new-project" /> y <Ui id="cmd-add-vehicle" /> muestran solo los vehículos instalados. Un paquete contiene sus plantillas y datos: después de generarlo, la instalación, la creación de proyectos y la exportación de mods no necesitan el juego ni ConverterPIX.
+Los camiones y remolques oficiales de ETS2 están en el [Marketplace](../library/#instalar-desde-el-marketplace): instálelos desde la Biblioteca de vehículos, sin archivos del juego. También puede generar usted mismo sus paquetes `.tpv` desde el juego instalado, como se describe más abajo, e instalarlos a mano. <Ui id="home-new-project" /> y <Ui id="cmd-add-vehicle" /> muestran solo los vehículos instalados. Un paquete contiene sus plantillas y datos: después de generarlo, la instalación, la creación de proyectos y la exportación de mods no necesitan el juego ni ConverterPIX.
 
 ## Generar paquetes
 
@@ -38,9 +38,11 @@ Las coordenadas UV finitas fuera de [0, 1] se conservan, sin repetición, ajuste
 
 `dimension_diagnostics` enumera todos los accesorios con dimensiones de recorte ausentes o contradictorias, los tamaños candidatos, las máscaras y las definiciones y archivos de origen. Cuando el juego declara varios tamaños para un mismo accesorio, se usa el mayor (`disposition: "resolved_largest"`): los UV de la pintura se adaptan a cualquier tamaño. Por la misma razón, un tamaño de menos de 64 píxeles en un lado se amplía (`disposition: "raised_to_minimum"`). Un accesorio que el juego solo cubre con máscaras de relleno compartidas no tiene textura propia y se queda en la textura principal (`disposition: "main_texture"`), como en las pinturas del juego que no lo redefinen. La herramienta nunca inventa un tamaño.
 
+Los paquetes generados llevan una licencia («Personal modding only, not for sale. Game content belongs to SCS Software.»), citan a SCS Software entre sus autores y enlazan con el repositorio del Marketplace. Para publicar un lote en el Marketplace, consulte [Publishing in the Marketplace](../package-format/#publishing-in-the-marketplace).
+
 ## Instalar y pintar
 
-1. Abra la [biblioteca de vehículos](../library/) y use <Ui id="vehicles-install" /> para elegir un `.tpv` generado.
+1. Abra la [biblioteca de vehículos](../library/): instale el vehículo desde la pestaña <Ui id="vehicles-tab-marketplace" />, o use <Ui id="vehicles-install" /> para elegir un `.tpv` que haya generado.
 2. En <Ui id="home-new-project" />, marque el vehículo instalado, elija cabinas y accesorios y use <Ui id="new-project-create" />.
 3. Pinte y guarde el proyecto, y siga [Exportar un mod](../../export/mod/).
 
@@ -50,4 +52,4 @@ Conserve los paquetes para futuras instalaciones. El juego y el convertidor se n
 
 ## Paquetes antiguos
 
-Se han retirado el catálogo Carsmaniac y la instalación desde su paquete de plantillas. Se mantienen los identificadores `official.ets2.<vehículo>`, incluido `official.ets2.daf.2021`. Retire manualmente los paquetes de prueba antiguos antes de instalar los nuevos. No se migran las posiciones. Instalar el mismo identificador y versión reemplaza esa versión instalada; otra versión se conserva junto a ella. Los proyectos existentes no se reescriben automáticamente.
+Se han retirado el catálogo Carsmaniac y la instalación desde su paquete de plantillas, usados antes del Marketplace. Se mantienen los identificadores `official.ets2.<vehículo>`, incluido `official.ets2.daf.2021`. Retire manualmente los paquetes de prueba antiguos antes de instalar los nuevos. No se migran las posiciones. Instalar el mismo identificador y versión reemplaza esa versión instalada; otra versión se conserva junto a ella. Los proyectos existentes no se reescriben automáticamente.

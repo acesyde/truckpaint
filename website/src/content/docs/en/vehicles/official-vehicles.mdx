@@ -1,13 +1,13 @@
 ---
 title: Official vehicles
-description: Generate ETS2 truck and trailer packages from your installed game.
+description: Install official ETS2 trucks and trailers from the Marketplace, or generate their packages from your installed game.
 sidebar:
   order: 2
 ---
 import Shot from '~/components/Shot.astro';
 import Ui from '~/components/Ui.astro';
 
-Official trucks and trailers are used through manually installed `.tpv` packages. <Ui id="home-new-project" /> and <Ui id="cmd-add-vehicle" /> list only installed vehicles. A package contains its templates and game data: after generation, installation, project creation and mod export need neither the game installation nor ConverterPIX.
+Official ETS2 trucks and trailers are in the [Marketplace](../library/#install-from-the-marketplace): install them from the Vehicle Library, with no game files needed. You can also generate their `.tpv` packages yourself from your installed game, as described below, and install them by hand. <Ui id="home-new-project" /> and <Ui id="cmd-add-vehicle" /> list only installed vehicles. A package contains its templates and game data: after generation, installation, project creation and mod export need neither the game installation nor ConverterPIX.
 
 ## Generate packages
 
@@ -38,9 +38,11 @@ Finite UV coordinates outside [0, 1] are preserved, without wrapping, clamping o
 
 `dimension_diagnostics` lists every accessory with missing or conflicting crop dimensions, the candidate sizes, masks and referencing definitions/archives. When the game declares several sizes for one accessory, the largest is used (`disposition: "resolved_largest"`): paint UVs fit any size. For the same reason, a size smaller than 64 pixels on a side is scaled up (`disposition: "raised_to_minimum"`). An accessory that the game only covers with shared fill masks gets no separate texture and stays on the main texture (`disposition: "main_texture"`), as in the game's paint jobs that do not override it. The extractor never invents a size.
 
+Generated packages carry a license ("Personal modding only, not for sale. Game content belongs to SCS Software."), name SCS Software among their authors, and link to the Marketplace's repository. To publish a batch in the Marketplace, see [Publishing in the Marketplace](../package-format/#publishing-in-the-marketplace).
+
 ## Install and paint
 
-1. Open the [Vehicle Library](../library/) and use <Ui id="vehicles-install" /> to choose a generated `.tpv`.
+1. Open the [Vehicle Library](../library/): install the vehicle from the <Ui id="vehicles-tab-marketplace" /> tab, or use <Ui id="vehicles-install" /> to choose a `.tpv` you generated.
 2. In <Ui id="home-new-project" />, check that installed vehicle, choose cabins and accessories, then use <Ui id="new-project-create" />.
 3. Paint and save the project, then follow [Mod export](../../export/mod/).
 
@@ -50,4 +52,4 @@ Keep packages for future installation. The game and converter are needed only fo
 
 ## Retired packages
 
-The Carsmaniac catalog and template pack workflow have been removed. Generated packages keep `official.ets2.<vehicle>`, including `official.ets2.daf.2021`. Remove old test packages manually before installing the generated replacements. There is no migration of old placements. Installing the same id and version replaces that installed version; another version is kept alongside it. Existing project files are not automatically rewritten.
+The Carsmaniac catalog and template pack workflow, used before the Marketplace, have been removed. Generated packages keep `official.ets2.<vehicle>`, including `official.ets2.daf.2021`. Remove old test packages manually before installing the generated replacements. There is no migration of old placements. Installing the same id and version replaces that installed version; another version is kept alongside it. Existing project files are not automatically rewritten.
