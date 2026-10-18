@@ -65,6 +65,10 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
             });
     }
 
+    if state.first_run.is_some() {
+        return super::first_run::show(ui, state);
+    }
+
     // The thumbnails of the files that are there.
     let paths: Vec<&std::path::Path> = state
         .prefs

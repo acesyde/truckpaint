@@ -287,6 +287,8 @@ pub struct AppState {
     shown_title_bar_mode: Option<TitleBarMode>,
     /// The games' folders, scan and generation run.
     pub game: crate::game::GameState,
+    /// The first launch, shown in place of the home screen while it is going.
+    pub first_run: Option<crate::ui::first_run::FirstRun>,
     /// The local MCP server and its calls.
     pub mcp: crate::mcp::McpHost,
     /// Preferences should scroll to the AI assistant (MCP) section when
@@ -313,6 +315,7 @@ impl AppState {
         if first_run {
             crate::game::detect_first_run(&mut state.prefs.game_folders);
         }
+        state.begin_first_run_if_needed();
         state.system_fonts = true;
         state.dialogs = Box::new(NativeDialogs);
         state.macos = cfg!(target_os = "macos");
@@ -368,6 +371,7 @@ impl AppState {
             double_click: Default::default(),
             shown_title_bar_mode: None,
             game: Default::default(),
+            first_run: None,
             mcp: Default::default(),
             reveal_mcp_preferences: false,
         };
@@ -411,6 +415,10 @@ impl AppState {
     /// Opens the editor on a project (new, read from a file or recovered),
     /// in the Project space.
     pub fn open_project(&mut self, project: Project) {
+        // Opening a project leaves the first launch.
+        if self.first_run.take().is_some() {
+            self.prefs.first_run_done = true;
+        }
         tracing::info!(name = %project.name, side = project.resolution.side(), "project created");
         let fonts = self
             .fonts
@@ -504,7 +512,7 @@ impl AppState {
     /// Tells in a message that a generation ended, unless the Vehicle Library
     /// is open (it shows the result) or another dialog is.
     fn announce_generation(&mut self) {
-        if !std::mem::take(&mut self.game.announce) {
+        if !std::mem::take(&mut self.game.announce) || self.first_run.is_some() {
             return;
         }
         let Some(last) = &self.game.last else {
@@ -934,6 +942,7 @@ impl AppState {
             CommandId::CommandPalette => {}
             CommandId::KeyboardShortcuts => self.modal = Some(Modal::KeyboardShortcuts),
             CommandId::About => self.modal = Some(Modal::About),
+            CommandId::RunFirstLaunch => self.guard(ctx, PendingAction::RunFirstLaunch),
             CommandId::SelectTool(tool) => {
                 if let Some(ws) = self.workspace_mut() {
                     if tool != Tool::DirectSelect {
@@ -1334,6 +1343,7 @@ fn keeps_text_session(id: CommandId) -> bool {
             | CommandId::DesignGallery
             | CommandId::KeyboardShortcuts
             | CommandId::About
+            | CommandId::RunFirstLaunch
             | CommandId::Preferences
             | CommandId::Save
             | CommandId::SaveAs

@@ -79,6 +79,7 @@ pub enum CommandId {
     ExportMod,
     // Help
     KeyboardShortcuts,
+    RunFirstLaunch,
     About,
     // Colors
     SwapColorTarget,
@@ -325,6 +326,7 @@ impl CommandId {
             ExportTexture,
             ExportMod,
             KeyboardShortcuts,
+            RunFirstLaunch,
             About,
         ];
         all.extend(Space::ALL.map(ShowSpace));
@@ -882,6 +884,7 @@ impl CommandId {
                 App,
                 Always,
             ),
+            RunFirstLaunch => m("cmd-run-first-launch", None, &[], App, Always),
             About => m("cmd-about-truckpaint", None, &[], App, Always),
 
             SwapColorTarget => m(

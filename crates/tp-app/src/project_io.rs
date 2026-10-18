@@ -24,6 +24,8 @@ pub enum PendingAction {
     OpenDialog,
     Open(PathBuf),
     Restore(String),
+    /// Close the project, then show the first launch again.
+    RunFirstLaunch,
 }
 
 fn file_name(path: &Path) -> String {
@@ -106,6 +108,10 @@ impl AppState {
             }
             PendingAction::Open(path) => self.open_file(ctx, &path),
             PendingAction::Restore(session) => self.restore(ctx, &session),
+            PendingAction::RunFirstLaunch => {
+                self.close_project();
+                self.start_first_run(true);
+            }
         }
     }
 

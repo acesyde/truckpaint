@@ -7,18 +7,18 @@
 
 ## 2. Flow state and screen
 
-- [ ] 2.1 Add `FirstRun` state (step, games, filters, checks, job) and show it from the home screen while not done; `egui_kittest`: first start shows it, a done prefs file shows home.
-- [ ] 2.2 Step indicator, Back, Skip on every step (sets done, keeps choices); kittest for Back and Skip.
-- [ ] 2.3 Step 1: language (no save when unchanged), games (at least one), installation folder rows via C's detection with Choose folder…, mod folder rows with Choose folder…; kittest with a synthetic game folder: found, not found, chosen.
-- [ ] 2.4 Step 2: scan via C in the background, list with search, All/Trucks/Trailers counts, checkboxes, Select all; kittest with a synthetic game folder (counts, filter, search, select all).
-- [ ] 2.5 Generate and continue with progress, Cancel (keeps generated), per-vehicle errors, Continue when nothing is checked; kittest for generate, cancel, nothing, one failure.
-- [ ] 2.6 Game not found or ATS: message, Install the sample vehicles (uses `install_samples`), Custom Vehicle… note; kittest for both.
-- [ ] 2.7 Step 3: set done, save prefs, open New Project at the Vehicle step on the first game; kittest for the hand-off with and without vehicles.
-- [ ] 2.8 Help › Run First Launch Again… command (command id, menu, palette): current settings preselected, generated vehicles shown as such, Close Project first from a project; kittest from home, from a dirty project (Cancel keeps it), Skip changes nothing.
+- [x] 2.1 Add `FirstRun` state (step, games, filters, checks, job) and show it from the home screen while not done; `egui_kittest`: first start shows it, a done prefs file shows home.
+- [x] 2.2 Step indicator, Back, Skip on every step (sets done, keeps choices); kittest for Back and Skip.
+- [x] 2.3 Step 1: language (no save when unchanged), games (at least one), installation folder rows via C's detection with Choose folder…, mod folder rows with Choose folder…; kittest with a synthetic game folder: found, not found, chosen.
+- [x] 2.4 Step 2: scan via C in the background, list with search, All/Trucks/Trailers counts, checkboxes, Select all; kittest with a synthetic game folder (counts, filter, search, select all).
+- [x] 2.5 Generate and continue with progress, Cancel (keeps generated), per-vehicle errors, Continue when nothing is checked; kittest for generate, cancel, nothing, one failure.
+- [x] 2.6 Game not found or ATS: message, Install the sample vehicles (uses `install_samples`), Custom Vehicle… note; kittest for both.
+- [x] 2.7 Step 3: set done, save prefs, open New Project at the Vehicle step on the first game; kittest for the hand-off with and without vehicles.
+- [x] 2.8 Help › Run First Launch Again… command (command id, menu, palette): current settings preselected, generated vehicles shown as such, Close Project first from a project; kittest from home, from a dirty project (Cancel keeps it), Skip changes nothing.
 
 ## 3. Strings
 
-- [ ] 3.1 Add the flow's strings to `tp-i18n/locales/{en,fr,es,de}/*.ftl` with the same ids (English Title Case for buttons; sentence case elsewhere); run `mise run test` for the locale parity test.
+- [x] 3.1 Add the flow's strings to `tp-i18n/locales/{en,fr,es,de}/*.ftl` with the same ids (English Title Case for buttons; sentence case elsewhere); run `mise run test` for the locale parity test.
 - [ ] 3.2 Check the three steps in German at the smallest window width with a kittest or screenshot; nothing truncated.
 
 ## 4. Documentation

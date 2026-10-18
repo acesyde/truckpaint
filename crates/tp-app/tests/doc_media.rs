@@ -525,6 +525,61 @@ fn section_getting_started() {
         settle(&mut h);
         shot(&mut h, language, "getting-started/first-project");
     });
+
+    // The first launch, on a made-up game (nothing else is installed).
+    let steam = std::env::temp_dir().join("truckpaint-doc-steam");
+    let game = steam.join("steamapps/common/Euro Truck Simulator 2");
+    let _ = std::fs::remove_dir_all(&steam);
+    std::fs::create_dir_all(&game).unwrap();
+    {
+        use tp_pack::synthetic::{Vehicle, write_game};
+        let vehicles = [
+            Vehicle::truck("example.alpha", "Alpha"),
+            Vehicle::truck("example.beta", "Beta"),
+            Vehicle::truck("example.gamma", "Gamma"),
+            Vehicle::trailer("example.box", "Box"),
+            Vehicle::trailer("example.flat", "Flat"),
+        ];
+        write_game(&game, "eut2", "1.61.1.9", &vehicles);
+    }
+    let library = tempfile::tempdir().unwrap();
+    for_each_language(|language| {
+        let mut prefs = Prefs::default();
+        prefs.game_folders.insert("ets2".into(), game.clone());
+        prefs.mod_folders.insert(
+            "ets2".into(),
+            "~/Documents/Euro Truck Simulator 2/mod".into(),
+        );
+        let mut h = harness_with(language, prefs);
+        let _ = std::fs::remove_dir_all(library.path().join("vehicles"));
+        h.state_mut().vehicles =
+            tp_app::vehicles::VehicleLibrary::open(&library.path().join("vehicles"));
+        h.state_mut().game.detected.insert(tp_vehicles::Game::Ets2, None);
+        h.state_mut().game.detected.insert(tp_vehicles::Game::Ats, None);
+        h.state_mut().begin_first_run_if_needed();
+        settle(&mut h);
+        shot(&mut h, language, "getting-started/first-launch");
+        click_key(&mut h, "first-run-next");
+        for _ in 0..400 {
+            h.run_steps(1);
+            if h.state().game.scanned().is_some() {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        settle(&mut h);
+        for name in ["Example Alpha", "Example Box"] {
+            h.get_by_role_and_label(Role::CheckBox, name).click();
+        }
+        settle(&mut h);
+        shot(&mut h, language, "getting-started/first-launch-vehicles");
+    });
+}
+
+/// Clicks the widget labeled with the text of `key`.
+fn click_key(h: &mut H, key: &str) {
+    h.get_by_label(&tp_i18n::tr(key)).click();
+    h.run();
 }
 
 // --- Vehicles -----------------------------------------------------------------
