@@ -7,7 +7,7 @@ Gives the user an Adobe-style home screen to start a new livery project, open an
 ## Requirements
 
 ### Requirement: Home screen on launch
-When no project is open, the application SHALL show a home screen with:
+The first time the application starts, it SHALL show the first launch instead of the home screen (see the first-run capability). Otherwise, when no project is open, the application SHALL show a home screen with:
 - the application name and tagline;
 - **New Project** as the primary button and **Open…** (Open Project) as a secondary button, each with its shortcut in its tooltip;
 - the recovered projects, when there are any (see Recovered projects on the home screen);
@@ -18,6 +18,10 @@ The buttons SHALL have free widths that fit their translated labels.
 
 #### Scenario: First launch
 - **WHEN** the application starts for the first time
+- **THEN** the first launch is shown instead of the home screen
+
+#### Scenario: Launch after the first launch
+- **WHEN** the application starts and the first launch was finished or skipped
 - **THEN** the home screen is shown with New Project as the primary button, Open… as a secondary button, and a Recent projects area
 
 #### Scenario: Returning to home
@@ -56,7 +60,7 @@ Clicking an available card SHALL open that project. When the list is empty, it S
 ### Requirement: New Project dialog
 Choosing New Project SHALL open a modal dialog on one page:
 
-- **On top:** the **Project name** field and the **Game**, ETS2 or ATS, as a segmented control. The name defaults to the first checked vehicle's name when left empty. The game starts on the game of the installed vehicles, or ETS2 when vehicles of both games or none are installed. Changing the game unchecks the vehicles of the other game. A note says that vehicles can be added to the project at any time.
+- **On top:** the **Project name** field and the **Game**, ETS2 or ATS, as a segmented control. The name defaults to the first checked vehicle's name when left empty. The game starts on the game chosen at first launch when there is one and its vehicles are installed, else on the game of the installed vehicles, or ETS2 when vehicles of both games or none are installed. Changing the game unchecks the vehicles of the other game. A note says that vehicles can be added to the project at any time.
 - **On the left, the vehicle list**, each row with a checkbox, under the column headers Vehicle, Type and Package:
   - Only installed vehicles of the chosen game SHALL be listed, one row per vehicle with its name, kind, brand and newest installed version; no uninstalled catalog entries or automatic template pack installation SHALL be offered.
   - The list is searchable by name and brand, and filterable by kind with a segmented control **All / Trucks / Trailers**. Checked vehicles stay checked when search or filtering hides them.
@@ -83,6 +87,10 @@ Confirming SHALL open the editor workspace, in the Project space, with a new pro
 #### Scenario: Cancelling
 - **WHEN** the user presses Escape in the New Project dialog
 - **THEN** the dialog closes and the home screen is unchanged
+
+#### Scenario: Game chosen at first launch
+- **WHEN** the player chose ATS at first launch and vehicles of both games are installed
+- **THEN** New Project opens with the Game set to ATS
 
 #### Scenario: Empty name
 - **WHEN** the user leaves the name empty and confirms
