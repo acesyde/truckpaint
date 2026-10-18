@@ -4,9 +4,9 @@ Lets a player find and install vehicle packages from the public catalog inside T
 ## ADDED Requirements
 
 ### Requirement: Marketplace tab
-The Vehicle Library SHALL have a **Marketplace** tab beside Installed and My vehicles. It SHALL list the catalog's vehicles, one row per vehicle at its newest version compatible with this app, with a search field (name and brand), game and kind filters with counts, and per row: name, brand, kind, game, version, download size, and a status as text with an icon: **Install**, **Update** (a lower version is installed), or **Installed**. Versions that need a newer app SHALL be left out of the list, and a vehicle with only such versions SHALL appear as "Needs a newer TruckPaint".
+The Vehicle Library SHALL have a **Marketplace** tab beside Installed and My vehicles. It SHALL list the catalog's vehicles, one row per vehicle at its newest version compatible with this app, with a search field (name and brand), the game and kind filters of the other tabs, the number of vehicles in the tab's name, and per row: name, brand, kind, game, version, download size, and a status as text with an icon: **Install**, **Update** (a lower version is installed), or **Installed**. Versions that need a newer app SHALL be left out of the list, and a vehicle with only such versions SHALL appear as "Needs a newer TruckPaint".
 
-The detail pane SHALL show the preview, the authors, the license, the changelog and the older versions available.
+The detail pane SHALL show the license, the authors, the changelog, the entry's notice and the older versions available, and the preview when the catalog gives one.
 
 #### Scenario: Browsing
 - **WHEN** the player opens the Marketplace tab with a reachable catalog
