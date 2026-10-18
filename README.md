@@ -40,8 +40,8 @@ TruckPaint runs on Windows, macOS and Linux, in English, French, Spanish and Ger
 ## Credits and licenses
 
 - TruckPaint is under the MIT license.
-- Official ETS2 truck packages can be generated locally with `tpv extract`, which
-  reads the game's own files.
+- Official ETS2 trucks and trailers are made inside the app from your own game
+  files (My Game tab of the Vehicle Library), for your own use.
 - Fonts: [Geist](https://github.com/vercel/geist-font),
   [JetBrains Mono](https://github.com/JetBrains/JetBrainsMono),
   [Inter](https://rsms.me/inter/) and other fonts for your designs (SIL Open Font

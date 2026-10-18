@@ -147,7 +147,6 @@ fn command(root: &Path) -> Command {
 
 fn run(root: &Path, vehicle: Option<&str>) -> std::process::Output {
     let mut command = command(root);
-    command.args(["--package-version", "2.0.0"]);
     if let Some(vehicle) = vehicle {
         command.args(["--vehicle", vehicle]);
     }
@@ -212,7 +211,7 @@ fn isolated_failures_reports_and_unique_complete_outputs() {
     let other = batches(root).into_iter().find(|p| p != &first).unwrap();
     assert_eq!(
         std::fs::read(package).unwrap(),
-        std::fs::read(other.join("official.ets2.example.good-2.0.0.tpv")).unwrap()
+        std::fs::read(other.join("official.ets2.example.good-1.61.1.tpv")).unwrap()
     );
 }
 
@@ -221,7 +220,7 @@ fn invalid_version_and_excluded_vehicle_publish_nothing() {
     let fixture = fixture();
     let root = fixture.path();
     let result = command(root)
-        .args(["--package-version", "not-a-version"])
+        .args(["--previous", "missing-folder"])
         .output()
         .unwrap();
     assert!(!result.status.success());
@@ -689,9 +688,11 @@ fn names_come_from_the_game_localization() {
 fn changed_templates_get_the_next_layout_version() {
     let fixture = fixture();
     let root = fixture.path();
+    // The first main texture's layout version and the package version; `None`
+    // when nothing was written because nothing changed.
     let layout = |previous: Option<&Path>| {
         let mut command = command(root);
-        command.args(["--package-version", "2.0.0", "--vehicle", "example.good"]);
+        command.args(["--vehicle", "example.good"]);
         if let Some(previous) = previous {
             command.arg("--previous").arg(previous);
         }
@@ -702,28 +703,36 @@ fn changed_templates_get_the_next_layout_version() {
             String::from_utf8_lossy(&result.stderr)
         );
         let batch = batches(root).pop().unwrap();
-        let package = tp_pack::check(
-            &std::fs::read(batch.join("official.ets2.example.good-2.0.0.tpv")).unwrap(),
+        let package = files(&batch)
+            .into_iter()
+            .find(|p| p.extension().is_some_and(|e| e == "tpv"))
+            .map(|p| tp_pack::check(&std::fs::read(p).unwrap()).unwrap());
+        (
+            batch,
+            package.map(|p| {
+                (
+                    p.paint_job.main[0].texture.layout_version,
+                    p.version.to_string(),
+                )
+            }),
         )
-        .unwrap();
-        (batch, package.paint_job.main[0].texture.layout_version)
     };
     let (first, version) = layout(None);
-    assert_eq!(version, 1);
-    // Same template: the version is kept.
-    let (second, version) = layout(Some(&first));
-    assert_eq!(version, 1);
-    // A game update moves the UVs: the next version.
+    assert_eq!(version, Some((1, "1.61.1".into())));
+    // Same template, same game: nothing to install.
+    let (_, version) = layout(Some(&first));
+    assert_eq!(version, None);
+    // A patch moves the UVs: the next layout version, under a higher package version.
     write_model(
         &root.join("game/version.scs.files"),
         "example.good",
         &geometry([[0., 0.], [0.5, 0.], [0., 1.]], None),
         "eut2.truckpaint.tsnmapuv",
     );
-    let (third, version) = layout(Some(&second));
-    assert_eq!(version, 2);
+    let (third, version) = layout(Some(&first));
+    assert_eq!(version, Some((2, "1.61.2".into())));
     let (_, version) = layout(Some(&third));
-    assert_eq!(version, 2);
+    assert_eq!(version, None);
 }
 
 /// An owned trailer `id` with one chassis and one body, both painted, using
@@ -986,25 +995,17 @@ fn trailers_follow_the_truck_rules_and_need_a_paint_job() {
             &serde_json::json!("excluded")
         )
     );
-    // Rebuilt against that batch: unchanged layouts keep version 1.
+    // Rebuilt against that batch: nothing changed, so nothing is written.
     let first = batches(root).pop().unwrap();
     let result = command(root)
-        .args([
-            "--package-version",
-            "2.0.0",
-            "--vehicle",
-            "scs.box",
-            "--previous",
-        ])
+        .args(["--vehicle", "scs.box", "--previous"])
         .arg(&first)
         .output()
         .unwrap();
     assert!(result.status.success());
     let again = batches(root).pop().unwrap();
-    assert_eq!(
-        std::fs::read(again.join("official.ets2.scs.box-2.0.0.tpv")).unwrap(),
-        std::fs::read(first.join("official.ets2.scs.box-2.0.0.tpv")).unwrap()
-    );
+    assert!(!again.join("official.ets2.scs.box-1.61.1.tpv").exists());
+    assert_eq!(report(&again)["results"][0]["reason"], "up_to_date");
     // An overridden accessory with no model field is left out (Krone Box Liner's
     // container body); a model that exists but cannot be read still refuses the trailer.
     write(
@@ -1086,7 +1087,7 @@ fn the_reader_replaces_the_converter() {
     assert!(!root.join("target/game-extraction/cache").exists());
     // The old option is refused before anything is read.
     let result = command(root)
-        .args(["--package-version", "2.0.0", "--converter", "converter"])
+        .args(["--converter", "converter"])
         .output()
         .unwrap();
     assert!(!result.status.success());
@@ -1107,7 +1108,6 @@ fn an_unsupported_archive_version_stops_the_batch_before_any_vehicle() {
         .current_dir(root)
         .arg("extract")
         .arg(root.join("game"))
-        .args(["--package-version", "2.0.0"])
         .output()
         .unwrap();
     assert!(!result.status.success());
@@ -1201,7 +1201,7 @@ fn concurrent_builds_match_single_vehicle_batches() {
     for vehicle in ["example.good", "krone.coolliner", "scs.box"] {
         assert!(run(root, Some(vehicle)).status.success(), "{vehicle}");
         let alone = batches(root).pop().unwrap();
-        let name = format!("official.ets2.{vehicle}-2.0.0.tpv");
+        let name = format!("official.ets2.{vehicle}-1.61.1.tpv");
         assert_eq!(
             std::fs::read(all.join(&name)).unwrap(),
             std::fs::read(alone.join(&name)).unwrap(),

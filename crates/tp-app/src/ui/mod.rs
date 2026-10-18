@@ -5,6 +5,7 @@ pub mod custom_vehicle;
 pub mod dialogs;
 pub mod export_dialog;
 pub mod gallery;
+pub mod game_tab;
 pub mod home;
 pub mod library_dialog;
 pub mod menu_bar;

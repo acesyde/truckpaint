@@ -161,11 +161,27 @@ mise run pack <folder> [-o file.tpv]   # pack a folder (PNG, SVG or DDS template
 mise run sample-vehicles               # rebuild the sample packages
 ```
 
-Official ETS2 truck packages are generated from an installed game with `tpv extract`,
-which reads the game archives itself. Supply an explicit package SemVer;
-each batch writes validated packages and a JSON report into a unique `dist/`
-subdirectory, with intermediate files under `target/`. See the official vehicle
-documentation for the command and manual installation workflow.
+### Game extraction (maintainers)
+
+Players make the official trucks and trailers inside the app (Vehicle Library, My Game tab).
+`tpv extract` is the same code (`tp_pack::extract`: `inspect`, `scan`, `generate`) as a developer tool
+for whole-game batches, checking a game update and comparing batches:
+
+```sh
+mise exec -- cargo run --release -p tp-pack --bin tpv -- extract "/path/to/ETS2" \
+  [--vehicle man.tgx_2020] [--output <directory>] [--previous <folder of packages>]
+```
+
+- Package versions come from the game (game 1.61.1.9 gives 1.61.1). With `--previous`, an unchanged
+  template keeps its layout version, a changed one gets the next, and a vehicle that did not change is
+  reported as skipped (`up_to_date`) and not written.
+- Each run writes a unique subdirectory of `dist/` (or `--output`) with the packages and `report.json`
+  (sources, texture coverage, successes, failures, `missing_dependencies`, `dimension_diagnostics`).
+  Intermediates stay under `target/` only when a vehicle fails. Vehicles run in parallel (half the cores).
+- Compare two batches by unpacking the `.tpv` files: templates must be byte-identical unless the game changed them.
+- Technical validation does not prove correctness in game: check new vehicles in the game.
+
+See `docs/game-extraction-plan.md` for the design and the validated baselines.
 
 ## Code layout
 

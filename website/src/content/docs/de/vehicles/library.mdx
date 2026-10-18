@@ -12,7 +12,7 @@ TruckPaint lackiert Fahrzeuge, die es über **Fahrzeugpakete** kennt. Ein Paket 
 
 Ihre Fahrzeuge stammen aus vier Quellen:
 
-- **offizielle ETS2-Lkw- und Auflieger-Pakete**, die aus dem installierten Spiel erzeugt und manuell installiert werden: siehe [Offizielle Fahrzeuge](../official-vehicles/);
+- **offizielle ETS2-Lkw- und Auflieger-Pakete**, die Sie aus Ihrem eigenen Spiel im Reiter <Ui id="vehicles-tab-game" /> erstellen: siehe [Offizielle Fahrzeuge](../official-vehicles/);
 - die **Beispielfahrzeuge**, die mit TruckPaint geliefert werden, ein eigens dafür gezeichneter Lkw und Anhänger, um die App ohne Spieldateien auszuprobieren;
 - **eigene Fahrzeuge**, die Sie selbst aus Vorlagendateien erstellen: siehe [Eigene Fahrzeuge](../custom-vehicles/);
 - `.tpv`-Dateien, die jemand mit Ihnen geteilt hat.
@@ -23,7 +23,7 @@ Wählen Sie <Ui id="menu-vehicle" /> › <Ui id="cmd-vehicle-library" />. Das fu
 
 <Shot name="vehicles/library" alt="Der Dialog Fahrzeugbibliothek, links die Liste der installierten Fahrzeuge, rechts die Details des gewählten Fahrzeugs" />
 
-Der Dialog hat zwei Registerkarten: <Ui id="vehicles-tab-installed" args={{ count: 2 }} /> mit allen installierten Fahrzeugen und eine zweite nur mit Ihren eigenen Fahrzeugen. Jede Registerkarte zeigt, wie viele Fahrzeuge sie enthält. Über der Liste suchen Sie nach Name oder Marke und filtern nach Spiel und Art.
+Der Dialog hat drei Registerkarten: <Ui id="vehicles-tab-installed" args={{ count: 2 }} /> mit allen installierten Fahrzeugen, <Ui id="vehicles-tab-mine" args={{ count: 0 }} /> nur mit Ihren eigenen Fahrzeugen und <Ui id="vehicles-tab-game" />, wo Sie die offiziellen Fahrzeuge Ihres Spiels erstellen. Die ersten beiden zeigen, wie viele Fahrzeuge sie enthalten. Über der Liste suchen Sie nach Name oder Marke und filtern nach Spiel und Art.
 
 Jede Zeile zeigt Name, Marke, Art und Spiel des Fahrzeugs, seine neueste installierte Version und einen Status:
 
@@ -41,7 +41,7 @@ Unter <Ui id="vehicles-installed-versions" /> ist jede installierte Version des 
 
 Klicken Sie auf <Ui id="vehicles-install" /> und wählen Sie eine oder mehrere `.tpv`-Dateien. Sie können `.tpv`-Dateien auch auf den Startbildschirm oder auf ein geöffnetes Projekt ziehen. Eine Bestätigung nennt jedes installierte Fahrzeug und seine Version. Wird eine bereits vorhandene Version installiert, ersetzt sie die alte.
 
-Ist kein Fahrzeug installiert, erklärt die Bibliothek, was Pakete sind, und bietet <Ui id="vehicles-install-sample" /> an.
+Ist kein Fahrzeug installiert, erklärt die Bibliothek, was Pakete sind, und bietet <Ui id="vehicles-install-sample" /> und <Ui id="vehicles-tab-game" /> an.
 
 ## Sehen, was ein Update ändert
 

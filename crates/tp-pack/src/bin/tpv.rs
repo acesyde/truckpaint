@@ -12,13 +12,14 @@ Usage:
                                       templates (PNG, SVG or DDS, converted to PNG).
                                       Default output: <id>-<version>.tpv
   tpv check <file.tpv>                Validate a package and print its contents.
-  tpv extract <installation> --package-version <version>
+  tpv extract <installation>
               [--vehicle <identifier>] [--output <directory>] [--previous <batch>]
                                       Extract official ETS2 trucks and owned
-                                      trailers. Output parent:
-                                      dist/ by default, one unique directory per batch.
-                                      --previous: the last published batch; changed
-                                      templates get the next layout version.
+                                      trailers; package versions come from the game.
+                                      Output parent: dist/ by default, one unique
+                                      directory per batch. --previous: a folder of
+                                      earlier packages; changed templates get the
+                                      next layout version.
   tpv --help                          Show this help.
 
 Each texture's size is [width, height] in pixels, each side a power of two
@@ -92,21 +93,12 @@ fn check(args: &[String]) -> Result<(), String> {
 }
 
 fn extract(args: &[String]) -> Result<(), String> {
-    let (installation, values) = parse_options(
-        args,
-        &["--vehicle", "--output", "--package-version", "--previous"],
-    )?;
+    let (installation, values) = parse_options(args, &["--vehicle", "--output", "--previous"])?;
     let installation = installation.ok_or("extract needs an ETS2 installation directory")?;
-    let package_version = values
-        .get("--package-version")
-        .ok_or("extract needs --package-version <version>")?
-        .parse::<semver::Version>()
-        .map_err(|e| format!("invalid package version: {e}"))?;
     let options = tp_pack::extract::Options {
         installation: installation.into(),
         vehicle: values.get("--vehicle").map(|v| (*v).to_owned()),
         output: values.get("--output").unwrap_or(&"dist").into(),
-        package_version,
         previous: values.get("--previous").map(Into::into),
     };
     let batch = tp_pack::extract::run(&options)?;

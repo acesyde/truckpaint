@@ -1,16 +1,16 @@
 # Extraction des véhicules depuis ETS2
 
-La chaîne maintenue est la commande Rust `tpv extract` dans `tp-pack`.
+La chaîne maintenue est la bibliothèque `tp_pack::extract` (`inspect`, `scan`, `generate`), utilisée
+par l’application (onglet Mon jeu) et par la commande de développement `tpv extract`.
 Elle lit elle-même les archives et les modèles de l’installation ETS2 (crate
 `tp-scs`), puis construit et valide les `.tpv`. Aucun programme externe n’est
 nécessaire.
 Le catalogue, l’import Carsmaniac et Paintjob Packer sont retirés. Les paquets
-s’installent manuellement dans la bibliothèque ; aucun parcours marketplace
-ou extraction intégrée à l’application n’est ajouté.
+s’installent dans la bibliothèque ; l’application les génère séquentiellement, un véhicule à la fois.
+La version du paquet vient du jeu (1.61.1.9 donne 1.61.1).
 
 ```sh
-mise exec -- cargo run --release -p tp-pack --bin tpv -- extract "/chemin/vers/ETS2" \
-  --package-version 2.0.0
+mise exec -- cargo run --release -p tp-pack --bin tpv -- extract "/chemin/vers/ETS2"
 ```
 
 Ajouter `--vehicle man.tgx_2020` ou `--vehicle daf.2021` limite le lot.

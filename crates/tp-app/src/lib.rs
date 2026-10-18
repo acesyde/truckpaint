@@ -8,6 +8,7 @@ pub mod commands;
 pub mod custom_vehicles;
 pub mod export;
 pub mod file_dialogs;
+pub mod game;
 pub mod game_versions;
 pub mod geometry_cache;
 pub mod gesture;

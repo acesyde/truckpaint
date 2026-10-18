@@ -280,6 +280,10 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
             !state.macos,
             &mcp,
             &mut state.reveal_mcp_preferences,
+            &mut GamesEnv {
+                state: &mut state.game,
+                dialogs: state.dialogs.as_mut(),
+            },
         ) {
             state.modal = None;
         }
@@ -503,6 +507,12 @@ fn scale_slider(
     .inner
 }
 
+/// What the Games section of Preferences works with.
+struct GamesEnv<'a> {
+    state: &'a mut crate::game::GameState,
+    dialogs: &'a mut dyn crate::file_dialogs::FileDialogs,
+}
+
 /// What the Preferences dialog asks for this frame.
 /// The window height (points) under which the settings of Preferences
 /// always scroll.
@@ -517,6 +527,7 @@ fn preferences(
     title_bar: bool,
     mcp: &crate::mcp::McpView,
     reveal_mcp: &mut bool,
+    games: &mut GamesEnv,
 ) -> bool {
     let response = modal("preferences_modal").show(ctx, |ui| {
         ui.set_width(440.0);
@@ -530,12 +541,12 @@ fn preferences(
                 .max_height((height - 160.0).max(160.0))
                 .auto_shrink([false, true])
                 .show(ui, |ui| {
-                    preferences_body(ctx, ui, prefs, title_bar, mcp, reveal_mcp)
+                    preferences_body(ctx, ui, prefs, title_bar, mcp, reveal_mcp, games)
                 });
             ctx.data_mut(|d| d.insert_temp(body_id, out.content_size.y));
         } else {
             let top = ui.cursor().top();
-            preferences_body(ctx, ui, prefs, title_bar, mcp, reveal_mcp);
+            preferences_body(ctx, ui, prefs, title_bar, mcp, reveal_mcp, games);
             let used = ui.cursor().top() - top;
             ctx.data_mut(|d| d.insert_temp(body_id, used));
         }
@@ -559,6 +570,7 @@ fn preferences_body(
     title_bar: bool,
     mcp: &crate::mcp::McpView,
     reveal_mcp: &mut bool,
+    games: &mut GamesEnv,
 ) {
     ui.spacing_mut().item_spacing.y = space::MD;
     section(ui, &tr("prefs-interface"));
@@ -638,7 +650,98 @@ fn preferences_body(
             WidgetInfo::labeled(WidgetType::DragValue, true, tr("prefs-grid-spacing"))
         });
     });
+    games_section(ui, prefs, games);
     mcp_section(ui, prefs, mcp, reveal_mcp);
+}
+
+/// The Games section of Preferences: the installation folder of each game,
+/// the game's version when the folder is valid, and Detect, Choose… and Clear.
+fn games_section(ui: &mut Ui, prefs: &mut crate::prefs::Prefs, env: &mut GamesEnv) {
+    use crate::game::FolderStatus;
+    let GamesEnv {
+        state: games,
+        dialogs,
+    } = env;
+    ui.add_space(space::SM);
+    section(ui, &tr("prefs-games"));
+    for game in tp_vehicles::Game::ALL {
+        let name = super::vehicle_dialogs::game_name(game);
+        let folder = prefs.game_folders.get(game.code()).cloned();
+        let shown = folder
+            .as_deref()
+            .map_or_else(String::new, |p| p.display().to_string());
+        let id = egui::Id::new(("prefs_game_folder", game.code()));
+        let mut set = None;
+        labelled(ui, &name, |ui| {
+            let field = committed_text(
+                ui,
+                id,
+                &name,
+                &shown,
+                TextKind::Single,
+                &tr("prefs-game-folder-hint"),
+                None,
+            );
+            if let Some(text) = field.committed.filter(|t| t.trim() != shown) {
+                set = Some(std::path::PathBuf::from(text.trim()));
+            }
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = space::SM;
+                if ui
+                    .add(secondary_button(&tr("prefs-game-detect")))
+                    .on_hover_text(tr("prefs-game-detect-hint"))
+                    .clicked()
+                {
+                    match crate::game::detect(game) {
+                        Some((found, _)) => set = Some(found),
+                        None => {
+                            games.refused.insert(game, tr("prefs-game-not-detected"));
+                        }
+                    }
+                }
+                if ui.add(secondary_button(&tr("prefs-game-choose"))).clicked() {
+                    set =
+                        dialogs.pick_folder(&tr!("prefs-game-choose-title", game = name.as_str()));
+                }
+                if ui
+                    .add_enabled(folder.is_some(), secondary_button(&tr("prefs-game-clear")))
+                    .clicked()
+                {
+                    games.clear_folder(&mut prefs.game_folders, game);
+                }
+            });
+        });
+        // An empty field clears the folder, like Clear.
+        match set {
+            Some(path) if path.as_os_str().is_empty() => {
+                games.clear_folder(&mut prefs.game_folders, game);
+            }
+            Some(path) => games.set_folder(&mut prefs.game_folders, game, &path),
+            None => {}
+        }
+        if let Some(text) = games.refused.get(&game) {
+            problem(ui, text);
+        } else {
+            match games.folders.get(&game) {
+                Some(FolderStatus::Valid(info)) => {
+                    ui.label(
+                        RichText::new(tr!("prefs-game-version", version = info.version.as_str()))
+                            .color(color::TEXT_SECONDARY),
+                    );
+                }
+                Some(FolderStatus::Problem(p)) => problem(ui, &crate::game::problem_text(p)),
+                _ => {}
+            }
+        }
+    }
+    ui.add(
+        egui::Label::new(
+            RichText::new(tr("prefs-games-hint"))
+                .small()
+                .color(color::TEXT_SECONDARY),
+        )
+        .wrap(),
+    );
 }
 
 /// The AI assistant (MCP) section of Preferences: the switch, the port

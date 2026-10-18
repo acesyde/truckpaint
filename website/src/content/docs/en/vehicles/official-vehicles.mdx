@@ -1,55 +1,72 @@
 ---
 title: Official vehicles
-description: Generate the packages of the official ETS2 trucks and trailers from your installed game.
+description: Make the official ETS2 trucks and trailers from your own game, inside TruckPaint.
 sidebar:
   order: 2
 ---
 import Shot from '~/components/Shot.astro';
 import Ui from '~/components/Ui.astro';
 
-Official ETS2 trucks and trailers come as `.tpv` packages that you generate yourself from your installed game, as described below, and install by hand. <Ui id="home-new-project" /> and <Ui id="cmd-add-vehicle" /> list only installed vehicles. A package contains its templates and game data: after generation, installation, project creation and mod export need no game installation.
+The official trucks and trailers belong to SCS Software, so TruckPaint does not ship them. You make them from your own installed game, on your computer, in the <Ui id="vehicles-tab-game" /> tab of the [Vehicle Library](../library/). They are for your own use: TruckPaint never uploads them. <Ui id="home-new-project" /> and <Ui id="cmd-add-vehicle" /> list only installed vehicles. Once a vehicle is made, creating projects and exporting mods need no game installation.
 
-## Generate packages
+## Set the game folder
 
-Package authors can use the Rust `tpv` command, which reads the game's own archives and needs no other program:
+Open the preferences and look at <Ui id="prefs-games" />. Each game has a folder field:
 
-```sh
-mise exec -- cargo run --release -p tp-pack --bin tpv -- extract "/path/to/ETS2" \
-  --package-version 2.0.0
-```
+- <Ui id="prefs-game-detect" /> looks for the game in your Steam libraries (Windows, Linux including the Flatpak version of Steam, and macOS).
+- <Ui id="prefs-game-choose" /> picks the folder by hand: use it for GOG, Epic or any other place.
+- <Ui id="prefs-game-clear" /> forgets the folder.
 
-Replace the path with your ETS2 installation. Supply an explicit SemVer package version. Add `--vehicle man.tgx_2020` or `--vehicle krone.coolliner` to process one truck or trailer; omit it for every discovered vehicle. `--output <directory>` changes the parent directory of the batches. When you publish a new batch, add `--previous <batch directory>` with the last published batch: a template that did not change keeps its layout version, and a changed one gets the next version, so the app warns players who update their projects.
+TruckPaint checks the folder, shows the game's version when it is valid, and says why when it is not. On the first launch it looks for the games once by itself.
 
-The tool discovers official ETS2 trucks and owned trailers, including installed vehicle, trailer and tuning DLC. User mods and ATS are excluded. Each truck package contains all supported cabins and painted accessories. Truck and cabin names are the game's English names. Cabin templates are 4096 × 4096; accessory dimensions come from the game's paint definitions. Main templates superpose compatible painted options.
+<Shot name="vehicles/game-folders" alt="The Games section of the preferences, with the Euro Truck Simulator 2 folder set and its version shown" />
 
-A trailer package has one main texture, 4096 × 4096, for every painted body, chassis and part that the game does not paint from its own region, and accessory textures shared by the whole trailer. When the game paints every part from its own region, the main texture is only 64 × 64 and carries the base colour. Bodies or parts that the game paints from the same region in every paint job share one texture (for example the 13.6 m dry van, insulated and reefer bodies of the SCS box trailer), so you paint them once. Trailers have no variants. SCS's own trailers have no brand in the game: they are named "SCS" followed by their game name, such as "SCS Box" or "SCS Silo". Trailers whose paint jobs only set a plain colour, such as the SCS flatbed, have no livery to paint: the report lists them as skipped, without a package.
+## Make the vehicles
 
-Each run writes a unique subdirectory under `dist/` by default, holding valid packages and `report.json`. Intermediates are kept under `target/` only when a vehicle fails. A game file of a version the tool does not know stops with a message that names the file and the version. Incomplete or ambiguous vehicles, unsupported shaders and unsupported UV mappings are refused. Other vehicles continue; any failure makes the command exit unsuccessfully. No partial vehicle package is published.
+1. Open <Ui id="menu-vehicle" /> › <Ui id="cmd-vehicle-library" /> and click <Ui id="vehicles-tab-game" />. If no folder is set yet, TruckPaint proposes the one it found.
+2. The list shows the trucks and trailers of your game. Only the DLC you own appear. Each row says whether it is <Ui id="game-status-not-generated" />, generated (with its version) or <Ui id="game-status-updated" />.
+3. Check the vehicles you want, or use <Ui id="game-select-all" />, <Ui id="game-select-none" /> and <Ui id="game-select-updates" />.
+4. Click <Ui id="game-generate" args={{ count: 3 }} />. The vehicles that are not made yet are made, and the others are made again.
 
-The report records sources, versions, texture coverage, successes, failures and limits. Technical package validation does not prove correctness in game: new vehicles and new configurations still need game checks.
+<Shot name="vehicles/my-game" alt="The My Game tab: three trucks and two trailers, two of them marked Game updated and checked, and the Generate (2) button" />
 
-`missing_dependencies` lists missing references and their source definitions when available. `expected_dlc: null` with `dlc_origin: "unknown"` means the required DLC cannot be identified; the archive mentioning a reference does not establish which DLC supplies it.
+The vehicles are made one after another, and each one is installed as soon as it is ready. A progress bar counts them ("1 of 5"), the vehicle being made is named, and each row shows whether it is waiting, in progress, installed, up to date or failed. You can keep working in the app, and close the library: a message tells you when it is done. <Ui id="button-cancel" /> stops before the next vehicle and keeps those already installed. A vehicle that fails does not stop the others; the result lists it with the reason.
 
-Paint overrides pointing to accessories with no installed definition are excluded and reported with `disposition: "ignored_reference"`; they do not prevent package generation. Defined accessories whose selected model has no paint-job material cannot show a livery: they get no template and are reported with `disposition: "excluded"`. Required missing files and painted geometry that cannot be read still block extraction (`disposition: "blocking"`).
+<Shot name="vehicles/my-game-progress" alt="A run in progress: the first vehicle installed, the second in progress, three waiting, and the bar at 1 of 5" />
 
-Supported paint shaders are `truckpaint`, `truckpaint.tsnmap` and `truckpaint.tsnmapuv`, with optional `airbrush`, `flipflake` and `altuv` flavors and `.a` or `.asafew.a` alpha-test suffixes. Templates trace the mesh UVs; they do not reproduce per-pixel opacity masks. Every template uses the ordinary paint UV layout, the one used by the game's colour paint jobs and by community templates, even on trucks whose materials also have an alternate layout. Missing or ambiguous UV mappings are refused. Materials tinted only by the base paint color do not establish a paint-job UV mapping; an accessory that only has such materials is excluded, as described above.
+## After a game update
 
-Finite UV coordinates outside [0, 1] are preserved, without wrapping, clamping or switching channels. The SVG viewport limits the visible wireframe to the texture. The report records `uv_bounds` and `out_of_bounds_vertices`; these surfaces need particular attention in game. Non-finite or unrepresentable coordinates remain invalid.
+When the game moves to a new series of versions (for example from 1.61 to 1.62), the vehicles you made show <Ui id="game-status-updated" />. Click <Ui id="game-select-updates" />, then <Ui id="game-generate" args={{ count: 3 }} />. The new package gets the game's version, and the old one stays installed beside it, so your projects keep working.
 
-`dimension_diagnostics` lists every accessory with missing or conflicting crop dimensions, the candidate sizes, masks and referencing definitions/archives. When the game declares several sizes for one accessory, the largest is used (`disposition: "resolved_largest"`): paint UVs fit any size. For the same reason, a size smaller than 64 pixels on a side is scaled up (`disposition: "raised_to_minimum"`). An accessory that the game only covers with shared fill masks gets no separate texture and stays on the main texture (`disposition: "main_texture"`), as in the game's paint jobs that do not override it. The extractor never invents a size.
+If a template did not change, projects that use the vehicle are not affected. If the game changed one, projects see "template updated": see [The Vehicle Library](../library/). A vehicle that did not change is reported as up to date, and nothing is installed.
 
-Generated packages carry a license ("Personal modding only, not for sale. Game content belongs to SCS Software."), and name SCS Software among their authors.
+A patch that keeps the same series (1.61.1 then 1.61.2) is not flagged. To refresh a vehicle after such a patch, check it and generate it again.
+
+## What is made
+
+Each truck package holds all the cabins and painted accessories of the truck. Truck and cabin names are the game's English names. Cabin templates are 4096 × 4096; accessory sizes come from the game's paint definitions.
+
+A trailer package has one main texture for every painted body, chassis and part that the game does not paint from its own region, and accessory textures shared by the whole trailer. Parts that the game paints from the same region in every paint job share one texture, so you paint them once. Trailers have no variants. SCS's own trailers are named "SCS" followed by their game name, such as "SCS Box". Trailers whose paint jobs only set a plain colour, such as the SCS flatbed, have no livery to paint, so they are not listed.
+
+Templates trace the model's paint layout; they do not prove that a livery looks right in the game, so check new work in game.
+
+## Limits
+
+- Only ETS2 vehicles can be made for now. You can set and check the American Truck Simulator folder, and the tab says that its vehicles are not supported yet.
+- Only the vehicles of your installed game and DLC are listed.
+- User mods are not read.
+
+The packages carry the license "Personal modding only, not for sale. Game content belongs to SCS Software." TruckPaint is not endorsed by SCS Software. Exporting a package keeps a reminder to check that you may share it.
 
 ## Install and paint
 
-1. Open the [Vehicle Library](../library/): use <Ui id="vehicles-install" /> to choose a `.tpv` you generated.
-2. In <Ui id="home-new-project" />, check that installed vehicle, choose cabins and accessories, then use <Ui id="new-project-create" />.
-3. Paint and save the project, then follow [Mod export](../../export/mod/).
+Made vehicles are installed in the Vehicle Library already.
 
-<Shot name="vehicles/library" alt="The Vehicle Library with installed packages and the Install button" />
+1. In <Ui id="home-new-project" />, check the vehicle, choose cabins and accessories, then use <Ui id="new-project-create" />.
+2. Paint and save the project, then follow [Mod export](../../export/mod/).
 
-Keep packages for future installation. The game is needed only for generation. Custom vehicles and sample packages remain available.
+<Shot name="vehicles/library" alt="The Vehicle Library with installed packages and its tabs" />
 
 ## Retired packages
 
-The Carsmaniac catalog and template pack workflow have been removed. Generated packages keep `official.ets2.<vehicle>`, including `official.ets2.daf.2021`. Remove old test packages manually before installing the generated replacements. There is no migration of old placements. Installing the same id and version replaces that installed version; another version is kept alongside it. Existing project files are not automatically rewritten.
+The Carsmaniac catalog and template pack workflow have been removed. Generated packages keep `official.ets2.<vehicle>`, including `official.ets2.daf.2021`. Remove old test packages manually before generating the replacements. There is no migration of old placements. Installing the same id and version replaces that installed version; another version is kept alongside it. Existing project files are not automatically rewritten.

@@ -568,7 +568,128 @@ fn section_vehicles() {
         };
         modal(&mut h, Modal::VehicleLibrary(library));
         shot(&mut h, language, "vehicles/update-summary");
+
+        my_game_shots(language);
     });
+}
+
+/// A made-up game folder: three trucks and two trailers, one of them from a DLC.
+fn game_folder(version: &str) -> PathBuf {
+    use tp_pack::synthetic::{Vehicle, write_game};
+    // A path that looks like a Steam library, since the window shows it.
+    let dir = std::env::temp_dir().join("steamapps/common/Euro Truck Simulator 2");
+    std::fs::create_dir_all(&dir).unwrap();
+    write_game(
+        &dir,
+        "eut2",
+        version,
+        &[
+            Vehicle::truck("example.arctic", "Arctic"),
+            Vehicle::truck("example.meridian", "Meridian"),
+            Vehicle::truck("example.voyager", "Voyager"),
+            Vehicle::trailer("example.curtain", "Curtain"),
+            Vehicle::trailer("example.tanker", "Tanker").in_archive("dlc_tanker"),
+        ],
+    );
+    dir
+}
+
+/// Reads the game folder and makes `ids` now, one after another.
+fn generate_now(h: &mut H, folder: &std::path::Path, ids: &[&str]) {
+    let s = h.state_mut();
+    s.game.refresh_scan();
+    s.game.ensure_scan(folder, || {});
+    while s.game.scanned().is_none() {
+        s.game.poll(&mut s.vehicles);
+        std::thread::sleep(std::time::Duration::from_millis(2));
+    }
+    s.game.checked = ids.iter().map(|id| (*id).to_owned()).collect();
+    s.game.generate(&s.vehicles, || {});
+    while s.game.run.is_some() {
+        s.game.poll(&mut s.vehicles);
+        std::thread::sleep(std::time::Duration::from_millis(2));
+    }
+}
+
+/// The My Game tab (before and in the middle of a run) and the Games section of Preferences.
+fn my_game_shots(language: Language) {
+    use tp_app::state::Modal;
+    use tp_app::ui::vehicle_dialogs::{LibraryDialog, LibraryTab};
+    {
+        let mut h = harness(language);
+        let folder = game_folder("1.61.1.9");
+        h.state_mut()
+            .prefs
+            .game_folders
+            .insert("ets2".into(), folder.clone());
+        // Two vehicles made on the first version of the game, one after its update.
+        generate_now(&mut h, &folder, &["example.arctic", "example.meridian"]);
+        game_folder("1.62.0.3");
+        generate_now(&mut h, &folder, &["example.voyager"]);
+        let tab = LibraryDialog {
+            tab: LibraryTab::Game,
+            ..Default::default()
+        };
+        h.state_mut().game.last = None;
+        modal(&mut h, Modal::VehicleLibrary(tab.clone()));
+        h.get_by_label(&tp_i18n::tr("game-select-updates")).click();
+        settle(&mut h);
+        shot(&mut h, language, "vehicles/my-game");
+
+        // Mid-run: the worker waits after each event until it is let go.
+        let mut h = harness(language);
+        let folder = game_folder("1.61.1.9");
+        h.state_mut()
+            .prefs
+            .game_folders
+            .insert("ets2".into(), folder.clone());
+        modal(&mut h, Modal::VehicleLibrary(tab));
+        for _ in 0..500 {
+            h.run_steps(1);
+            if h.state().game.scanned().is_some() {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        h.get_by_label(&tp_i18n::tr("game-select-all")).click();
+        h.run();
+        let (release, gate) = std::sync::mpsc::channel::<()>();
+        {
+            let s = h.state_mut();
+            s.game.generate(&s.vehicles, move || {
+                let _ = gate.recv();
+            });
+        }
+        // Started(0), Made(0), Started(1): the second vehicle is in progress.
+        release.send(()).unwrap();
+        release.send(()).unwrap();
+        for _ in 0..500 {
+            h.run_steps(1);
+            if h.state().game.run.as_ref().is_some_and(|r| r.done() == 1) {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        settle(&mut h);
+        shot(&mut h, language, "vehicles/my-game-progress");
+        drop(release);
+
+        // The Games section of Preferences, in a window tall enough to show it whole.
+        let mut prefs = Prefs::default();
+        prefs.set_language(Some(language));
+        let mut h = common::wgpu_harness_hidpi(prefs, Vec2::new(1280.0, 1300.0), PPP, 1.0 / FPS);
+        h.state_mut().macos = false;
+        h.state_mut().native_menu_installed = false;
+        h.run();
+        let folder = game_folder("1.61.1.9");
+        h.state_mut()
+            .prefs
+            .game_folders
+            .insert("ets2".into(), folder);
+        h.state_mut().open_preferences();
+        settle_dialog(&mut h);
+        shot(&mut h, language, "vehicles/game-folders");
+    }
 }
 
 // --- Project and fleet --------------------------------------------------------
