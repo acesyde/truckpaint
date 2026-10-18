@@ -547,6 +547,8 @@ fn metallic_shaders_and_finite_uv_overflow_produce_traceable_packages() {
     let mut zip = zip::ZipArchive::new(std::io::Cursor::new(package)).unwrap();
     let manifest: Value = serde_json::from_reader(zip.by_name("vehicle.json").unwrap()).unwrap();
     assert_eq!(manifest["game"]["alt_uv"], false);
+    assert_eq!(manifest["license"], tp_pack::extract::LICENSE);
+    assert_eq!(manifest["authors"][0], "SCS Software");
     let mut svg = String::new();
     std::io::Read::read_to_string(&mut zip.by_name("templates/high.svg").unwrap(), &mut svg)
         .unwrap();
