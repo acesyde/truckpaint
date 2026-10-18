@@ -23,7 +23,7 @@ Packages are installed from bytes (`install_bytes` in `tp-app/src/vehicles.rs`),
 
 **Catalog types live in `tp-vehicles`,** next to `Manifest`: `Catalog`, `Entry`, parsing, and `newest_compatible`. `tp-pack` builds it, `tp-app` reads it. Pure code, unit-tested, no I/O.
 
-**`tpv index` reuses `tpv check`'s validation** and fills the entry from the manifest, not from file names. Output is sorted and has no timestamp except `generated`, which `--check` ignores, so the check is stable.
+**`tpv index` reuses `tpv check`'s validation** and fills the entry from the manifest, not from file names. Output is sorted and has no timestamp, so it is byte-identical for the same input. `min_app` comes from the package format (format 1 → 0.1.0), not from the `tpv` that indexed it, so a new `tpv` doesn't hide old entries from old apps. Game-derived packages have no `license`; the publish workflow passes `--default-license` and `--default-notice`. Immutability is checked with `--previous`, the catalog downloaded from Pages.
 
 **Dependencies: `ureq` (blocking, rustls) and `sha2`.** The app already runs work off the UI thread; a blocking client in a worker keeps that pattern and avoids pulling an async runtime into an egui app. Alternative `reqwest`: heavier, async, no benefit here. Both are added to the workspace and checked for license and build time on all three desktop targets before merging.
 

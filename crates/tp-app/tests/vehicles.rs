@@ -1728,3 +1728,127 @@ fn german_update_impact_fits_the_minimum_window() {
     }
     inside(&h, "Türlayout nach dem Spielupdate neu gezeichnet.");
 }
+
+/// A local catalog of the sample truck at `versions`; returns its address.
+fn market_catalog(dir: &Path, versions: &[&str]) -> String {
+    let folder = dir.join("market");
+    std::fs::create_dir_all(&folder).unwrap();
+    let files: Vec<(String, Vec<u8>)> = versions
+        .iter()
+        .map(|v| {
+            let bytes = sample::package(ID, "Sample Truck", v, &sample::truck_textures());
+            let name = format!("truck-{v}.tpv");
+            std::fs::write(folder.join(&name), &bytes).unwrap();
+            (name, bytes)
+        })
+        .collect();
+    let base = format!("file://{}", folder.display());
+    let options = tp_pack::index::Options {
+        base_url: &base,
+        default_license: Some("Personal modding only"),
+        default_notice: Some("Game content belongs to SCS Software."),
+        previous: None,
+    };
+    let catalog = tp_pack::index::build(&files, &options).unwrap();
+    std::fs::write(
+        folder.join("catalog.json"),
+        tp_pack::index::to_json(&catalog),
+    )
+    .unwrap();
+    format!("{base}/catalog.json")
+}
+
+/// Runs frames until the Marketplace's downloads are done.
+fn settle_market(h: &mut H) {
+    for _ in 0..2000 {
+        h.run_steps(1);
+        let m = &h.state().marketplace;
+        if !m.loading && m.installing.is_none() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    settle(h);
+}
+
+fn open_marketplace(h: &mut H) {
+    h.state_mut().modal = Some(Modal::VehicleLibrary(Default::default()));
+    settle(h);
+    h.get_by_label_contains("Marketplace").click();
+    settle_market(h);
+}
+
+#[test]
+fn marketplace_lists_installs_and_updates() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = app(dir.path());
+    let url = market_catalog(dir.path(), &["1.0.0"]);
+    h.state_mut().prefs.catalog_url = Some(url);
+    h.state_mut().marketplace.cache = Some(dir.path().join("cache.json"));
+    open_marketplace(&mut h);
+    assert!(
+        h.query_by_label_contains("unofficial and not endorsed by SCS Software")
+            .is_some()
+    );
+    assert!(h.query_by_label("Marketplace · 1").is_some());
+    assert!(h.query_all_by_label("Install").next().is_some());
+    assert!(
+        h.query_by_label_contains("Game content belongs to SCS Software")
+            .is_some()
+    );
+
+    h.get_by_label("Install 1.0.0").click();
+    settle_market(&mut h);
+    assert!(
+        h.query_by_label_contains("Installed Sample Truck 1.0.0")
+            .is_some()
+    );
+    assert!(h.query_all_by_label("Installed").next().is_some());
+    assert_eq!(h.state().vehicles.get(ID).unwrap().versions.len(), 1);
+
+    // A newer version in the catalog: Update.
+    market_catalog(dir.path(), &["1.0.0", "1.1.0"]);
+    h.get_by_label("Refresh").click();
+    settle_market(&mut h);
+    assert!(h.query_all_by_label("Update").next().is_some());
+    assert!(h.query_by_label("Older versions").is_some());
+    h.get_by_label("Update to 1.1.0").click();
+    settle_market(&mut h);
+    let v = h.state().vehicles.get(ID).unwrap();
+    assert_eq!(v.newest().manifest.version.to_string(), "1.1.0");
+
+    // The filter hides what doesn't match.
+    if let Some(Modal::VehicleLibrary(d)) = &mut h.state_mut().modal {
+        d.filter.query = "scania".into();
+    }
+    settle(&mut h);
+    assert!(h.query_all_by_label("Sample Truck").next().is_none());
+}
+
+#[test]
+fn marketplace_offline_uses_the_cache_or_says_so() {
+    let dir = tempfile::tempdir().unwrap();
+    market_catalog(dir.path(), &["1.0.0"]);
+    let cache = dir.path().join("cache.json");
+    std::fs::copy(dir.path().join("market/catalog.json"), &cache).unwrap();
+    let missing = format!("file://{}/missing.json", dir.path().display());
+
+    // No cache: the catalog can't be reached, Retry.
+    let mut h = app(dir.path());
+    h.state_mut().prefs.catalog_url = Some(missing.clone());
+    open_marketplace(&mut h);
+    assert!(
+        h.query_by_label_contains("The catalog can't be reached")
+            .is_some()
+    );
+    assert!(h.query_by_label("Retry").is_some());
+
+    // With a cache: listed, offline, nothing to install.
+    let mut h = app(dir.path());
+    h.state_mut().prefs.catalog_url = Some(missing);
+    h.state_mut().marketplace.cache = Some(cache);
+    open_marketplace(&mut h);
+    assert!(h.query_by_label_contains("Offline, last updated").is_some());
+    assert!(h.query_all_by_label("Sample Truck").next().is_some());
+    assert!(!h.state().marketplace.can_install());
+}

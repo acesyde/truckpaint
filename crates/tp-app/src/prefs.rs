@@ -76,6 +76,8 @@ pub struct Prefs {
     pub mcp_enabled: bool,
     /// The port of the local MCP server (Reset to defaults keeps it).
     pub mcp_port: u16,
+    /// Address of the Marketplace catalog, or `None` for the official one.
+    pub catalog_url: Option<String>,
 }
 
 /// Ports the MCP server may use (no privileged port).
@@ -95,6 +97,7 @@ impl Default for Prefs {
             system_title_bar: false,
             mcp_enabled: false,
             mcp_port: tp_mcp::DEFAULT_PORT,
+            catalog_url: None,
         }
     }
 }

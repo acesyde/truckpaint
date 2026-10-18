@@ -238,3 +238,35 @@ fn changelog_is_packed_checked_and_limited() {
     );
     assert!(!dir.path().join("long.tpv").exists());
 }
+
+#[test]
+fn index_writes_the_same_catalog_twice_and_check_writes_nothing() {
+    let dir = tempfile::tempdir().unwrap();
+    let samples = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/vehicles");
+    for entry in std::fs::read_dir(&samples).unwrap() {
+        let path = entry.unwrap().path();
+        if path.extension().is_some_and(|e| e == "tpv") {
+            std::fs::copy(&path, dir.path().join(path.file_name().unwrap())).unwrap();
+        }
+    }
+    let args = ["index", ".", "--base-url", "https://example.com/p"];
+    assert!(tpv(dir.path(), &args).status.success());
+    let first = std::fs::read(dir.path().join("catalog.json")).unwrap();
+    assert!(tpv(dir.path(), &args).status.success());
+    assert_eq!(
+        first,
+        std::fs::read(dir.path().join("catalog.json")).unwrap()
+    );
+    let catalog = tp_vehicles::catalog::Catalog::parse(&first).unwrap();
+    assert_eq!(catalog.packages.len(), 3);
+
+    std::fs::remove_file(dir.path().join("catalog.json")).unwrap();
+    let out = tpv(dir.path(), &[&args[..], &["--check"]].concat());
+    assert!(out.status.success(), "{}", text(&out.stderr));
+    assert!(!dir.path().join("catalog.json").exists());
+
+    std::fs::write(dir.path().join("bad.tpv"), b"not a zip").unwrap();
+    let out = tpv(dir.path(), &[&args[..], &["--check"]].concat());
+    assert!(!out.status.success());
+    assert!(text(&out.stderr).contains("bad.tpv"));
+}

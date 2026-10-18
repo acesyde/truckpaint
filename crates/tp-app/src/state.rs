@@ -232,6 +232,8 @@ pub struct AppState {
     /// Previews of installed packages (Vehicle Library), read in the
     /// background.
     pub package_previews: crate::package_previews::PackagePreviews,
+    /// The Marketplace catalog and downloads.
+    pub marketplace: crate::marketplace::Marketplace,
     pub project_summaries: crate::project_summaries::ProjectSummaries,
     /// Language of the operating system (English unless detected).
     pub system_language: tp_i18n::Language,
@@ -326,6 +328,7 @@ impl AppState {
             system_language: tp_i18n::Language::English,
             vehicles: crate::vehicles::VehicleLibrary::default(),
             package_previews: Default::default(),
+            marketplace: Default::default(),
             project_summaries: Default::default(),
             // Tests never open real dialogs; `new` installs the native ones.
             dialogs: Box::new(crate::file_dialogs::ScriptedDialogs::default()),

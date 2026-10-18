@@ -41,6 +41,11 @@ impl AppDirs {
         self.data.join(tp_file::library::FILE_NAME)
     }
 
+    /// The last Marketplace catalog downloaded.
+    pub fn catalog(&self) -> PathBuf {
+        self.data.join("catalog.json")
+    }
+
     /// Crash-recovery copies of unsaved projects.
     pub fn recovery(&self) -> PathBuf {
         self.data.join("recovery")

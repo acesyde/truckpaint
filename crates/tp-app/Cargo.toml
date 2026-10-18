@@ -25,6 +25,7 @@ tp-file.workspace = true
 tp-render.workspace = true
 tp-mcp.workspace = true
 serde_json.workspace = true
+ureq.workspace = true
 base64.workspace = true
 zip.workspace = true
 image.workspace = true

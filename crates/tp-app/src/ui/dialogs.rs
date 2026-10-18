@@ -639,6 +639,58 @@ fn preferences_body(
         });
     });
     mcp_section(ui, prefs, mcp, reveal_mcp);
+    catalog_section(ui, prefs);
+}
+
+/// The Marketplace section of Preferences: the catalog address, empty for
+/// the official one. A refused address keeps the previous one.
+fn catalog_section(ui: &mut Ui, prefs: &mut crate::prefs::Prefs) {
+    ui.add_space(space::SM);
+    section(ui, &tr("prefs-marketplace"));
+    let id = egui::Id::new("prefs_catalog_url");
+    let error_id = id.with("error");
+    let label = tr("prefs-catalog-url");
+    let current = prefs.catalog_url.clone().unwrap_or_default();
+    labelled(ui, &label, |ui| {
+        let field = committed_text(
+            ui,
+            id,
+            &label,
+            &current,
+            TextKind::Mono,
+            crate::marketplace::OFFICIAL_URL,
+            None,
+        );
+        if let Some(text) = field.committed {
+            let text = text.trim();
+            let refused = !text.is_empty() && !crate::marketplace::is_valid_address(text);
+            if !refused {
+                prefs.catalog_url = (!text.is_empty()).then(|| text.to_owned());
+            }
+            ui.data_mut(|d| d.insert_temp(error_id, refused));
+        }
+    });
+    if ui.data(|d| d.get_temp::<bool>(error_id)).unwrap_or(false) {
+        problem(ui, &tr("prefs-catalog-url-refused"));
+    }
+    if let Some(env) = crate::marketplace::env_address() {
+        warning(
+            ui,
+            &tr!(
+                "prefs-catalog-url-env",
+                variable = crate::marketplace::ENV,
+                url = env.as_str()
+            ),
+        );
+    }
+    ui.add(
+        egui::Label::new(
+            RichText::new(tr("prefs-catalog-url-hint"))
+                .small()
+                .color(color::TEXT_SECONDARY),
+        )
+        .wrap(),
+    );
 }
 
 /// The AI assistant (MCP) section of Preferences: the switch, the port

@@ -541,6 +541,49 @@ fn section_vehicles() {
         h.state_mut().modal = None;
         h.run();
 
+        // The Marketplace, on a local catalog of the sample vehicles.
+        let market = tempfile::tempdir().unwrap();
+        let samples =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/vehicles");
+        let mut files = Vec::new();
+        for entry in std::fs::read_dir(&samples).unwrap() {
+            let path = entry.unwrap().path();
+            if path.extension().is_some_and(|e| e == "tpv") {
+                let name = path.file_name().unwrap().to_string_lossy().into_owned();
+                let bytes = std::fs::read(&path).unwrap();
+                std::fs::write(market.path().join(&name), &bytes).unwrap();
+                files.push((name, bytes));
+            }
+        }
+        files.sort();
+        let base = format!("file://{}", market.path().display());
+        let options = tp_pack::index::Options {
+            base_url: &base,
+            ..Default::default()
+        };
+        let catalog = tp_pack::index::build(&files, &options).unwrap();
+        std::fs::write(
+            market.path().join("catalog.json"),
+            tp_pack::index::to_json(&catalog),
+        )
+        .unwrap();
+        h.state_mut().prefs.catalog_url = Some(format!("{base}/catalog.json"));
+        modal(
+            &mut h,
+            Modal::VehicleLibrary(tp_app::ui::vehicle_dialogs::LibraryDialog {
+                tab: tp_app::ui::vehicle_dialogs::LibraryTab::Marketplace,
+                ..Default::default()
+            }),
+        );
+        while h.state().marketplace.loading {
+            h.run_steps(1);
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        settle(&mut h);
+        shot(&mut h, language, "vehicles/marketplace");
+        h.state_mut().modal = None;
+        h.run();
+
         // Custom Vehicle, filled in.
         let mut dialog = CustomVehicleDialog::new(Origin::NewProject(Default::default()));
         dialog.form.name = "R 2024".into();
