@@ -51,9 +51,25 @@ pub struct NewProjectDraft {
 }
 
 impl NewProjectDraft {
-    /// The dialog as it opens: the game of the installed vehicles, or ETS2
-    /// when vehicles of both games or none are installed.
-    pub fn new(library: &crate::vehicles::VehicleLibrary) -> Self {
+    /// The dialog as it opens: the first game the player plays (`played`)
+    /// that has installed vehicles, else the game of the installed
+    /// vehicles, or ETS2 when vehicles of both games or none are installed.
+    pub fn new(library: &crate::vehicles::VehicleLibrary, played: &[String]) -> Self {
+        let installed = |code: &String| {
+            library
+                .vehicles()
+                .iter()
+                .any(|v| v.newest().manifest.game.id.code() == code)
+        };
+        if let Some(game) = played
+            .iter()
+            .find(|g| installed(g))
+            .and_then(|g| tp_vehicles::Game::ALL.into_iter().find(|x| x.code() == g))
+        {
+            let mut draft = Self::default();
+            draft.filter.game = Some(game);
+            return draft;
+        }
         let mut games = library
             .vehicles()
             .iter()
@@ -887,6 +903,7 @@ impl AppState {
                     });
                     let destination = crate::mod_export::destination(
                         &ws.project,
+                        &self.prefs.mod_folders,
                         self.last_mod_folder.as_deref(),
                         &self.mod_folders,
                     );

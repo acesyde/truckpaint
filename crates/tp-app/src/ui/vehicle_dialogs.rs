@@ -1934,8 +1934,11 @@ mod tests {
         let library = library(dir.path());
         let truck = library.get(SAMPLE_ID).unwrap();
         let trailer = library.get(SAMPLE_TRAILER_ID).unwrap();
-        let mut draft = NewProjectDraft::new(&library);
+        let mut draft = NewProjectDraft::new(&library, &[]);
         assert_eq!(draft.game(), Game::Ets2);
+        // The first played game with installed vehicles; ATS has none here.
+        let played = ["ats".to_owned(), "ets2".to_owned()];
+        assert_eq!(NewProjectDraft::new(&library, &played).game(), Game::Ets2);
         draft.toggle(truck);
         draft.toggle(trailer);
         assert_eq!(ids(&draft.vehicles), [SAMPLE_ID, SAMPLE_TRAILER_ID]);

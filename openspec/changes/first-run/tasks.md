@@ -1,9 +1,9 @@
 ## 1. Preferences and folders
 
-- [ ] 1.1 Add `first_run_done`, `games` and `mod_folders` to `Prefs` (serde defaults) with the "existing user counts as done" rule; unit tests: round trip, absent fields, recent projects set done.
-- [ ] 1.2 Make `mod_export::destination` prefer the chosen mod folder when it exists; unit tests for chosen, missing chosen (falls back), none.
-- [ ] 1.3 New Project's initial game from `games` (when its vehicles are installed); unit test.
-- [ ] 1.4 Preferences' Games section: I play this game (at least one stays checked) and the mod folder (Detect, Choose…, Clear) beside C's installation folder for ETS2 and ATS; kittest: first-launch choices shown, mod folder changed then used by Export Mod, last game can't be unchecked.
+- [x] 1.1 Add `first_run_done`, `games` and `mod_folders` to `Prefs` (serde defaults) with the "existing user counts as done" rule; unit tests: round trip, absent fields, recent projects set done.
+- [x] 1.2 Make `mod_export::destination` prefer the chosen mod folder when it exists; unit tests for chosen, missing chosen (falls back), none.
+- [x] 1.3 New Project's initial game from `games` (when its vehicles are installed); unit test.
+- [x] 1.4 Preferences' Games section: I play this game (at least one stays checked) and the mod folder (Detect, Choose…, Clear) beside C's installation folder for ETS2 and ATS; kittest: first-launch choices shown, mod folder changed then used by Export Mod, last game can't be unchecked.
 
 ## 2. Flow state and screen
 

@@ -94,7 +94,10 @@ impl AppState {
                 ctx.send_viewport_cmd(ViewportCommand::Close);
             }
             PendingAction::NewProject => {
-                self.modal = Some(Modal::NewProject(NewProjectDraft::new(&self.vehicles)));
+                self.modal = Some(Modal::NewProject(NewProjectDraft::new(
+                    &self.vehicles,
+                    &self.prefs.games,
+                )));
             }
             PendingAction::OpenDialog => {
                 if let Some(path) = self.dialogs.open_project() {

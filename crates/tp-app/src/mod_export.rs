@@ -105,14 +105,25 @@ impl Folders {
 }
 
 /// The file proposed for the mod of `project` when the Export Mod dialog
-/// opens: "<Name>.scs" in the game's mod folder when it exists under
-/// `folders`, else in `last_folder` (the last mod export of the session),
+/// opens: "<Name>.scs" in the mod folder `chosen` for the game when it exists,
+/// else in the game's mod folder when it exists under `folders`, else in `last_folder` (the last mod export of the session),
 /// else in the Documents folder, else in the home folder.
-pub fn destination(project: &Project, last_folder: Option<&Path>, folders: &Folders) -> PathBuf {
+pub fn destination(
+    project: &Project,
+    chosen: &BTreeMap<String, PathBuf>,
+    last_folder: Option<&Path>,
+    folders: &Folders,
+) -> PathBuf {
     let folder = project
         .game()
         .and_then(|game| {
-            existing_mod_folder(game, folders.documents.as_deref(), folders.data.as_deref())
+            chosen
+                .get(game)
+                .filter(|p| p.is_dir())
+                .cloned()
+                .or_else(|| {
+                    existing_mod_folder(game, folders.documents.as_deref(), folders.data.as_deref())
+                })
         })
         .or_else(|| last_folder.map(Path::to_path_buf))
         .or_else(|| folders.documents.clone())
@@ -1827,17 +1838,18 @@ mod tests {
             data: Some(dir.path().join("data")),
             home: Some(dir.path().to_path_buf()),
         };
+        let none = BTreeMap::new();
         let mut project = truck(&["standard"]);
         project.mod_settings.name = "ACE Logistics".into();
         let last = dir.path().join("last");
         // No game folder: the last export's folder, else Documents, else
         // the home folder.
         assert_eq!(
-            destination(&project, Some(&last), &folders),
+            destination(&project, &none, Some(&last), &folders),
             last.join("ACE Logistics.scs")
         );
         assert_eq!(
-            destination(&project, None, &folders),
+            destination(&project, &none, None, &folders),
             dir.path().join("Documents").join("ACE Logistics.scs")
         );
         let homeless = Folders {
@@ -1845,7 +1857,7 @@ mod tests {
             ..folders.clone()
         };
         assert_eq!(
-            destination(&project, None, &homeless),
+            destination(&project, &none, None, &homeless),
             dir.path().join("ACE Logistics.scs")
         );
         // The game's mod folder when it exists.
@@ -1857,15 +1869,29 @@ mod tests {
         .unwrap();
         std::fs::create_dir_all(&game).unwrap();
         assert_eq!(
-            destination(&project, Some(&last), &folders),
+            destination(&project, &none, Some(&last), &folders),
             game.join("ACE Logistics.scs")
         );
         // Characters that can't be in a file name.
         project.mod_settings.name = "A/B: C".into();
         assert_eq!(
-            destination(&project, None, &folders),
+            destination(&project, &none, None, &folders),
             game.join("A-B- C.scs")
         );
+        // The mod folder the player chose wins when it exists, else the
+        // game's folder as before.
+        project.mod_settings.name = "ACE Logistics".into();
+        let mut chosen = BTreeMap::from([("ets2".to_owned(), dir.path().join("chosen"))]);
+        assert_eq!(
+            destination(&project, &chosen, None, &folders),
+            game.join("ACE Logistics.scs")
+        );
+        std::fs::create_dir_all(dir.path().join("chosen")).unwrap();
+        assert_eq!(
+            destination(&project, &chosen, None, &folders),
+            dir.path().join("chosen").join("ACE Logistics.scs")
+        );
+        chosen.clear();
     }
 
     const TRUCK_DEF: &str = "def/vehicle/truck/truckpaint.sample/paint_job";

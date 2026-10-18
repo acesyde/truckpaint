@@ -283,6 +283,7 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
             &mut GamesEnv {
                 state: &mut state.game,
                 dialogs: state.dialogs.as_mut(),
+                mod_folders: &state.mod_folders,
             },
         ) {
             state.modal = None;
@@ -511,6 +512,8 @@ fn scale_slider(
 struct GamesEnv<'a> {
     state: &'a mut crate::game::GameState,
     dialogs: &'a mut dyn crate::file_dialogs::FileDialogs,
+    /// Where Export Mod looks for each game's mod folder.
+    mod_folders: &'a crate::mod_export::Folders,
 }
 
 /// What the Preferences dialog asks for this frame.
@@ -668,6 +671,7 @@ fn games_section(ui: &mut Ui, prefs: &mut crate::prefs::Prefs, env: &mut GamesEn
     let GamesEnv {
         state: games,
         dialogs,
+        mod_folders,
     } = env;
     ui.add_space(space::SM);
     section(ui, &tr("prefs-games"));
@@ -740,6 +744,7 @@ fn games_section(ui: &mut Ui, prefs: &mut crate::prefs::Prefs, env: &mut GamesEn
                 _ => {}
             }
         }
+        play_and_mod_folder(ui, prefs, game, &name, &mut **dialogs, mod_folders);
     }
     ui.add(
         egui::Label::new(
@@ -749,6 +754,75 @@ fn games_section(ui: &mut Ui, prefs: &mut crate::prefs::Prefs, env: &mut GamesEn
         )
         .wrap(),
     );
+}
+
+/// What a game's rows of Preferences hold beyond its installation folder: "I play this
+/// game" (one stays checked) and the mod folder, chosen or the one Export Mod finds.
+fn play_and_mod_folder(
+    ui: &mut Ui,
+    prefs: &mut crate::prefs::Prefs,
+    game: tp_vehicles::Game,
+    name: &str,
+    dialogs: &mut dyn crate::file_dialogs::FileDialogs,
+    folders: &crate::mod_export::Folders,
+) {
+    let code = game.code();
+    let refused_id = egui::Id::new(("prefs_play_refused", code));
+    let mut on = prefs.plays(code);
+    if ui
+        .add(tp_ui::widgets::SquareCheckbox::new(
+            &mut on,
+            tr("prefs-play"),
+        ))
+        .changed()
+    {
+        let applied = prefs.set_plays(code, on);
+        ui.data_mut(|d| d.insert_temp(refused_id, !applied));
+    }
+    if ui.data(|d| d.get_temp::<bool>(refused_id)).unwrap_or(false) {
+        ui.label(
+            RichText::new(tr("prefs-play-hint"))
+                .small()
+                .color(color::TEXT_SECONDARY),
+        );
+    }
+    let chosen = prefs.mod_folders.get(code).cloned();
+    let detected = crate::mod_export::existing_mod_folder(
+        code,
+        folders.documents.as_deref(),
+        folders.data.as_deref(),
+    );
+    let shown = chosen.clone().or(detected.clone());
+    labelled(ui, &tr!("prefs-mod-folder", game = name), |ui| {
+        let text = shown
+            .as_ref()
+            .map_or_else(|| tr("prefs-mod-none"), |p| p.display().to_string());
+        ui.add(egui::Label::new(RichText::new(text).color(color::TEXT_SECONDARY)).wrap());
+        ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = space::SM;
+            if ui
+                .add_enabled(
+                    detected.is_some(),
+                    secondary_button(&tr("prefs-game-detect")),
+                )
+                .clicked()
+                && let Some(found) = detected
+            {
+                prefs.mod_folders.insert(code.to_owned(), found);
+            }
+            if ui.add(secondary_button(&tr("prefs-game-choose"))).clicked()
+                && let Some(path) = dialogs.pick_folder(&tr!("prefs-mod-choose-title", game = name))
+            {
+                prefs.mod_folders.insert(code.to_owned(), path);
+            }
+            if ui
+                .add_enabled(chosen.is_some(), secondary_button(&tr("prefs-game-clear")))
+                .clicked()
+            {
+                prefs.mod_folders.remove(code);
+            }
+        });
+    });
 }
 
 /// The AI assistant (MCP) section of Preferences: the switch, the port
