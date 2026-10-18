@@ -7,7 +7,7 @@ Remembers the user's interface preferences and workspace layout between sessions
 ## Requirements
 
 ### Requirement: Persisted preferences
-The application SHALL persist, in the operating system's standard per-user configuration directory, at least: UI scale, text size, the workspace layout, window size/position/maximized state, the recent projects list, the interface language when the user has chosen one, whether the grid and guides are shown, whether snapping is on, the grid spacing, on Windows and Linux whether the system title bar is used.
+The application SHALL persist, in the operating system's standard per-user configuration directory, at least: UI scale, text size, the workspace layout, window size/position/maximized state, the recent projects list, the interface language when the user has chosen one, whether the first launch is done, the games the player chose at first launch, the mod folder chosen for each game, whether the grid and guides are shown, whether snapping is on, the grid spacing, on Windows and Linux whether the system title bar is used.
 
 The workspace layout SHALL be: the active tab of the left panel (Textures, Layers or Resources), the width of the left panel, the width of the inspector, and whether the panels are hidden (Hide Panels). The active space (Project, Workshop or Brand) SHALL NOT be persisted: opening a project always shows the Project space.
 
@@ -26,6 +26,14 @@ A preferences file written by a build before the spaces, which stores a stack of
 #### Scenario: Grid and snapping settings survive restart
 - **WHEN** the user shows the grid, sets the grid spacing to 128, turns snapping off, quits and restarts
 - **THEN** the grid is shown with a 128 px spacing and snapping is off
+
+#### Scenario: First launch survives restart
+- **WHEN** the player finishes or skips the first launch, quits and restarts
+- **THEN** the first launch is not shown again
+
+#### Scenario: Preferences without the first launch
+- **WHEN** the application loads a preferences file with no first-launch field and no recent project
+- **THEN** the first launch is shown, no backup of the file is made, and no message about the preferences appears
 
 #### Scenario: Language survives restart
 - **WHEN** the user picks "Deutsch" in Preferences, quits and restarts the application
@@ -142,3 +150,28 @@ Preferences SHALL have a **Games** section (completed by the first-run change wi
 #### Scenario: Older preferences file
 - **WHEN** the application starts with a preferences file written before this setting existed
 - **THEN** all its other preferences load, both folders are empty, and no message about the preferences appears
+
+### Requirement: Games played and mod folders in Preferences
+Every setting made in the first launch SHALL stay changeable afterwards in Preferences. The **Games** section of Preferences (whose installation folders come from the in-app-vehicle-generation change) SHALL show, for ETS2 and for ATS:
+- **I play this game**, the games chosen in the first launch; at least one SHALL stay checked. The first game checked is New Project's initial game;
+- the installation folder (Detect, Choose…, Clear);
+- the **mod folder**, with the detected folder when none was chosen, **Detect**, **Choose…** and **Clear**. Export Mod's save dialog SHALL open in it.
+
+A change SHALL be saved like the other preferences. "Reset to defaults" SHALL NOT change this section.
+
+#### Scenario: First launch choices shown in Preferences
+- **WHEN** the player chose ETS2, an installation folder and a mod folder in the first launch, then opens Preferences
+- **THEN** the Games section shows ETS2 checked, the same installation folder and the same mod folder
+
+#### Scenario: Fix a wrong mod folder
+- **WHEN** the player chooses another mod folder for ETS2 in Preferences and exports a mod
+- **THEN** Export Mod's save dialog opens in the new folder
+
+#### Scenario: Start playing ATS
+- **WHEN** the player who chose only ETS2 checks I play this game for ATS
+- **THEN** its installation and mod folders are detected and shown, and New Project still starts on ETS2
+
+#### Scenario: Last game unchecked
+- **WHEN** only ETS2 is checked and the player unchecks it
+- **THEN** it stays checked and a hint says at least one game is needed
+

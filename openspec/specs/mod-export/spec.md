@@ -167,7 +167,7 @@ The dialog SHALL also list the project's warnings about its textures, the textur
 - **THEN** the dialog warns "Curtain body 13.6 m: layout changed", and Export stays enabled when there is no problem
 
 ### Requirement: Destination
-The dialog SHALL show the destination: the full path of the file the mod will be written to, in the monospace face, shortened from its start with an ellipsis when it doesn't fit (so the file name stays visible), and shown in full on hover. When the dialog opens, it SHALL propose "<Name>.scs", with the characters that can't be used in file names replaced by `-`, in the game's mod folder when that folder exists:
+The dialog SHALL show the destination: the full path of the file the mod will be written to, in the monospace face, shortened from its start with an ellipsis when it doesn't fit (so the file name stays visible), and shown in full on hover. When the dialog opens, it SHALL propose "<Name>.scs", with the characters that can't be used in file names replaced by `-`, in the mod folder chosen at first launch for the game when there is one and it exists, else in the game's mod folder when that folder exists:
 
 | | Euro Truck Simulator 2 | American Truck Simulator |
 |---|---|---|
@@ -184,6 +184,10 @@ Otherwise it SHALL propose the folder of the last mod export of the session, or 
 #### Scenario: Exporting into the game
 - **WHEN** the user opens Export Mod… on an ETS2 project named "ACE Logistics" on Windows, with the folder `Documents\Euro Truck Simulator 2\mod` present
 - **THEN** the dialog shows the destination `Documents\Euro Truck Simulator 2\mod\ACE Logistics.scs`, and Export writes the mod there
+
+#### Scenario: Mod folder chosen at first launch
+- **WHEN** the player chose `D:\Mods\ETS2` as the ETS2 mod folder at first launch and opens Export Mod… on an ETS2 project named "ACE Logistics"
+- **THEN** the destination is `D:\Mods\ETS2\ACE Logistics.scs`
 
 #### Scenario: No game folder
 - **WHEN** no ATS mod folder exists and the user opens Export Mod… on an ATS project named "Blue Line" for the first time in the session
