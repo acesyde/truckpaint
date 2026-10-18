@@ -61,7 +61,7 @@ The step SHALL NOT show a game version. A game that is not found SHALL NOT block
 ### Requirement: Vehicles to paint step
 The second step SHALL scan the chosen game (see the in-app-vehicle-generation change) and list the trucks and trailers the player owns, with a search by brand or model, filters **All / Trucks / Trailers** with counts, one checkbox per vehicle, **Select all**, and the number of vehicles checked. The scan SHALL run in the background, with a way to cancel it, and SHALL NOT freeze the window. When both games are chosen, the vehicles of both SHALL be listed with their game.
 
-**Generate and continue** SHALL generate the checked vehicles as installed packages, with progress and **Cancel**, then go to the next step. Cancel SHALL stop after the current vehicle and keep those already generated. A vehicle that fails SHALL be reported by name and SHALL NOT stop the others. Generating nothing SHALL be allowed: with nothing checked, the button reads **Continue**.
+**Generate and continue** SHALL generate the checked vehicles as installed packages, with progress and **Cancel**, then go to the next step when every vehicle was generated; after a Cancel or a failure the player stays on the step. Cancel SHALL stop after the current vehicle and keep those already generated. A vehicle that fails SHALL be reported by name and SHALL NOT stop the others. Generating nothing SHALL be allowed: with nothing checked, the button reads **Continue**.
 
 When the chosen game is not found, or is not supported for generation yet (ATS), the step SHALL say so, offer **Install the sample vehicles** (no network), and say that a vehicle can be added later with Custom Vehicle…. For a game with other chosen games, the step SHALL still list the others.
 
@@ -91,7 +91,7 @@ When the chosen game is not found, or is not supported for generation yet (ATS),
 
 #### Scenario: A failed vehicle
 - **WHEN** one of three vehicles fails to generate
-- **THEN** the other two are installed and a message names the one that failed
+- **THEN** the other two are installed, a message names the one that failed, and the player stays on the step
 
 ### Requirement: First project step
 The third step SHALL close the first launch and open New Project at its Vehicle step, with the Game set to the first chosen game, and the vehicles just generated or installed listed. With no vehicle installed, New Project SHALL open as usual with its own offers (Install the sample vehicles, Custom Vehicle…). Cancelling New Project SHALL show the home screen.
