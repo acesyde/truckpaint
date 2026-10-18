@@ -11,13 +11,13 @@ The official trucks and trailers belong to SCS Software, so TruckPaint does not 
 
 ## Set the game folder
 
-Open the preferences and click the <Ui id="prefs-tab-games" /> tab. Each game has a folder field:
+Open the preferences and click the <Ui id="prefs-tab-games" /> tab. Each game has its own group, with a game folder and a mod folder. Next to the game's name, its version shows once the folder is valid. An empty folder reads <Ui id="prefs-folder-not-set" />. The buttons depend on what is set:
 
-- <Ui id="prefs-game-detect" /> looks for the game in your Steam libraries (Windows, Linux including the Flatpak version of Steam, and macOS).
+- <Ui id="prefs-game-detect" />, shown while the game folder is empty, looks for the game in your Steam libraries (Windows, Linux including the Flatpak version of Steam, and macOS).
 - <Ui id="prefs-game-choose" /> picks the folder by hand: use it for GOG, Epic or any other place.
-- <Ui id="prefs-game-clear" /> forgets the folder.
+- <Ui id="prefs-game-clear" />, shown once a folder is set, forgets it.
 
-A game is one you play when its folder is set: <Ui id="home-new-project" /> starts on the first game that has vehicles installed, or on the only game whose folder is set. TruckPaint refuses the folder of the other game. Under each game, the mod folder row shows where <Ui id="cmd-export-mod" /> saves mods for that game, the detected folder when you chose none, with the same three buttons.
+A game is one you play when its folder is set: <Ui id="home-new-project" /> starts on the first game that has vehicles installed, or on the only game whose folder is set. TruckPaint refuses the folder of the other game. The <Ui id="prefs-mod-folder-label" /> row shows where <Ui id="cmd-export-mod" /> saves mods for that game, the detected folder when you chose none. It has <Ui id="prefs-game-choose" />, and <Ui id="prefs-game-clear" /> once you chose one, which goes back to the detected folder.
 
 TruckPaint checks the folder, shows the game's version when it is valid, and says why when it is not. On the first launch it looks for the games once by itself.
 

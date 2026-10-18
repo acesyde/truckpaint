@@ -676,8 +676,17 @@ fn general_tab(ctx: &egui::Context, ui: &mut Ui, prefs: &mut crate::prefs::Prefs
     });
 }
 
-/// The Games section of Preferences: the installation folder of each game,
-/// the game's version when the folder is valid, and Detect, Choose… and Clear.
+/// A button whose accessible name says which folder it is for ("Choose…,
+/// Euro Truck Simulator 2 game folder"); its visible text is `text`.
+fn folder_button(ui: &mut Ui, text: &str, target: &str) -> egui::Response {
+    let response = ui.add(secondary_button(text));
+    let name = tr!("prefs-button-for", action = text, target = target);
+    response.widget_info(|| WidgetInfo::labeled(WidgetType::Button, true, name.clone()));
+    response
+}
+
+/// The Games tab of Preferences: what is read, then one group per game with
+/// its version beside its name, its game folder and its mod folder.
 fn games_section(ui: &mut Ui, prefs: &mut crate::prefs::Prefs, env: &mut GamesEnv) {
     use crate::game::FolderStatus;
     let GamesEnv {
@@ -685,23 +694,42 @@ fn games_section(ui: &mut Ui, prefs: &mut crate::prefs::Prefs, env: &mut GamesEn
         dialogs,
         mod_folders,
     } = env;
-    section(ui, &tr("prefs-games"));
+    ui.add(
+        egui::Label::new(
+            RichText::new(tr("prefs-games-hint"))
+                .small()
+                .color(color::TEXT_SECONDARY),
+        )
+        .wrap(),
+    );
     for game in tp_vehicles::Game::ALL {
         let name = super::vehicle_dialogs::game_name(game);
+        ui.add_space(space::MD);
+        ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = space::SM;
+            section(ui, &name);
+            if let Some(FolderStatus::Valid(info)) = games.folders.get(&game) {
+                ui.label(
+                    RichText::new(tr!("prefs-game-version", version = info.version.as_str()))
+                        .color(color::TEXT_SECONDARY),
+                );
+            }
+        });
+        let target = tr!("prefs-game-folder-target", game = name.as_str());
         let folder = prefs.game_folders.get(game.code()).cloned();
         let shown = folder
             .as_deref()
             .map_or_else(String::new, |p| p.display().to_string());
         let id = egui::Id::new(("prefs_game_folder", game.code()));
         let mut set = None;
-        labelled(ui, &name, |ui| {
+        labelled(ui, &tr("prefs-game-folder-label"), |ui| {
             let field = committed_text(
                 ui,
                 id,
-                &name,
+                &target,
                 &shown,
                 TextKind::Single,
-                &tr("prefs-game-folder-hint"),
+                &tr("prefs-folder-not-set"),
                 None,
             );
             if let Some(text) = field.committed.filter(|t| t.trim() != shown) {
@@ -709,10 +737,11 @@ fn games_section(ui: &mut Ui, prefs: &mut crate::prefs::Prefs, env: &mut GamesEn
             }
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = space::SM;
-                if ui
-                    .add(secondary_button(&tr("prefs-game-detect")))
-                    .on_hover_text(tr("prefs-game-detect-hint"))
-                    .clicked()
+                // Detect while the folder is empty, Clear once it is set.
+                if folder.is_none()
+                    && folder_button(ui, &tr("prefs-game-detect"), &target)
+                        .on_hover_text(tr("prefs-game-detect-hint"))
+                        .clicked()
                 {
                     match crate::game::detect(game) {
                         Some((found, _)) => set = Some(found),
@@ -721,13 +750,11 @@ fn games_section(ui: &mut Ui, prefs: &mut crate::prefs::Prefs, env: &mut GamesEn
                         }
                     }
                 }
-                if ui.add(secondary_button(&tr("prefs-game-choose"))).clicked() {
+                if folder_button(ui, &tr("prefs-game-choose"), &target).clicked() {
                     set =
                         dialogs.pick_folder(&tr!("prefs-game-choose-title", game = name.as_str()));
                 }
-                if ui
-                    .add_enabled(folder.is_some(), secondary_button(&tr("prefs-game-clear")))
-                    .clicked()
+                if folder.is_some() && folder_button(ui, &tr("prefs-game-clear"), &target).clicked()
                 {
                     games.clear_folder(&mut prefs.game_folders, game);
                 }
@@ -743,32 +770,15 @@ fn games_section(ui: &mut Ui, prefs: &mut crate::prefs::Prefs, env: &mut GamesEn
         }
         if let Some(text) = games.refused.get(&game) {
             problem(ui, text);
-        } else {
-            match games.folders.get(&game) {
-                Some(FolderStatus::Valid(info)) => {
-                    ui.label(
-                        RichText::new(tr!("prefs-game-version", version = info.version.as_str()))
-                            .color(color::TEXT_SECONDARY),
-                    );
-                }
-                Some(FolderStatus::Problem(p)) => problem(ui, &crate::game::problem_text(p)),
-                _ => {}
-            }
+        } else if let Some(FolderStatus::Problem(p)) = games.folders.get(&game) {
+            problem(ui, &crate::game::problem_text(p));
         }
         mod_folder_row(ui, prefs, game, &name, &mut **dialogs, mod_folders);
     }
-    ui.add(
-        egui::Label::new(
-            RichText::new(tr("prefs-games-hint"))
-                .small()
-                .color(color::TEXT_SECONDARY),
-        )
-        .wrap(),
-    );
 }
 
-/// What a game's rows of Preferences hold beyond its installation folder: the mod
-/// folder, chosen or the one Export Mod finds.
+/// A game's mod folder row: the chosen folder, else the one Export Mod finds,
+/// in a field that shows its path and changes through Choose….
 fn mod_folder_row(
     ui: &mut Ui,
     prefs: &mut crate::prefs::Prefs,
@@ -778,39 +788,43 @@ fn mod_folder_row(
     folders: &crate::mod_export::Folders,
 ) {
     let code = game.code();
+    let target = tr!("prefs-mod-folder", game = name);
     let chosen = prefs.mod_folders.get(code).cloned();
     let detected = crate::mod_export::existing_mod_folder(
         code,
         folders.documents.as_deref(),
         folders.data.as_deref(),
     );
-    let shown = chosen.clone().or(detected.clone());
-    labelled(ui, &tr!("prefs-mod-folder", game = name), |ui| {
+    let shown = chosen.clone().or(detected);
+    labelled(ui, &tr("prefs-mod-folder-label"), |ui| {
         let text = shown
             .as_ref()
-            .map_or_else(|| tr("prefs-mod-none"), |p| p.display().to_string());
-        ui.add(egui::Label::new(RichText::new(text).color(color::TEXT_SECONDARY)).wrap());
+            .map_or_else(String::new, |p| p.display().to_string());
+        // The detected folder is dimmer than a chosen one.
+        let tint = if chosen.is_some() {
+            color::TEXT_PRIMARY
+        } else {
+            color::TEXT_SECONDARY
+        };
+        let field = ui.add(
+            TextEdit::singleline(&mut text.as_str())
+                .id_salt(("prefs_mod_folder", code))
+                .margin(Margin::symmetric(10, 0))
+                .vertical_align(Align::Center)
+                .min_size(egui::vec2(0.0, FIELD_HEIGHT))
+                .desired_width(f32::INFINITY)
+                .text_color(tint)
+                .hint_text(tr("prefs-folder-not-set")),
+        );
+        field.widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, true, target.clone()));
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = space::SM;
-            if ui
-                .add_enabled(
-                    detected.is_some(),
-                    secondary_button(&tr("prefs-game-detect")),
-                )
-                .clicked()
-                && let Some(found) = detected
-            {
-                prefs.mod_folders.insert(code.to_owned(), found);
-            }
-            if ui.add(secondary_button(&tr("prefs-game-choose"))).clicked()
+            if folder_button(ui, &tr("prefs-game-choose"), &target).clicked()
                 && let Some(path) = dialogs.pick_folder(&tr!("prefs-mod-choose-title", game = name))
             {
                 prefs.mod_folders.insert(code.to_owned(), path);
             }
-            if ui
-                .add_enabled(chosen.is_some(), secondary_button(&tr("prefs-game-clear")))
-                .clicked()
-            {
+            if chosen.is_some() && folder_button(ui, &tr("prefs-game-clear"), &target).clicked() {
                 prefs.mod_folders.remove(code);
             }
         });

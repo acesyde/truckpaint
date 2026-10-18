@@ -11,13 +11,13 @@ Die offiziellen Lkw und Auflieger gehören SCS Software, deshalb liefert TruckPa
 
 ## Den Spielordner festlegen
 
-Öffnen Sie die Einstellungen und klicken Sie auf den Tab <Ui id="prefs-tab-games" />. Jedes Spiel hat ein Ordnerfeld:
+Öffnen Sie die Einstellungen und klicken Sie auf den Tab <Ui id="prefs-tab-games" />. Jedes Spiel hat eine eigene Gruppe mit einem Spielordner und einem Mod-Ordner. Neben dem Namen des Spiels erscheint seine Version, sobald der Ordner gültig ist. Ein leerer Ordner zeigt <Ui id="prefs-folder-not-set" />. Die Schaltflächen hängen davon ab, was festgelegt ist:
 
-- <Ui id="prefs-game-detect" /> sucht das Spiel in Ihren Steam-Bibliotheken (Windows, Linux einschließlich der Flatpak-Version von Steam und macOS).
+- <Ui id="prefs-game-detect" />, sichtbar, solange der Spielordner leer ist, sucht das Spiel in Ihren Steam-Bibliotheken (Windows, Linux einschließlich der Flatpak-Version von Steam und macOS).
 - <Ui id="prefs-game-choose" /> wählt den Ordner von Hand: nutzen Sie es für GOG, Epic oder jeden anderen Ort.
-- <Ui id="prefs-game-clear" /> vergisst den Ordner.
+- <Ui id="prefs-game-clear" />, sichtbar, sobald ein Ordner festgelegt ist, vergisst ihn.
 
-Ein Spiel gilt als gespielt, wenn sein Ordner festgelegt ist: <Ui id="home-new-project" /> beginnt mit dem ersten Spiel, dessen Fahrzeuge installiert sind, oder mit dem einzigen Spiel, dessen Ordner festgelegt ist. TruckPaint lehnt den Ordner des anderen Spiels ab. Unter jedem Spiel zeigt die Zeile des Mod-Ordners zeigt, wo <Ui id="cmd-export-mod" /> die Mods dieses Spiels speichert (der erkannte Ordner, wenn Sie keinen gewählt haben), mit denselben drei Schaltflächen.
+Ein Spiel gilt als gespielt, wenn sein Ordner festgelegt ist: <Ui id="home-new-project" /> beginnt mit dem ersten Spiel, dessen Fahrzeuge installiert sind, oder mit dem einzigen Spiel, dessen Ordner festgelegt ist. TruckPaint lehnt den Ordner des anderen Spiels ab. Die Zeile <Ui id="prefs-mod-folder-label" /> zeigt, wo <Ui id="cmd-export-mod" /> die Mods dieses Spiels speichert (der erkannte Ordner, wenn Sie keinen gewählt haben). Sie hat <Ui id="prefs-game-choose" />, und <Ui id="prefs-game-clear" />, sobald Sie einen gewählt haben; das geht zurück zum erkannten Ordner.
 
 TruckPaint prüft den Ordner, zeigt die Version des Spiels, wenn er gültig ist, und sagt, warum, wenn nicht. Beim ersten Start sucht es die Spiele einmal von selbst.
 
