@@ -4,11 +4,11 @@
 The application SHALL provide a Preferences dialog (Edit > Preferences, shortcut `⌘,` on macOS and `Ctrl+,` elsewhere) to change UI scale and text size with a live preview, the grid spacing (texture pixels, 4 to 1024) and the interface language, and a "Reset to defaults" action that restores UI scale, text size and grid spacing. The Language setting SHALL list "System default" followed by English, Français, Español and Deutsch, each named in its own language. "System default" follows the operating system's language, and choosing a language applies it immediately. "Reset to defaults" SHALL NOT change the language. On Windows and Linux, the dialog SHALL also offer **Use the system title bar** (see the window-title-bar capability), applied at once; "Reset to defaults" SHALL NOT change it.
 
 The dialog SHALL show its settings on three tabs, with the same segmented control as the Vehicle Library's tabs:
-- **General:** the Interface settings (UI scale, text size, language, and Use the system title bar where offered) and the Canvas setting (grid spacing), under the headings Interface and Canvas, followed by "Reset to defaults";
+- **General:** the Interface settings (UI scale, text size, language, and Use the system title bar where offered) and the Canvas setting (grid spacing), under the headings Interface and Canvas;
 - **Games:** the Games section (see the requirements Game folders and Games played and mod folders in Preferences);
 - **AI assistant:** the AI assistant (MCP) section (see the requirement AI assistant (MCP) setting).
 
-Edit > Preferences (and Preferences on the home screen) SHALL open the dialog on General. A tab chosen by the player SHALL stay chosen until the dialog is closed. The dialog SHALL keep the same width and height whichever tab is shown; a tab's content SHALL scroll inside the dialog only when the window is too small to show it whole. The footer SHALL hold only **Done**. A setting changed on one tab SHALL keep its value when the player switches tabs.
+Edit > Preferences (and Preferences on the home screen) SHALL open the dialog on General. A tab chosen by the player SHALL stay chosen until the dialog is closed. The dialog SHALL keep the same width and height whichever tab is shown; a tab's content SHALL scroll inside the dialog only when the window is too small to show it whole. The footer SHALL hold **Done** and, on the General tab only, **Reset to defaults**, so it stays in reach when the settings scroll. A setting changed on one tab SHALL keep its value when the player switches tabs.
 
 The dialog SHALL NOT offer template pack folder settings or Carsmaniac import controls.
 
@@ -44,7 +44,7 @@ View > Reset Workspace SHALL restore the workspace layout to its defaults: the l
 
 #### Scenario: Opens on General
 - **WHEN** the user chooses Edit > Preferences
-- **THEN** the dialog shows the General tab with UI scale, text size, language and grid spacing, and Reset to defaults
+- **THEN** the dialog shows the General tab with UI scale, text size, language and grid spacing, and Reset to defaults in its footer
 
 #### Scenario: Switch tabs
 - **WHEN** the user clicks the Games tab, then the AI assistant tab
@@ -56,4 +56,4 @@ View > Reset Workspace SHALL restore the workspace layout to its defaults: the l
 
 #### Scenario: Small window
 - **WHEN** the window is at its smallest size and the General tab is shown
-- **THEN** the tabs and Done stay visible and the General settings scroll between them
+- **THEN** the tabs, Reset to defaults and Done stay visible and the General settings scroll between them

@@ -762,7 +762,8 @@ fn my_game_shots(language: Language) {
             .game_folders
             .insert("ets2".into(), folder);
         played_games(&mut h.state_mut().prefs);
-        h.state_mut().open_preferences();
+        h.state_mut()
+            .open_preferences(tp_app::state::PrefsTab::Games);
         settle_dialog(&mut h);
         shot(&mut h, language, "vehicles/game-folders");
     }
@@ -1110,7 +1111,7 @@ fn section_ai_assistant() {
             .port();
         h.state_mut().prefs.mcp_enabled = true;
         played_games(&mut h.state_mut().prefs);
-        h.state_mut().reveal_mcp_preferences = true;
+        h.state_mut().preferences_tab = tp_app::state::PrefsTab::Ai;
         modal(&mut h, Modal::Preferences);
         shot(&mut h, language, "ai-assistant/preferences");
         h.state_mut().prefs.mcp_enabled = false;

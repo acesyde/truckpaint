@@ -27,11 +27,11 @@ Preferences is one modal (`Modal::Preferences`) drawn by `preferences()` in `cra
 
 It is not saved in the preferences file. `mcp_section()` loses its `reveal` argument and its `scroll_to_me`. *Alternative:* keep the tab in egui memory. That would not let the status bar or My Game choose it before the dialog is drawn.
 
-**4. A fixed body height, always in a `ScrollArea`.** The body is a `ScrollArea` whose height is fixed: `PAGE_HEIGHT` points (sized so the tallest tab, Games, fits whole at 100% UI scale and text size in German), clamped to the room the window leaves after the title, tabs, footer and margins. The width stays 440 pt. This removes `PREFERENCES_HEIGHT`, `PREFERENCES_CHROME`, the measured-height temp value and the first-frame special case. Each tab gets its own scroll id, so switching tabs doesn't carry a scroll offset over. *Alternatives:*
+**4. A fixed settings height, scrolling only when the content is taller.** The settings area is `PAGE_HEIGHT` points tall on every tab (sized so the tallest tab, Games, fits whole at 100% UI scale and text size in German), clamped to the room the window leaves after the title, tabs, footer and margins. The width stays 440 pt. A tab's content is drawn directly and measured; once it is taller than the area, it is wrapped in a `ScrollArea` the next frame (a `ScrollArea` around the settings also made the first click after opening get lost in the headless tests, so it is only added when needed). The measure is per tab, so switching tabs doesn't carry a scroll offset over. The reveal flag and its first-frame special case are gone. *Alternatives:*
 - the height of the tallest tab, measured: you only see a tab after drawing it, so the dialog would jump the first time each tab is opened;
 - each tab at its own height: the dialog would jump on every switch, which is what the spec rules out.
 
-**5. Reset to defaults sits at the bottom of General.** It resets only settings shown there, so it sits with them. The footer keeps Done, which also keeps the footer identical on every tab. The label and what it resets don't change.
+**5. Reset to defaults stays in the footer, on General only.** It resets only the settings of General, so the other tabs don't show it. In the footer it stays in reach when the settings scroll, which is when it matters most (a UI scale that went too large pushes anything at the bottom of the tab out of view). The label and what it resets don't change.
 
 ## Risks / Trade-offs
 

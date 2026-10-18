@@ -2549,7 +2549,7 @@ fn render_mcp() {
         demo_scene(&mut h);
         // Off.
         h.state_mut().modal = Some(Modal::Preferences);
-        h.state_mut().reveal_mcp_preferences = true;
+        h.state_mut().preferences_tab = tp_app::state::PrefsTab::Ai;
         h.run();
         save(&mut h, &name("prefs_off"));
         // On, a client drawing.
@@ -2569,7 +2569,7 @@ fn render_mcp() {
                     "width": 600, "height": 600, "fill": "#F2B705"}),
             );
         }
-        h.state_mut().reveal_mcp_preferences = true;
+        h.state_mut().preferences_tab = tp_app::state::PrefsTab::Ai;
         h.run();
         save(&mut h, &name("prefs_connected"));
         h.state_mut().modal = None;
@@ -2582,7 +2582,7 @@ fn render_mcp() {
         h.state_mut().prefs.mcp_port = taken.local_addr().unwrap().port();
         h.state_mut().prefs.mcp_enabled = true;
         h.state_mut().modal = Some(Modal::Preferences);
-        h.state_mut().reveal_mcp_preferences = true;
+        h.state_mut().preferences_tab = tp_app::state::PrefsTab::Ai;
         h.run();
         save(&mut h, &name("prefs_port_in_use"));
         h.state_mut().modal = None;

@@ -12,7 +12,7 @@ Preferences has grown into one long scrolling column: Interface, Canvas, Games (
   - the status bar's MCP item opens the **AI assistant** tab (this replaces scrolling to the section);
   - **Preferences…** in the My Game tab of the Vehicle Library opens the **Games** tab.
 - **The dialog keeps the same size whichever tab is shown**, so it doesn't jump when switching; a tab's content scrolls only when the window is too small for it.
-- **Reset to defaults moves onto the General tab**, next to the settings it resets (UI scale, text size, grid spacing). The footer keeps only **Done**. What it resets doesn't change.
+- **Reset to defaults stays in the footer, on the General tab only,** where it resets (UI scale, text size, grid spacing). On the other tabs the footer holds only **Done**. What it resets doesn't change.
 - **Docs:** the pages that send players to a Preferences section name the tab instead, and the Preferences screenshots are rendered again.
 
 Non-goals:

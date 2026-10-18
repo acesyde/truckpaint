@@ -394,7 +394,8 @@ fn exporting_into_the_mod_folder_chosen_in_preferences() {
         folders: [chosen.clone()].into(),
         ..Default::default()
     });
-    h.state_mut().open_preferences();
+    h.state_mut()
+        .open_preferences(tp_app::state::PrefsTab::Games);
     h.run();
     // ETS2's rows come first: its installation folder, then its mod folder.
     h.get_all_by_label("Choose…").nth(1).unwrap().click();
