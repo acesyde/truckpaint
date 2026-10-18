@@ -686,7 +686,7 @@ fn generate_now(h: &mut H, folder: &std::path::Path, ids: &[&str]) {
     }
 }
 
-/// The My Game tab (before and in the middle of a run) and the Games section of Preferences.
+/// The My Game tab (before and in the middle of a run) and the Games tab of Preferences.
 fn my_game_shots(language: Language) {
     use tp_app::state::Modal;
     use tp_app::ui::vehicle_dialogs::{LibraryDialog, LibraryTab};
@@ -749,7 +749,7 @@ fn my_game_shots(language: Language) {
         shot(&mut h, language, "vehicles/my-game-progress");
         drop(release);
 
-        // The Games section of Preferences, in a window tall enough to show it whole.
+        // The Games tab of Preferences, in a window tall enough to show it whole.
         let mut prefs = Prefs::default();
         prefs.set_language(Some(language));
         let mut h = common::wgpu_harness_hidpi(prefs, Vec2::new(1280.0, 1300.0), PPP, 1.0 / FPS);

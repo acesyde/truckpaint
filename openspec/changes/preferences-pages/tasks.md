@@ -27,4 +27,4 @@
 
 ## 6. Wrap up
 
-- [ ] 6.1 `mise run ci` passes; run docs-drift-checker and act on its report.
+- [x] 6.1 `mise run ci` passes; run docs-drift-checker and act on its report.
