@@ -167,6 +167,13 @@ each batch writes validated packages and a JSON report into a unique `dist/`
 subdirectory, with intermediate files under `target/`. See the official vehicle
 documentation for the command and manual installation workflow.
 
+Players install official and community packages from the Marketplace, the
+catalog published by [truckpaint-marketplace](https://github.com/acesyde/truckpaint-marketplace).
+`tpv index <folder> --base-url <url> [--check]` builds and checks its
+`catalog.json`; to publish a batch, add it to that repository (its
+`CONTRIBUTING.md` explains how). Point the app at a test catalog with
+`TRUCKPAINT_CATALOG_URL=file:///path/to/catalog.json mise run run`.
+
 ## Code layout
 
 | Crate | Role |
@@ -178,7 +185,7 @@ documentation for the command and manual installation workflow.
 | `tp-i18n` | Interface languages: Fluent messages, current language, local number format. |
 | `tp-ui` | Design system: tokens, theme, fonts, icons and widgets. |
 | `tp-vehicles` | Vehicle packages (`.tpv`): manifest, checks and templates. |
-| `tp-pack` | The `tpv` command: builds and checks vehicle packages. |
+| `tp-pack` | The `tpv` command: builds and checks vehicle packages, and builds the Marketplace catalog. |
 | `tp-mcp` | The local MCP server: protocol, tools and their arguments (no UI). |
 | `tp-app` | The desktop app: screens, commands, layout and preferences. |
 

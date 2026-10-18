@@ -1,13 +1,13 @@
 ---
 title: Offizielle Fahrzeuge
-description: ETS2-Lkw- und Auflieger-Pakete aus dem installierten Spiel erzeugen.
+description: Offizielle ETS2-Lkw und -Auflieger aus dem Marktplatz installieren oder ihre Pakete aus dem installierten Spiel erzeugen.
 sidebar:
   order: 2
 ---
 import Shot from '~/components/Shot.astro';
 import Ui from '~/components/Ui.astro';
 
-Offizielle Lkw und Auflieger werden über manuell installierte `.tpv`-Pakete verwendet. <Ui id="home-new-project" /> und <Ui id="cmd-add-vehicle" /> zeigen nur installierte Fahrzeuge. Ein Paket enthält seine Vorlagen und Spieldaten: Nach der Erzeugung brauchen Installation, Projekterstellung und Mod-Export weder die Spielinstallation noch ConverterPIX.
+Offizielle ETS2-Lkw und -Auflieger gibt es im [Marktplatz](../library/#aus-dem-marktplatz-installieren): Installieren Sie sie aus der Fahrzeugbibliothek, ohne Spieldateien. Sie können ihre `.tpv`-Pakete auch selbst aus dem installierten Spiel erzeugen, wie unten beschrieben, und von Hand installieren. <Ui id="home-new-project" /> und <Ui id="cmd-add-vehicle" /> zeigen nur installierte Fahrzeuge. Ein Paket enthält seine Vorlagen und Spieldaten: Nach der Erzeugung brauchen Installation, Projekterstellung und Mod-Export weder die Spielinstallation noch ConverterPIX.
 
 ## Pakete erzeugen
 
@@ -38,9 +38,11 @@ Endliche UV-Koordinaten außerhalb von [0, 1] bleiben erhalten, ohne Wiederholun
 
 `dimension_diagnostics` führt sämtliches Zubehör mit fehlenden oder widersprüchlichen Zuschnittmaßen sowie mögliche Größen, Masken und referenzierende Definitionen und Archive auf. Gibt das Spiel für ein Zubehör mehrere Größen an, wird die größte verwendet (`disposition: "resolved_largest"`): Die Lackierungs-UVs passen zu jeder Größe. Aus demselben Grund wird eine Größe mit einer Seite unter 64 Pixeln vergrößert (`disposition: "raised_to_minimum"`). Zubehör, das das Spiel nur mit gemeinsam genutzten Füllmasken abdeckt, erhält keine eigene Textur und bleibt auf der Haupttextur (`disposition: "main_texture"`), wie in den Lackierungen des Spiels, die es nicht überschreiben. Der Extraktor erfindet nie eine Größe.
 
+Erzeugte Pakete tragen eine Lizenz („Personal modding only, not for sale. Game content belongs to SCS Software.“), nennen SCS Software unter ihren Autoren und verweisen auf das Repository des Marktplatzes. Zum Veröffentlichen eines Stapels im Marktplatz siehe [Publishing in the Marketplace](../package-format/#publishing-in-the-marketplace).
+
 ## Installieren und lackieren
 
-1. Öffnen Sie die [Fahrzeugbibliothek](../library/) und wählen Sie über <Ui id="vehicles-install" /> eine erzeugte `.tpv`-Datei.
+1. Öffnen Sie die [Fahrzeugbibliothek](../library/): Installieren Sie das Fahrzeug aus der Registerkarte <Ui id="vehicles-tab-marketplace" /> oder wählen Sie über <Ui id="vehicles-install" /> eine selbst erzeugte `.tpv`-Datei.
 2. Markieren Sie das installierte Fahrzeug in <Ui id="home-new-project" />, wählen Sie Fahrerhäuser und Zubehör und verwenden Sie <Ui id="new-project-create" />.
 3. Lackieren und speichern Sie das Projekt und folgen Sie [Mod exportieren](../../export/mod/).
 
@@ -50,4 +52,4 @@ Bewahren Sie die Pakete für spätere Installationen auf. Spiel und Konverter we
 
 ## Alte Pakete
 
-Der Carsmaniac-Katalog und sein Vorlagenpaket-Ablauf wurden entfernt. Die Kennungen `official.ets2.<Fahrzeug>` bleiben erhalten, einschließlich `official.ets2.daf.2021`. Entfernen Sie alte Testpakete manuell vor der Installation ihrer Nachfolger. Platzierungen werden nicht migriert. Dieselbe Kennung und Version ersetzt diese installierte Version; eine andere Version bleibt daneben erhalten. Bestehende Projekte werden nicht automatisch umgeschrieben.
+Der Carsmaniac-Katalog und sein Vorlagenpaket-Ablauf, die vor dem Marktplatz genutzt wurden, wurden entfernt. Die Kennungen `official.ets2.<Fahrzeug>` bleiben erhalten, einschließlich `official.ets2.daf.2021`. Entfernen Sie alte Testpakete manuell vor der Installation ihrer Nachfolger. Platzierungen werden nicht migriert. Dieselbe Kennung und Version ersetzt diese installierte Version; eine andere Version bleibt daneben erhalten. Bestehende Projekte werden nicht automatisch umgeschrieben.
