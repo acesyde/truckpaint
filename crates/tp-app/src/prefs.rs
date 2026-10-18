@@ -1,6 +1,7 @@
 //! User preferences: versioned, stored as RON in the config directory, written
 //! atomically, and robust to missing or corrupted files.
 
+use std::collections::BTreeMap;
 use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
@@ -76,6 +77,9 @@ pub struct Prefs {
     pub mcp_enabled: bool,
     /// The port of the local MCP server (Reset to defaults keeps it).
     pub mcp_port: u16,
+    /// The installation folder of each game, by game id (`ets2`, `ats`)
+    /// (Reset to defaults keeps them).
+    pub game_folders: BTreeMap<String, PathBuf>,
 }
 
 /// Ports the MCP server may use (no privileged port).
@@ -95,6 +99,7 @@ impl Default for Prefs {
             system_title_bar: false,
             mcp_enabled: false,
             mcp_port: tp_mcp::DEFAULT_PORT,
+            game_folders: BTreeMap::new(),
         }
     }
 }
@@ -435,6 +440,25 @@ mod tests {
         // Reset to defaults keeps it.
         prefs.reset_scaling();
         assert!(prefs.system_title_bar);
+    }
+
+    #[test]
+    fn game_folders_round_trip_and_default_to_none() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = PrefsStore::new(dir.path());
+        fs::write(store.path(), "(version: 1, ui_scale: 1.25)").unwrap();
+        let loaded = store.load();
+        assert!(loaded.issue.is_none() && loaded.backup.is_none());
+        assert!(loaded.prefs.game_folders.is_empty());
+        let mut prefs = loaded.prefs;
+        prefs
+            .game_folders
+            .insert("ets2".into(), "/games/ets2".into());
+        store.save(&prefs).unwrap();
+        assert_eq!(store.load().prefs.game_folders, prefs.game_folders);
+        // Reset to defaults keeps them.
+        prefs.reset_scaling();
+        assert_eq!(prefs.game_folders.len(), 1);
     }
 
     #[test]

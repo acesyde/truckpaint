@@ -12,7 +12,7 @@ TruckPaint pinta los vehículos que conoce gracias a los **paquetes de vehículo
 
 Sus vehículos proceden de cuatro fuentes:
 
-- los **paquetes de camiones y remolques oficiales de ETS2**, generados desde el juego instalado e instalados manualmente: consulte [Vehículos oficiales](../official-vehicles/);
+- los **paquetes de camiones y remolques oficiales de ETS2**, que crea desde su propio juego, en la pestaña <Ui id="vehicles-tab-game" />: consulte [Vehículos oficiales](../official-vehicles/);
 - los **vehículos de ejemplo** que vienen con TruckPaint, un camión y un remolque dibujados para la aplicación, para probarla sin archivos del juego;
 - los **vehículos personalizados** que crea usted mismo a partir de archivos de plantilla: consulte [Vehículos personalizados](../custom-vehicles/);
 - los archivos `.tpv` que alguien ha compartido con usted.
@@ -23,7 +23,7 @@ Elija <Ui id="menu-vehicle" /> › <Ui id="cmd-vehicle-library" />. También fun
 
 <Shot name="vehicles/library" alt="El diálogo Biblioteca de vehículos, con la lista de vehículos instalados a la izquierda y los detalles del vehículo elegido a la derecha" />
 
-El diálogo tiene dos pestañas: <Ui id="vehicles-tab-installed" args={{ count: 2 }} /> con todos los vehículos instalados y una segunda pestaña solo con sus vehículos personalizados. Cada pestaña indica cuántos vehículos contiene. Encima de la lista, busque por nombre o marca, y filtre por juego y por tipo.
+El diálogo tiene tres pestañas: <Ui id="vehicles-tab-installed" args={{ count: 2 }} /> con todos los vehículos instalados, <Ui id="vehicles-tab-mine" args={{ count: 0 }} /> solo con sus vehículos personalizados, y <Ui id="vehicles-tab-game" />, donde crea los vehículos oficiales de su juego. Las dos primeras indican cuántos vehículos contienen. Encima de la lista, busque por nombre o marca, y filtre por juego y por tipo.
 
 Cada fila muestra el nombre, la marca, el tipo y el juego del vehículo, su versión instalada más reciente y un estado:
 
@@ -41,7 +41,7 @@ Bajo <Ui id="vehicles-installed-versions" /> se listan todas las versiones insta
 
 Haga clic en <Ui id="vehicles-install" /> y elija uno o varios archivos `.tpv`. También puede soltar archivos `.tpv` sobre la pantalla de inicio o sobre un proyecto abierto. Una confirmación indica cada vehículo y versión instalados. Instalar una versión que ya existe la reemplaza.
 
-Sin ningún vehículo instalado, la biblioteca explica qué son los paquetes y ofrece <Ui id="vehicles-install-sample" />.
+Sin ningún vehículo instalado, la biblioteca explica qué son los paquetes y ofrece <Ui id="vehicles-install-sample" /> y <Ui id="vehicles-tab-game" />.
 
 ## Ver qué cambia una actualización
 

@@ -467,12 +467,16 @@ pub enum LibraryTab {
     Installed,
     /// The custom vehicles.
     Mine,
+    /// The official vehicles of the player's own game.
+    Game,
 }
 
 /// State of the Vehicle Library dialog.
 #[derive(Clone, Debug, Default)]
 pub struct LibraryDialog {
     pub filter: VehicleFilter,
+    /// Search and kind filter of the My Game tab.
+    pub game_filter: VehicleFilter,
     pub tab: LibraryTab,
     /// The vehicle shown in the detail pane (the first listed when unset
     /// or no longer listed).
@@ -655,6 +659,10 @@ fn update_view(
 #[derive(Default)]
 struct LibraryClicks {
     install: bool,
+    /// The My Game tab was asked for (the empty state's button).
+    game: bool,
+    /// Preferences… in the My Game tab.
+    preferences: bool,
     sample: bool,
     custom: bool,
     close: bool,
@@ -716,17 +724,21 @@ pub fn library(ctx: &egui::Context, state: &mut AppState, dialog: &mut LibraryDi
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = space::XL;
             super::dialogs::title(ui, tr("cmd-vehicle-library").trim_end_matches('…'), None);
-            let (all, custom) = (
+            let (all, custom, my_game) = (
                 tr!("vehicles-tab-installed", count = installed),
                 tr!("vehicles-tab-mine", count = mine),
+                tr("vehicles-tab-game"),
             );
             if let Some(tab) = SegmentedControl::new()
                 .segment(LibraryTab::Installed, "", &all, None)
                 .segment(LibraryTab::Mine, "", &custom, None)
+                .segment(LibraryTab::Game, "", &my_game, None)
                 .show(ui, dialog.tab)
             {
                 dialog.tab = tab;
                 dialog.selected = None;
+                // The folder is checked again when the tab opens.
+                state.game.folders.clear();
             }
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 ui.spacing_mut().item_spacing.x = space::SM;
@@ -739,7 +751,17 @@ pub fn library(ctx: &egui::Context, state: &mut AppState, dialog: &mut LibraryDi
         ui.add_space(space::SM);
         super::dialogs::messages(ui, &dialog.messages);
         ui.add_space(space::SM);
-        if installed == 0 {
+        if dialog.tab == LibraryTab::Game {
+            clicks.preferences |= super::game_tab::show(
+                ui,
+                body_height,
+                &mut state.game,
+                library,
+                &mut state.prefs,
+                &mut dialog.game_filter,
+            )
+            .preferences;
+        } else if installed == 0 {
             ui.allocate_ui(egui::vec2(ui.available_width(), body_height), |ui| {
                 ui.vertical_centered(|ui| {
                     EmptyState::new(
@@ -751,6 +773,7 @@ pub fn library(ctx: &egui::Context, state: &mut AppState, dialog: &mut LibraryDi
                     clicks.sample |= ui
                         .add(primary_button(&tr("vehicles-install-sample")))
                         .clicked();
+                    clicks.game |= ui.add(secondary_button(&tr("vehicles-tab-game"))).clicked();
                 });
             });
         } else {
@@ -839,6 +862,14 @@ pub fn library(ctx: &egui::Context, state: &mut AppState, dialog: &mut LibraryDi
         });
     });
     keep &= !clicks.close;
+    if clicks.game {
+        dialog.tab = LibraryTab::Game;
+        state.game.folders.clear();
+    }
+    if clicks.preferences {
+        state.open_preferences();
+        return true;
+    }
     if clicks.confirm
         && let Some((id, version, _)) = dialog.confirm_remove.take()
         && let Err(err) = state.vehicles.remove(&id, &version)

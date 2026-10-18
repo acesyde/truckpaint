@@ -1,54 +1,71 @@
 ---
 title: Véhicules officiels
-description: Générer les paquets des camions et remorques officiels ETS2 depuis le jeu installé.
+description: Créer les camions et remorques officiels ETS2 depuis votre propre jeu, dans TruckPaint.
 sidebar:
   order: 2
 ---
 import Shot from '~/components/Shot.astro';
 import Ui from '~/components/Ui.astro';
 
-Les camions et remorques officiels ETS2 existent sous forme de paquets `.tpv` que vous générez vous-même depuis le jeu installé, comme décrit plus bas, et que vous installez à la main. <Ui id="home-new-project" /> et <Ui id="cmd-add-vehicle" /> affichent uniquement les véhicules installés. Chaque paquet contient ses gabarits et les données du jeu : après génération, l’installation, la création d’un projet et l’export d’un mod ne nécessitent pas le jeu.
+Les camions et remorques officiels appartiennent à SCS Software : TruckPaint ne les fournit donc pas. Vous les créez depuis votre propre jeu installé, sur votre ordinateur, dans l’onglet <Ui id="vehicles-tab-game" /> de la [bibliothèque de véhicules](../library/). Ils sont pour votre usage personnel : TruckPaint ne les envoie jamais nulle part. <Ui id="home-new-project" /> et <Ui id="cmd-add-vehicle" /> ne listent que les véhicules installés. Une fois un véhicule créé, la création de projets et l’export de mods ne demandent plus le jeu.
 
-## Générer les paquets
+## Définir le dossier du jeu
 
-Les auteurs de paquets utilisent la commande Rust `tpv`, qui lit elle-même les archives du jeu et n’a besoin d’aucun autre programme :
+Ouvrez les préférences et repérez <Ui id="prefs-games" />. Chaque jeu a un champ de dossier :
 
-```sh
-mise exec -- cargo run --release -p tp-pack --bin tpv -- extract "/path/to/ETS2" \
-  --package-version 2.0.0
-```
+- <Ui id="prefs-game-detect" /> cherche le jeu dans vos bibliothèques Steam (Windows, Linux dont la version Flatpak de Steam, et macOS).
+- <Ui id="prefs-game-choose" /> choisit le dossier à la main : utilisez-le pour GOG, Epic ou tout autre emplacement.
+- <Ui id="prefs-game-clear" /> oublie le dossier.
 
-Remplacez le chemin par votre installation ETS2. La version SemVer du paquet est obligatoire. Ajoutez `--vehicle man.tgx_2020` ou `--vehicle krone.coolliner` pour un seul camion ou une seule remorque ; sans ce filtre, tous les véhicules découverts sont traités. `--output <répertoire>` change le dossier parent des lots. Pour publier un nouveau lot, ajoutez `--previous <dossier du lot>` avec le dernier lot publié : un gabarit inchangé garde sa version de disposition, un gabarit modifié passe à la version suivante, et l’application prévient les joueurs qui mettent à jour leurs projets.
+TruckPaint vérifie le dossier, affiche la version du jeu quand il est valide, et dit pourquoi quand il ne l’est pas. Au premier lancement, il cherche les jeux une fois de lui-même.
 
-L’outil découvre les camions et les remorques possédées officiels ETS2, avec les DLC de véhicules, de remorques et de tuning installés. Les mods utilisateur et ATS sont exclus. Un paquet de camion rassemble toutes les cabines et tous les accessoires peints pris en charge. Les noms des camions et des cabines sont les noms anglais du jeu. Les cabines utilisent des gabarits de 4096 × 4096 ; les dimensions des accessoires viennent des définitions de peinture du jeu. Les gabarits principaux superposent les options peintes compatibles.
+<Shot name="vehicles/game-folders" alt="La section Jeux des préférences, avec le dossier d’Euro Truck Simulator 2 défini et sa version affichée" />
 
-Un paquet de remorque a une texture principale de 4096 × 4096 pour chaque carrosserie, châssis et pièce peints que le jeu ne peint pas depuis leur propre zone, et des textures d’accessoires partagées par toute la remorque. Quand le jeu peint chaque pièce depuis sa propre zone, la texture principale ne fait que 64 × 64 et porte la couleur de base. Les carrosseries ou pièces que le jeu peint depuis la même zone dans toutes les livrées partagent une texture (par exemple les carrosseries fourgon, isotherme et frigorifique de 13,6 m de la remorque fourgon SCS) : vous ne les peignez qu’une fois. Les remorques n’ont pas de variantes. Les remorques propres à SCS n’ont pas de marque dans le jeu : elles s’appellent « SCS » suivi de leur nom de jeu, comme « SCS Box » ou « SCS Silo ». Les remorques dont les livrées ne posent qu’une couleur unie, comme le plateau SCS, n’ont rien à peindre : le rapport les indique comme ignorées, sans paquet.
+## Créer les véhicules
 
-Chaque exécution crée un sous-dossier unique de `dist/` par défaut, contenant les paquets valides et `report.json`. Les intermédiaires ne restent sous `target/` que si un véhicule échoue. Un fichier du jeu dont la version est inconnue de l’outil arrête l’exécution avec un message qui nomme le fichier et la version. Les véhicules incomplets ou ambigus, shaders et UV non pris en charge sont refusés. Les autres véhicules continuent ; le moindre échec donne un code de sortie non nul. Aucun paquet partiel n’est publié.
+1. Ouvrez <Ui id="menu-vehicle" /> › <Ui id="cmd-vehicle-library" /> et cliquez sur <Ui id="vehicles-tab-game" />. Si aucun dossier n’est défini, TruckPaint propose celui qu’il a trouvé.
+2. La liste affiche les camions et remorques de votre jeu. Seuls les DLC que vous possédez apparaissent. Chaque ligne indique s’il est <Ui id="game-status-not-generated" />, généré (avec sa version) ou <Ui id="game-status-updated" />.
+3. Cochez les véhicules voulus, ou utilisez <Ui id="game-select-all" />, <Ui id="game-select-none" /> et <Ui id="game-select-updates" />.
+4. Cliquez sur <Ui id="game-generate" args={{ count: 3 }} />. Les véhicules pas encore créés sont créés, et les autres sont recréés.
 
-Le rapport décrit les sources, versions, textures couvertes, réussites, échecs et limites. La validation technique ne prouve pas le bon fonctionnement en jeu : les nouveaux véhicules et configurations doivent encore être contrôlés.
+<Shot name="vehicles/my-game" alt="L’onglet Mon jeu : trois camions et deux remorques, deux d’entre eux marqués Jeu mis à jour et cochés, et le bouton Générer (2)" />
 
-`missing_dependencies` liste les références manquantes et leurs définitions sources lorsqu’elles sont disponibles. `expected_dlc: null` avec `dlc_origin: "unknown"` signifie que le DLC nécessaire ne peut pas être identifié ; l’archive mentionnant une référence ne permet pas de déterminer quel DLC la fournit.
+Les véhicules sont créés les uns après les autres, et chacun est installé dès qu’il est prêt. Une barre de progression les compte (« 1 sur 5 »), le véhicule en cours est nommé, et chaque ligne indique s’il est en attente, en cours, installé, à jour ou en échec. Vous pouvez continuer à travailler dans l’application, et fermer la bibliothèque : un message vous prévient à la fin. <Ui id="button-cancel" /> s’arrête avant le véhicule suivant et garde ceux déjà installés. Un véhicule en échec n’arrête pas les autres ; le résultat le liste avec la raison.
 
-Les affectations de peinture visant des accessoires sans définition installée sont exclues et signalées par `disposition: "ignored_reference"` ; elles n’empêchent pas la génération du paquet. Un accessoire défini dont le modèle sélectionné n’a aucun matériau de livrée ne peut pas afficher de livrée : il n’a pas de gabarit et est signalé par `disposition: "excluded"`. Les fichiers requis absents et la géométrie peinte illisible restent bloquants (`disposition: "blocking"`).
+<Shot name="vehicles/my-game-progress" alt="Une création en cours : le premier véhicule installé, le deuxième en cours, trois en attente, et la barre à 1 sur 5" />
 
-Les shaders de peinture pris en charge sont `truckpaint`, `truckpaint.tsnmap` et `truckpaint.tsnmapuv`, avec les options `airbrush`, `flipflake` et `altuv` et les suffixes de test alpha `.a` ou `.asafew.a`. Les gabarits tracent les UV du maillage ; ils ne reproduisent pas les masques d’opacité pixel par pixel. Tous les gabarits utilisent la disposition UV ordinaire de la livrée, celle des livrées unies du jeu et des gabarits de la communauté, même sur les camions dont les matériaux ont aussi une disposition alternative. Les UV absents ou ambigus sont refusés. Les matériaux uniquement teintés par la couleur de base ne définissent pas de mapping UV de livrée ; un accessoire qui n’a que de tels matériaux est exclu, comme décrit plus haut.
+## Après une mise à jour du jeu
 
-Les coordonnées UV finies hors de [0, 1] sont conservées, sans répétition, écrêtage ni changement de canal. Le cadre du SVG limite le maillage visible à la texture. Le rapport indique `uv_bounds` et `out_of_bounds_vertices` ; ces surfaces demandent une attention particulière en jeu. Les coordonnées non finies ou non représentables restent invalides.
+Quand le jeu passe à une nouvelle série de versions (par exemple de 1.61 à 1.62), les véhicules que vous avez créés affichent <Ui id="game-status-updated" />. Cliquez sur <Ui id="game-select-updates" />, puis sur <Ui id="game-generate" args={{ count: 3 }} />. Le nouveau paquet prend la version du jeu, et l’ancien reste installé à côté : vos projets continuent de fonctionner.
 
-`dimension_diagnostics` liste tous les accessoires dont les dimensions de découpe sont absentes ou contradictoires, avec les tailles candidates, masques et définitions/archives qui les référencent. Quand le jeu déclare plusieurs tailles pour un même accessoire, la plus grande est retenue (`disposition: "resolved_largest"`) : les UV de livrée s’adaptent à toute taille. Pour la même raison, une taille inférieure à 64 pixels sur un côté est agrandie (`disposition: "raised_to_minimum"`). Un accessoire que le jeu ne couvre qu’avec des masques de remplissage partagés n’a pas de texture séparée et reste sur la texture principale (`disposition: "main_texture"`), comme dans les livrées du jeu qui ne le redéfinissent pas. L’extracteur n’invente jamais de taille.
+Si un gabarit n’a pas changé, les projets qui utilisent le véhicule ne sont pas touchés. Si le jeu en a modifié un, les projets voient « gabarit mis à jour » : voir [La bibliothèque de véhicules](../library/). Un véhicule inchangé est signalé à jour, et rien n’est installé.
 
-Les paquets générés portent une licence (« Personal modding only, not for sale. Game content belongs to SCS Software. »), et citent SCS Software parmi leurs auteurs.
+Un correctif qui garde la même série (1.61.1 puis 1.61.2) n’est pas signalé. Pour actualiser un véhicule après un tel correctif, cochez-le et générez-le de nouveau.
+
+## Ce qui est créé
+
+Chaque paquet de camion contient toutes les cabines et tous les accessoires peints du camion. Les noms des camions et des cabines sont les noms anglais du jeu. Les gabarits de cabine font 4096 × 4096 ; les tailles des accessoires viennent des définitions de peinture du jeu.
+
+Un paquet de remorque a une texture principale pour chaque caisse, châssis et pièce peints que le jeu ne peint pas depuis sa propre zone, et des textures d’accessoires communes à toute la remorque. Les pièces que le jeu peint depuis la même zone dans toutes les peintures partagent une texture : vous les peignez une seule fois. Les remorques n’ont pas de variantes. Les remorques propres à SCS sont nommées « SCS » suivi de leur nom dans le jeu, comme « SCS Box ». Les remorques dont les peintures ne définissent qu’une couleur unie, comme le plateau SCS, n’ont pas de livrée à peindre : elles ne sont donc pas listées.
+
+Les gabarits suivent la disposition de peinture du modèle ; ils ne prouvent pas qu’une livrée rend bien en jeu : vérifiez le nouveau travail dans le jeu.
+
+## Limites
+
+- Seuls les véhicules d’ETS2 peuvent être créés pour l’instant. Vous pouvez définir et vérifier le dossier d’American Truck Simulator, et l’onglet indique que ses véhicules ne sont pas encore pris en charge.
+- Seuls les véhicules de votre jeu et de vos DLC installés sont listés.
+- Les mods d’utilisateurs ne sont pas lus.
+
+Les paquets portent la licence « Personal modding only, not for sale. Game content belongs to SCS Software. ». TruckPaint n’est pas approuvé par SCS Software. L’export d’un paquet garde un rappel pour vérifier que vous avez le droit de le partager.
 
 ## Installer et peindre
 
-1. Ouvrez la [bibliothèque de véhicules](../library/) : utilisez <Ui id="vehicles-install" /> pour choisir un `.tpv` que vous avez généré.
-2. Dans <Ui id="home-new-project" />, cochez ce véhicule installé, choisissez cabines et accessoires, puis utilisez <Ui id="new-project-create" />.
-3. Peignez et enregistrez le projet, puis suivez [Export d’un mod](../../export/mod/).
+Les véhicules créés sont déjà installés dans la bibliothèque.
 
-<Shot name="vehicles/library" alt="La bibliothèque de véhicules avec les paquets installés et le bouton d’installation" />
+1. Dans <Ui id="home-new-project" />, cochez le véhicule, choisissez les cabines et accessoires, puis utilisez <Ui id="new-project-create" />.
+2. Peignez et enregistrez le projet, puis suivez [l’export du mod](../../export/mod/).
 
-Conservez les paquets pour les réinstaller. Le jeu sert uniquement à la génération. Les véhicules personnalisés et les exemples restent disponibles.
+<Shot name="vehicles/library" alt="La bibliothèque de véhicules avec des paquets installés et ses onglets" />
 
 ## Anciens paquets
 

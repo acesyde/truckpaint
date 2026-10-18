@@ -19,14 +19,13 @@ use serde_json::{Value, json};
 use source::Sources;
 use syntax::Section;
 
-/// Inputs supplied explicitly by the package author.
+/// Inputs of the `tpv extract` command.
 pub struct Options {
     pub installation: PathBuf,
     pub vehicle: Option<String>,
     pub output: PathBuf,
-    pub package_version: semver::Version,
-    /// The previously published batch: unchanged templates keep their layout
-    /// version, changed ones get the next one.
+    /// A folder of previously extracted packages: unchanged templates keep their
+    /// layout version, changed ones get the next one.
     pub previous: Option<PathBuf>,
 }
 
@@ -290,6 +289,13 @@ impl Kind {
         }
     }
 
+    fn public(self) -> tp_vehicles::Kind {
+        match self {
+            Kind::Truck => tp_vehicles::Kind::Truck,
+            Kind::Trailer => tp_vehicles::Kind::Trailer,
+        }
+    }
+
     /// The package manifest's `kind`.
     fn manifest(self) -> &'static str {
         match self {
@@ -337,6 +343,8 @@ struct Textures {
     accessories: Vec<Value>,
     templates: BTreeMap<String, Vec<u8>>,
     coverage: Vec<Value>,
+    /// A template is new, different or gone compared with the previous package.
+    changed: bool,
 }
 
 /// One truck's extraction; what it gathered stays readable after a failure.
@@ -421,6 +429,12 @@ impl<'a> Build<'a> {
             }
         }
         Ok((brand, name))
+    }
+
+    /// Whether a trailer has any paint mask, main or per accessory.
+    fn paintable(&mut self) -> Result<bool, String> {
+        let paths = self.definition_paths();
+        Ok(!self.paint_overrides(&paths)?.is_empty() || self.has_main_mask(&paths)?)
     }
 
     /// Whether a main paint job (`paint_job/*.sii`) assigns a mask.
@@ -657,19 +671,25 @@ impl<'a> Build<'a> {
             }
             let (svg, edges) = rendered;
             // A changed template raises its layout version, so the app warns players who update.
-            let layout_version = previous
-                .and_then(|p| {
-                    let (_, part) = p
-                        .manifest
-                        .paint_job
-                        .parts()
-                        .find(|(_, part)| part.id == id)?;
-                    Some((part.texture.layout_version, p.template(id)?.bytes == svg))
-                })
-                .map_or(
-                    1,
-                    |(version, same)| if same { version } else { version + 1 },
-                );
+            let found = previous.and_then(|p| {
+                let (_, part) = p
+                    .manifest
+                    .paint_job
+                    .parts()
+                    .find(|(_, part)| part.id == id)?;
+                Some((part.texture.layout_version, p.template(id)?.bytes == svg))
+            });
+            let layout_version = match found {
+                Some((version, true)) => version,
+                Some((version, false)) => {
+                    out.changed = true;
+                    version + 1
+                }
+                None => {
+                    out.changed |= previous.is_some();
+                    1
+                }
+            };
             let template = format!("templates/{id}.svg");
             out.templates.insert(template.clone(), svg);
             Ok((
@@ -750,6 +770,13 @@ impl<'a> Build<'a> {
             }
             out.coverage.push(coverage);
         }
+        if let Some(p) = previous {
+            out.changed |= p
+                .manifest
+                .paint_job
+                .parts()
+                .any(|(_, part)| !part_ids.contains(&part.id));
+        }
         if let Some(id) = parts.painted.keys().find(|id| !covered.contains(*id)) {
             return Err(format!(
                 "painted definition has no compatible texture: {id}"
@@ -758,11 +785,7 @@ impl<'a> Build<'a> {
         Ok(out)
     }
 
-    fn package(
-        &mut self,
-        game_version: &str,
-        package_version: &semver::Version,
-    ) -> Result<(crate::Packed, Value), String> {
+    fn package(&mut self, info: &GameInfo) -> Result<(Outcome, Value), String> {
         let (brand, name) = self.identity()?;
         let paths = self.definition_paths();
         let masks = self.paint_overrides(&paths)?;
@@ -776,19 +799,26 @@ impl<'a> Build<'a> {
         }
         let sizes = self.accessory_sizes(&parts, &masks);
         let textures = Self::textures(self.kind, &parts, &sizes, &masks, self.previous)?;
-        let minor = game_version
-            .split('.')
-            .nth(1)
-            .ok_or("invalid game version")?
-            .parse::<u32>()
-            .map_err(|_| "invalid game minor version")?;
-        let next = minor.checked_add(1).ok_or("invalid game version")?;
+        let game = info.semver()?;
+        let next = game.minor.checked_add(1).ok_or("invalid game version")?;
+        let mut version = semver::Version::new(game.major, game.minor, game.patch);
+        if let Some(previous) = self.previous {
+            if !textures.changed && previous.manifest.game.versions.matches(&version) {
+                return Ok((Outcome::UpToDate, json!(textures.coverage)));
+            }
+            // An installed version is never replaced by a different package.
+            let installed = &previous.manifest.version;
+            if *installed >= version {
+                version =
+                    semver::Version::new(installed.major, installed.minor, installed.patch + 1);
+            }
+        }
         let vehicle = self.vehicle;
-        let manifest = json!({"format":1,"id":format!("official.ets2.{vehicle}"),"version":package_version,"name":name,"brand":brand,"kind":self.kind.manifest(),"description":format!("Generated from ETS2 {game_version}; technical validation only."),"authors":["SCS Software","TruckPaint contributors"],"license":LICENSE,"game":{"id":"ets2","path":vehicle,"versions":format!(">=1.{minor}, <1.{next}"),"alt_uv":false,"colour_picker":false},"paint_job":{"main":textures.main,"accessories":textures.accessories}});
+        let manifest = json!({"format":1,"id":format!("official.{}.{vehicle}", info.game.code()),"version":version,"name":name,"brand":brand,"kind":self.kind.manifest(),"description":format!("Generated from ETS2 {} on this computer.", info.version),"authors":["SCS Software","TruckPaint contributors"],"license":LICENSE,"game":{"id":info.game.code(),"path":vehicle,"versions":format!(">={}.{}, <{}.{next}", game.major, game.minor, game.major),"alt_uv":false,"colour_picker":false},"paint_job":{"main":textures.main,"accessories":textures.accessories}});
         self.stage = "package-validation";
         let packed =
             crate::pack_entries(manifest, textures.templates).map_err(|e| e.to_string())?;
-        Ok((packed, json!(textures.coverage)))
+        Ok((Outcome::Package(Box::new(packed)), json!(textures.coverage)))
     }
 }
 
@@ -812,29 +842,126 @@ fn previous_packages(dir: &Path) -> Result<BTreeMap<String, tp_vehicles::Package
     Ok(packages)
 }
 
-/// Extracts a batch, continuing after per-vehicle refusals.
-pub fn run(options: &Options) -> Result<Batch, String> {
-    let preliminary = reserve(Path::new("target/game-extraction"))?;
-    let mut sources = Sources::new(&options.installation)?;
-    let kinds = [Kind::Truck, Kind::Trailer];
-    let folders = kinds.map(|k| format!("/def/vehicle/{}", k.folder()));
-    sources.inventory(&folders.each_ref().map(String::as_str))?;
-    let mut evidence = BTreeSet::new();
-    let version = definition(&sources, "/version.sii", &mut evidence)?;
+/// The game a folder holds.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GameInfo {
+    pub game: tp_vehicles::Game,
+    /// The game's own version, four numbers (`1.61.1.9`).
+    pub version: String,
+}
+
+impl GameInfo {
+    /// The first three numbers: the version of the packages made from this game.
+    pub fn semver(&self) -> Result<semver::Version, String> {
+        let numbers = self
+            .version
+            .split('.')
+            .take(3)
+            .map(|n| n.parse::<u64>())
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|_| format!("invalid game version {}", self.version))?;
+        match numbers[..] {
+            [major, minor, patch] => Ok(semver::Version::new(major, minor, patch)),
+            _ => Err(format!("invalid game version {}", self.version)),
+        }
+    }
+}
+
+/// Why a folder is not a usable game folder.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum InspectError {
+    NotAFolder,
+    /// A main archive that is not there (`base.scs`).
+    Missing(String),
+    /// The archives are there but hold no ETS2 or ATS version.
+    NotAGame,
+    Unreadable(String),
+}
+
+impl std::fmt::Display for InspectError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NotAFolder => write!(f, "not a folder"),
+            Self::Missing(file) => write!(f, "missing {file}"),
+            Self::NotAGame => write!(f, "not an ETS2 or ATS folder"),
+            Self::Unreadable(cause) => write!(f, "unreadable: {cause}"),
+        }
+    }
+}
+
+/// The main archives a game folder must hold.
+const MAIN_ARCHIVES: [&str; 3] = ["base.scs", "def.scs", "version.scs"];
+
+fn game_info(text: &str) -> Result<GameInfo, String> {
+    let version = syntax::parse(text)?;
     let version = units(&version)
         .iter()
         .find(|s| s.header.starts_with("fs_pack_set :"))
         .ok_or("missing game version unit")?;
-    if version.field("application")? != "eut2" {
+    let game = match version.field("application")? {
+        "eut2" => tp_vehicles::Game::Ets2,
+        "ats" => tp_vehicles::Game::Ats,
+        other => return Err(format!("unknown game {other}")),
+    };
+    Ok(GameInfo {
+        game,
+        version: version.field("version")?.to_owned(),
+    })
+}
+
+/// Checks that `folder` is a game folder and reads its game and version, from
+/// the main archives only.
+pub fn inspect(folder: &Path) -> Result<GameInfo, InspectError> {
+    if !folder.is_dir() {
+        return Err(InspectError::NotAFolder);
+    }
+    let archives = MAIN_ARCHIVES.map(|name| folder.join(name));
+    for (name, path) in MAIN_ARCHIVES.iter().zip(&archives) {
+        if !path.is_file() {
+            return Err(InspectError::Missing((*name).to_owned()));
+        }
+    }
+    let mount = tp_scs::Mount::open(&archives).map_err(InspectError::Unreadable)?;
+    let text = mount
+        .read("/version.sii")
+        .map_err(InspectError::Unreadable)?
+        .and_then(|bytes| String::from_utf8(bytes).ok())
+        .ok_or(InspectError::NotAGame)?;
+    game_info(&text).map_err(|_| InspectError::NotAGame)
+}
+
+/// An official vehicle of the game that can be painted.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Vehicle {
+    /// The game's id (`man.tgx_2020`); the package id is `official.<game>.<id>`.
+    pub id: String,
+    pub kind: tp_vehicles::Kind,
+    pub name: String,
+    pub brand: String,
+}
+
+/// A game folder read: its vehicles, and the opened archives (file tables only)
+/// that [`generate`] reads, shared read-only between threads.
+pub struct Scan {
+    pub info: GameInfo,
+    pub vehicles: Vec<Vehicle>,
+    sources: Sources,
+    names: Names,
+    /// Game id -> the kinds defining it; more than one is a collision, refused when generating.
+    discovered: BTreeMap<String, BTreeSet<Kind>>,
+}
+
+/// Lists the official trucks and owned trailers of an ETS2 folder, without writing anything.
+pub fn scan(folder: &Path) -> Result<Scan, String> {
+    let mut sources = Sources::new(folder)?;
+    let kinds = [Kind::Truck, Kind::Trailer];
+    let folders = kinds.map(|k| format!("/def/vehicle/{}", k.folder()));
+    sources.inventory(&folders.each_ref().map(String::as_str))?;
+    let info = game_info(&sources.read("/version.sii")?)?;
+    if info.game != tp_vehicles::Game::Ets2 {
         return Err("only ETS2 installations are supported".into());
     }
-    let game_version = version.field("version")?.to_owned();
-    let previous = match &options.previous {
-        Some(dir) => previous_packages(dir)?,
-        None => BTreeMap::new(),
-    };
     let names = names(&sources)?;
-    // Game id -> the kinds defining it; more than one is a collision, refused below.
     let mut discovered = BTreeMap::<String, BTreeSet<Kind>>::new();
     for kind in kinds {
         let prefix = format!("/def/vehicle/{}/", kind.folder());
@@ -850,6 +977,105 @@ pub fn run(options: &Options) -> Result<Batch, String> {
     if discovered.is_empty() {
         return Err("no official ETS2 vehicles discovered".into());
     }
+    let mut vehicles = Vec::new();
+    for (id, found) in &discovered {
+        let [kind] = found.iter().copied().collect::<Vec<_>>()[..] else {
+            continue;
+        };
+        let mut build = Build::new(&sources, &names, None, kind, id);
+        // A vehicle whose data cannot be read is still listed: generating it says why.
+        let (brand, name) = build
+            .identity()
+            .unwrap_or_else(|_| (String::new(), id.clone()));
+        if kind == Kind::Trailer && !build.paintable()? {
+            continue;
+        }
+        vehicles.push(Vehicle {
+            id: id.clone(),
+            kind: kind.public(),
+            name,
+            brand,
+        });
+    }
+    // Trucks first, then trailers, each in id order.
+    vehicles.sort_by_key(|v| (v.kind == tp_vehicles::Kind::Trailer, v.id.clone()));
+    Ok(Scan {
+        info,
+        vehicles,
+        sources,
+        names,
+        discovered,
+    })
+}
+
+/// What generating a vehicle gives.
+pub enum Outcome {
+    Package(Box<crate::Packed>),
+    /// No template changed and the previous package already covers the game's version.
+    UpToDate,
+}
+
+/// One vehicle's build, with what the report needs after a failure.
+struct Attempt {
+    kind: Kind,
+    result: Result<(Outcome, Value), String>,
+    evidence: BTreeSet<String>,
+    stage: &'static str,
+    diagnostics: Diagnostics,
+}
+
+fn attempt(
+    scan: &Scan,
+    vehicle: &str,
+    previous: Option<&tp_vehicles::Package>,
+) -> Result<Attempt, String> {
+    let found = scan
+        .discovered
+        .get(vehicle)
+        .ok_or_else(|| format!("unknown or excluded vehicle {vehicle}"))?;
+    let [kind] = found.iter().copied().collect::<Vec<_>>()[..] else {
+        return Err("defined both as a truck and as an owned trailer".into());
+    };
+    let mut build = Build::new(&scan.sources, &scan.names, previous, kind, vehicle);
+    let result = build.package(&scan.info);
+    let Build {
+        evidence,
+        stage,
+        diagnostics,
+        ..
+    } = build;
+    Ok(Attempt {
+        kind,
+        result,
+        evidence,
+        stage,
+        diagnostics,
+    })
+}
+
+/// Builds one vehicle's package in memory. `previous` is its newest installed
+/// package: unchanged templates keep their layout version, changed ones get the
+/// next, and the version is raised above the installed one when needed.
+pub fn generate(
+    scan: &Scan,
+    vehicle: &str,
+    previous: Option<&tp_vehicles::Package>,
+) -> Result<Outcome, String> {
+    attempt(scan, vehicle, previous)?
+        .result
+        .map(|(outcome, _)| outcome)
+}
+
+/// Extracts a batch, continuing after per-vehicle refusals.
+pub fn run(options: &Options) -> Result<Batch, String> {
+    let preliminary = reserve(Path::new("target/game-extraction"))?;
+    let scan = scan(&options.installation)?;
+    let (sources, game_version) = (&scan.sources, &scan.info.version);
+    let previous = match &options.previous {
+        Some(dir) => previous_packages(dir)?,
+        None => BTreeMap::new(),
+    };
+    let discovered = &scan.discovered;
     let mut vehicles = if let Some(vehicle) = &options.vehicle {
         if !discovered.contains_key(vehicle) {
             return Err(format!("unknown or excluded vehicle {vehicle}"));
@@ -863,29 +1089,39 @@ pub fn run(options: &Options) -> Result<Batch, String> {
     let output = reserve(&options.output)?;
     let extract = |vehicle: &String| -> Value {
         eprintln!("extracting {vehicle}");
-        let found = &discovered[vehicle];
-        let [kind] = found.iter().copied().collect::<Vec<_>>()[..] else {
-            return json!({"vehicle":vehicle,"kinds":found.iter().map(|k| k.manifest()).collect::<Vec<_>>(),"status":"failure","stage":"discovery","error":"defined both as a truck and as an owned trailer"});
-        };
         let previous_package = previous.get(&format!("official.ets2.{vehicle}"));
-        let mut build = Build::new(&sources, &names, previous_package, kind, vehicle);
-        let result = build
-            .package(&game_version, &options.package_version)
-            .and_then(|(packed, coverage)| {
-                build.stage = "publication";
-                let filename = packed.file_name();
-                publish(&output.join(&filename), &packed.bytes)?;
-                Ok((filename, coverage))
-            });
-        let Build {
+        let Attempt {
+            kind,
+            result,
             evidence,
             stage,
             mut diagnostics,
-            ..
-        } = build;
+        } = match attempt(&scan, vehicle, previous_package) {
+            Ok(attempt) => attempt,
+            Err(error) => {
+                return json!({"vehicle":vehicle,"kinds":discovered[vehicle].iter().map(|k| k.manifest()).collect::<Vec<_>>(),"status":"failure","stage":"discovery","error":error});
+            }
+        };
+        let mut stage = stage;
+        let result = result.and_then(|(outcome, coverage)| match outcome {
+            Outcome::Package(packed) => {
+                let filename = packed.file_name();
+                match publish(&output.join(&filename), &packed.bytes) {
+                    Ok(()) => Ok((Some(filename), coverage)),
+                    Err(e) => {
+                        stage = "publication";
+                        Err(e)
+                    }
+                }
+            }
+            Outcome::UpToDate => Ok((None, coverage)),
+        });
         match result {
-            Ok((filename, coverage)) => {
+            Ok((Some(filename), coverage)) => {
                 json!({"vehicle":vehicle,"kind":kind.manifest(),"status":"success","package":filename,"technical_validation":"passed","in_game_validation":"required","missing_dependencies":diagnostics.missing_dependencies,"dimension_diagnostics":diagnostics.dimensions,"textures":coverage,"sources":sources.provenance(&evidence)})
+            }
+            Ok((None, _)) => {
+                json!({"vehicle":vehicle,"kind":kind.manifest(),"status":"skipped","reason":"up_to_date","sources":sources.provenance(&evidence)})
             }
             Err(error) if error == NOT_PAINTABLE => {
                 json!({"vehicle":vehicle,"kind":kind.manifest(),"status":"skipped","reason":"not_paintable","error":error,"sources":sources.provenance(&evidence)})
@@ -926,7 +1162,7 @@ pub fn run(options: &Options) -> Result<Batch, String> {
         .map(|(_, result)| result)
         .collect::<Vec<_>>();
     let failed = results.iter().filter(|r| r["status"] == "failure").count();
-    let report = json!({"format":1,"installation":options.installation,"reader":{"name":tp_scs::READER,"version":tp_scs::VERSION},"tool_version":env!("CARGO_PKG_VERSION"),"game_version":game_version,"package_version":options.package_version,"archives":sources.archives,"archive_precedence":"last mounted wins; base source order and sorted DLC as observed in ETS2 mount log","requested_vehicle":options.vehicle,"previous_batch":options.previous,"discovered_vehicles":discovered.keys().collect::<Vec<_>>(),"processed_vehicles":vehicles,"name_sources":NAME_FILES.iter().map(|p| sources.provenance(&BTreeSet::from([(*p).to_owned()]))[0].clone()).collect::<Vec<_>>(),"work_directory":preliminary,"work_directory_kept":failed > 0,"results":results,"failed":failed,"limits":["Truckpaint, tsnmap and tsnmapuv exterior models with optional airbrush/flipflake/altuv flavors and a/asafew.a alpha-test suffixes","All paint materials use the ordinary paint UVs (_TEXCOORD1), including altuv flavors; packages never set alternate_uvset","Finite UV overflow is preserved in SVG coordinates; the texture viewport clips the wireframe without wrapping or changing UV mode; out-of-bounds surfaces need game checks","Main templates union compatible painted options","Accessories without a truckpaint material in their selected look/variant are excluded from templates","Cabin size 4096 square; accessory dimensions from crop names; conflicting sizes use the largest, accessories with only unsized (shared fill) masks stay on the main texture","Package validation does not establish correctness in game"]});
+    let report = json!({"format":1,"installation":options.installation,"reader":{"name":tp_scs::READER,"version":tp_scs::VERSION},"tool_version":env!("CARGO_PKG_VERSION"),"game_version":game_version,"archives":sources.archives,"archive_precedence":"last mounted wins; base source order and sorted DLC as observed in ETS2 mount log","requested_vehicle":options.vehicle,"previous_batch":options.previous,"discovered_vehicles":discovered.keys().collect::<Vec<_>>(),"processed_vehicles":vehicles,"name_sources":NAME_FILES.iter().map(|p| sources.provenance(&BTreeSet::from([(*p).to_owned()]))[0].clone()).collect::<Vec<_>>(),"work_directory":preliminary,"work_directory_kept":failed > 0,"results":results,"failed":failed,"limits":["Truckpaint, tsnmap and tsnmapuv exterior models with optional airbrush/flipflake/altuv flavors and a/asafew.a alpha-test suffixes","All paint materials use the ordinary paint UVs (_TEXCOORD1), including altuv flavors; packages never set alternate_uvset","Finite UV overflow is preserved in SVG coordinates; the texture viewport clips the wireframe without wrapping or changing UV mode; out-of-bounds surfaces need game checks","Main templates union compatible painted options","Accessories without a truckpaint material in their selected look/variant are excluded from templates","Cabin size 4096 square; accessory dimensions from crop names; conflicting sizes use the largest, accessories with only unsized (shared fill) masks stay on the main texture","Package validation does not establish correctness in game"]});
     publish(
         &output.join("report.json"),
         &serde_json::to_vec_pretty(&report).map_err(|e| e.to_string())?,
@@ -962,5 +1198,153 @@ mod tests {
             .map(|e| e.unwrap().file_name())
             .collect::<Vec<_>>();
         assert_eq!(names, ["a.tpv"]);
+    }
+
+    use crate::synthetic::{Vehicle as Made, write_game};
+    use tp_vehicles::{Game, Kind as VehicleKind};
+
+    fn game(application: &str, version: &str, vehicles: &[Made]) -> tempfile::TempDir {
+        let temp = tempfile::tempdir().unwrap();
+        write_game(temp.path(), application, version, vehicles);
+        temp
+    }
+
+    #[test]
+    fn inspect_reads_the_game_from_the_main_archives_and_says_what_is_wrong() {
+        let ets2 = game("eut2", "1.61.1.9", &[]);
+        let info = inspect(ets2.path()).unwrap();
+        assert_eq!((info.game, info.version.as_str()), (Game::Ets2, "1.61.1.9"));
+        let ats = game("ats", "1.55.0.1", &[]);
+        assert_eq!(inspect(ats.path()).unwrap().game, Game::Ats);
+        std::fs::remove_file(ets2.path().join("base.scs")).unwrap();
+        assert_eq!(
+            inspect(ets2.path()),
+            Err(InspectError::Missing("base.scs".into()))
+        );
+        assert_eq!(
+            inspect(&ets2.path().join("nothing")),
+            Err(InspectError::NotAFolder)
+        );
+        std::fs::write(ets2.path().join("base.scs"), b"not an archive").unwrap();
+        assert!(matches!(
+            inspect(ets2.path()),
+            Err(InspectError::Unreadable(_))
+        ));
+        let other = game("other", "1.0.0.0", &[]);
+        assert_eq!(inspect(other.path()), Err(InspectError::NotAGame));
+    }
+
+    #[test]
+    fn scan_lists_owned_paintable_vehicles_only() {
+        let vehicles = [
+            Made::truck("example.alpha", "Alpha"),
+            Made::trailer("example.box", "Box"),
+            Made::trailer("example.flat", "Flat").in_archive("dlc_owned"),
+            Made {
+                paintable: false,
+                ..Made::trailer("example.plain", "Plain")
+            },
+        ];
+        let owned = game("eut2", "1.61.1.9", &vehicles);
+        let scan = scan(owned.path()).unwrap();
+        let listed = scan
+            .vehicles
+            .iter()
+            .map(|v| (v.id.as_str(), v.kind, v.name.as_str(), v.brand.as_str()))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            listed,
+            [
+                (
+                    "example.alpha",
+                    VehicleKind::Truck,
+                    "Example Alpha",
+                    "Example"
+                ),
+                (
+                    "example.box",
+                    VehicleKind::Trailer,
+                    "Example Box",
+                    "Example"
+                ),
+                (
+                    "example.flat",
+                    VehicleKind::Trailer,
+                    "Example Flat",
+                    "Example"
+                ),
+            ]
+        );
+        // The same game without the DLC does not list its trailer.
+        let base = game("eut2", "1.61.1.9", &vehicles[..2]);
+        assert_eq!(scan_ids(base.path()), ["example.alpha", "example.box"]);
+        let ats = game("ats", "1.55.0.1", &vehicles[..1]);
+        assert!(super::scan(ats.path()).err().unwrap().contains("only ETS2"));
+    }
+
+    fn scan_ids(folder: &Path) -> Vec<String> {
+        scan(folder)
+            .unwrap()
+            .vehicles
+            .into_iter()
+            .map(|v| v.id)
+            .collect()
+    }
+
+    fn package(outcome: Outcome) -> crate::Packed {
+        match outcome {
+            Outcome::Package(packed) => *packed,
+            Outcome::UpToDate => panic!("expected a package"),
+        }
+    }
+
+    fn generated(folder: &Path, previous: Option<&tp_vehicles::Package>) -> Outcome {
+        generate(&scan(folder).unwrap(), "example.alpha", previous).unwrap()
+    }
+
+    #[test]
+    fn versions_follow_the_game_and_never_replace_an_installed_package() {
+        let alpha = [Made::truck("example.alpha", "Alpha")];
+        let first = game("eut2", "1.61.1.9", &alpha);
+        let packed = package(generated(first.path(), None));
+        let manifest = &packed.manifest;
+        assert_eq!(manifest.version.to_string(), "1.61.1");
+        assert_eq!(manifest.game.versions.to_string(), ">=1.61, <1.62");
+        assert_eq!(manifest.id, "official.ets2.example.alpha");
+        assert_eq!(manifest.license.as_deref(), Some(LICENSE));
+        assert!(manifest.homepage.is_none());
+        assert!(
+            manifest
+                .description
+                .as_deref()
+                .unwrap()
+                .contains("1.61.1.9 on this computer")
+        );
+        crate::check(&packed.bytes).unwrap();
+        let installed = tp_vehicles::Package::read(&packed.bytes).unwrap();
+
+        // Same templates, same game: nothing to install.
+        assert!(matches!(
+            generated(first.path(), Some(&installed)),
+            Outcome::UpToDate
+        ));
+        // A new minor series with the same templates: a new version, same layout versions.
+        let next = game("eut2", "1.62.0.3", &alpha);
+        let moved = package(generated(next.path(), Some(&installed)));
+        assert_eq!(moved.manifest.version.to_string(), "1.62.0");
+        assert_eq!(moved.manifest.paint_job, installed.manifest.paint_job);
+        // A changed template under the installed version: the next patch and layout version.
+        let patched = game(
+            "eut2",
+            "1.61.1.4",
+            &[Made {
+                shifted: true,
+                ..Made::truck("example.alpha", "Alpha")
+            }],
+        );
+        let changed = package(generated(patched.path(), Some(&installed)));
+        assert_eq!(changed.manifest.version.to_string(), "1.61.2");
+        assert_eq!(changed.manifest.paint_job.main[0].texture.layout_version, 2);
+        assert!(generate(&scan(first.path()).unwrap(), "nothing", None).is_err());
     }
 }

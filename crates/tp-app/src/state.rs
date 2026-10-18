@@ -269,6 +269,8 @@ pub struct AppState {
     /// The title bar mode of the last frame, to switch the window's frame
     /// when it changes.
     shown_title_bar_mode: Option<TitleBarMode>,
+    /// The games' folders, scan and generation run.
+    pub game: crate::game::GameState,
     /// The local MCP server and its calls.
     pub mcp: crate::mcp::McpHost,
     /// Preferences should scroll to the AI assistant (MCP) section when
@@ -289,7 +291,12 @@ impl AppState {
             }
             None => Prefs::default(),
         };
+        // No preferences file yet: the first run looks for the games once.
+        let first_run = store.as_ref().is_some_and(|s| !s.path().exists());
         let mut state = Self::with_prefs(prefs, store);
+        if first_run {
+            crate::game::detect_first_run(&mut state.prefs.game_folders);
+        }
         state.system_fonts = true;
         state.dialogs = Box::new(NativeDialogs);
         state.macos = cfg!(target_os = "macos");
@@ -344,6 +351,7 @@ impl AppState {
             native_menu_installed: false,
             double_click: Default::default(),
             shown_title_bar_mode: None,
+            game: Default::default(),
             mcp: Default::default(),
             reveal_mcp_preferences: false,
         };
@@ -477,6 +485,29 @@ impl AppState {
         }
     }
 
+    /// Tells in a message that a generation ended, unless the Vehicle Library
+    /// is open (it shows the result) or another dialog is.
+    fn announce_generation(&mut self) {
+        if !std::mem::take(&mut self.game.announce) {
+            return;
+        }
+        let Some(last) = &self.game.last else {
+            return;
+        };
+        if self.modal.is_none() {
+            self.modal = Some(Modal::Message {
+                title: tp_i18n::tr("game-finished-title"),
+                text: crate::game::summary_text(last),
+            });
+        }
+    }
+
+    /// Opens Preferences, checking the game folders again.
+    pub fn open_preferences(&mut self) {
+        self.game.refresh_folders(&self.prefs.game_folders);
+        self.modal = Some(Modal::Preferences);
+    }
+
     /// Runs an action asked from the Vehicles panel.
     pub fn handle_vehicle_request(&mut self, request: VehicleRequest, now: f64) {
         match request {
@@ -578,6 +609,8 @@ impl AppState {
         if let Some(next) = self.mcp.next_change() {
             ctx.request_repaint_after(next);
         }
+        self.game.poll(&mut self.vehicles);
+        self.announce_generation();
         self.handle_close_request(&ctx);
         self.handle_keyboard(&ctx);
         let aids = self.prefs.view_aids;
@@ -869,7 +902,7 @@ impl AppState {
                 self.save(ctx, true);
             }
             CommandId::CloseProject => self.guard(ctx, PendingAction::CloseProject),
-            CommandId::Preferences => self.modal = Some(Modal::Preferences),
+            CommandId::Preferences => self.open_preferences(),
             CommandId::Quit => self.guard(ctx, PendingAction::Quit),
             CommandId::ShowSpace(space) => self.with_workspace(|ws| ws.show_space(space)),
             CommandId::ShowLeftTab(tab) => {

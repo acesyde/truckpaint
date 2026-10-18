@@ -1,54 +1,71 @@
 ---
 title: Offizielle Fahrzeuge
-description: Die Pakete der offiziellen ETS2-Lkw und -Auflieger aus dem installierten Spiel erzeugen.
+description: Die offiziellen ETS2-Lkw und -Auflieger aus Ihrem eigenen Spiel erstellen, direkt in TruckPaint.
 sidebar:
   order: 2
 ---
 import Shot from '~/components/Shot.astro';
 import Ui from '~/components/Ui.astro';
 
-Offizielle ETS2-Lkw und -Auflieger gibt es als `.tpv`-Pakete, die Sie selbst aus dem installierten Spiel erzeugen, wie unten beschrieben, und von Hand installieren. <Ui id="home-new-project" /> und <Ui id="cmd-add-vehicle" /> zeigen nur installierte Fahrzeuge. Ein Paket enthält seine Vorlagen und Spieldaten: Nach der Erzeugung brauchen Installation, Projekterstellung und Mod-Export keine Spielinstallation.
+Die offiziellen Lkw und Auflieger gehören SCS Software, deshalb liefert TruckPaint sie nicht mit. Sie erstellen sie aus Ihrem eigenen installierten Spiel, auf Ihrem Computer, im Reiter <Ui id="vehicles-tab-game" /> der [Fahrzeugbibliothek](../library/). Sie sind für Ihren eigenen Gebrauch: TruckPaint lädt sie nie hoch. <Ui id="home-new-project" /> und <Ui id="cmd-add-vehicle" /> listen nur installierte Fahrzeuge. Ist ein Fahrzeug erstellt, brauchen Projekte und Mod-Exporte das Spiel nicht mehr.
 
-## Pakete erzeugen
+## Den Spielordner festlegen
 
-Paketautoren verwenden den Rust-Befehl `tpv`, der die Archive des Spiels selbst liest und kein weiteres Programm braucht:
+Öffnen Sie die Einstellungen und suchen Sie <Ui id="prefs-games" />. Jedes Spiel hat ein Ordnerfeld:
 
-```sh
-mise exec -- cargo run --release -p tp-pack --bin tpv -- extract "/path/to/ETS2" \
-  --package-version 2.0.0
-```
+- <Ui id="prefs-game-detect" /> sucht das Spiel in Ihren Steam-Bibliotheken (Windows, Linux einschließlich der Flatpak-Version von Steam und macOS).
+- <Ui id="prefs-game-choose" /> wählt den Ordner von Hand: nutzen Sie es für GOG, Epic oder jeden anderen Ort.
+- <Ui id="prefs-game-clear" /> vergisst den Ordner.
 
-Ersetzen Sie den Pfad durch Ihre ETS2-Installation. Eine ausdrückliche SemVer-Paketversion ist erforderlich. Mit `--vehicle man.tgx_2020` oder `--vehicle krone.coolliner` wird nur ein Lkw oder Auflieger verarbeitet; ohne Filter alle gefundenen Fahrzeuge. `--output <Verzeichnis>` ändert das übergeordnete Verzeichnis der Durchläufe. Wenn Sie einen neuen Durchlauf veröffentlichen, geben Sie mit `--previous <Verzeichnis des Durchlaufs>` den zuletzt veröffentlichten an: Eine unveränderte Vorlage behält ihre Layoutversion, eine geänderte erhält die nächste, damit die Anwendung Spieler warnt, die ihre Projekte aktualisieren.
+TruckPaint prüft den Ordner, zeigt die Version des Spiels, wenn er gültig ist, und sagt, warum, wenn nicht. Beim ersten Start sucht es die Spiele einmal von selbst.
 
-Das Werkzeug findet offizielle ETS2-Lkw und eigene Auflieger einschließlich installierter Fahrzeug-, Auflieger- und Tuning-DLCs. Benutzermods und ATS sind ausgeschlossen. Ein Lkw-Paket umfasst alle unterstützten Fahrerhäuser und lackierten Zubehörteile. Lkw- und Fahrerhausnamen sind die englischen Namen des Spiels. Fahrerhäuser verwenden 4096 × 4096; Zubehörgrößen stammen aus den Lackierungsdefinitionen des Spiels. Hauptvorlagen überlagern kompatible lackierte Optionen.
+<Shot name="vehicles/game-folders" alt="Der Bereich Spiele der Einstellungen mit festgelegtem Ordner von Euro Truck Simulator 2 und angezeigter Version" />
 
-Ein Auflieger-Paket hat eine Haupttextur von 4096 × 4096 für jeden lackierten Aufbau, jedes Fahrgestell und jedes Teil, das das Spiel nicht aus einem eigenen Bereich lackiert, sowie Zubehörtexturen für den ganzen Auflieger. Lackiert das Spiel jedes Teil aus einem eigenen Bereich, ist die Haupttextur nur 64 × 64 groß und trägt die Grundfarbe. Aufbauten oder Teile, die das Spiel in allen Lackierungen aus demselben Bereich lackiert, teilen sich eine Textur (zum Beispiel die 13,6-m-Aufbauten Koffer, Isolier- und Kühlkoffer des SCS-Kofferaufliegers): Sie lackieren sie nur einmal. Auflieger haben keine Varianten. Die eigenen Auflieger von SCS haben im Spiel keine Marke: Sie heißen „SCS“ gefolgt von ihrem Spielnamen, etwa „SCS Box“ oder „SCS Silo“. Auflieger, deren Lackierungen nur eine Uni-Farbe setzen, etwa der SCS-Pritschenauflieger, haben nichts zu lackieren: Der Bericht führt sie als übersprungen, ohne Paket.
+## Die Fahrzeuge erstellen
 
-Jeder Durchlauf erstellt standardmäßig ein eigenes Unterverzeichnis in `dist/`, mit gültigen Paketen und `report.json`. Zwischendateien bleiben nur dann in `target/`, wenn ein Fahrzeug fehlschlägt. Eine Spieldatei in einer Version, die das Werkzeug nicht kennt, stoppt den Durchlauf mit einer Meldung, die Datei und Version nennt. Unvollständige oder mehrdeutige Fahrzeuge sowie nicht unterstützte Shader und UV-Zuordnungen werden abgelehnt. Andere Fahrzeuge werden weiterverarbeitet; jeder Fehler führt zu einem Fehlercode. Es werden keine Teilpakete veröffentlicht.
+1. Öffnen Sie <Ui id="menu-vehicle" /> › <Ui id="cmd-vehicle-library" /> und klicken Sie auf <Ui id="vehicles-tab-game" />. Ist noch kein Ordner festgelegt, schlägt TruckPaint den gefundenen vor.
+2. Die Liste zeigt die Lkw und Auflieger Ihres Spiels. Nur die DLC, die Sie besitzen, erscheinen. Jede Zeile sagt, ob das Fahrzeug <Ui id="game-status-not-generated" />, erzeugt (mit seiner Version) oder <Ui id="game-status-updated" /> ist.
+3. Wählen Sie die gewünschten Fahrzeuge aus oder nutzen Sie <Ui id="game-select-all" />, <Ui id="game-select-none" /> und <Ui id="game-select-updates" />.
+4. Klicken Sie auf <Ui id="game-generate" args={{ count: 3 }} />. Noch nicht erstellte Fahrzeuge werden erstellt, die anderen neu erstellt.
 
-Der Bericht enthält Quellen, Versionen, Texturabdeckung, Ergebnisse und Grenzen. Technische Paketprüfung beweist keine korrekte Darstellung im Spiel: Neue Fahrzeuge und Konfigurationen müssen noch im Spiel geprüft werden.
+<Shot name="vehicles/my-game" alt="Der Reiter Mein Spiel: drei Lkw und zwei Auflieger, zwei davon als Spiel aktualisiert markiert und ausgewählt, und die Schaltfläche Erzeugen (2)" />
 
-`missing_dependencies` führt fehlende Referenzen und, soweit verfügbar, ihre Quelldefinitionen auf. `expected_dlc: null` mit `dlc_origin: "unknown"` bedeutet, dass sich der benötigte DLC nicht bestimmen lässt; das Archiv mit der Referenz belegt nicht, welcher DLC sie bereitstellt.
+Die Fahrzeuge werden nacheinander erstellt, und jedes wird installiert, sobald es fertig ist. Ein Fortschrittsbalken zählt sie („1 von 5“), das aktuelle Fahrzeug wird genannt, und jede Zeile zeigt, ob es wartet, in Arbeit, installiert, aktuell oder fehlgeschlagen ist. Sie können in der App weiterarbeiten und die Bibliothek schließen: Eine Meldung sagt Ihnen, wann es fertig ist. <Ui id="button-cancel" /> stoppt vor dem nächsten Fahrzeug und behält die bereits installierten. Ein fehlgeschlagenes Fahrzeug stoppt die anderen nicht; das Ergebnis nennt es mit dem Grund.
 
-Lackierungszuweisungen für Zubehör ohne installierte Definition werden ausgeschlossen und mit `disposition: "ignored_reference"` gemeldet; sie verhindern die Paketerstellung nicht. Definiertes Zubehör, dessen ausgewähltes Modell kein Lackierungsmaterial hat, kann keine Lackierung zeigen: Es erhält keine Vorlage und wird mit `disposition: "excluded"` gemeldet. Fehlende erforderliche Dateien und unlesbare lackierte Geometrie blockieren die Extraktion weiterhin (`disposition: "blocking"`).
+<Shot name="vehicles/my-game-progress" alt="Ein laufender Vorgang: das erste Fahrzeug installiert, das zweite in Arbeit, drei wartend, der Balken bei 1 von 5" />
 
-Unterstützte Lackierungs-Shader sind `truckpaint`, `truckpaint.tsnmap` und `truckpaint.tsnmapuv`, optional mit `airbrush`, `flipflake` und `altuv` sowie den Alpha-Test-Suffixen `.a` oder `.asafew.a`. Die Vorlagen zeichnen die UV-Kanten des Meshs nach; sie bilden keine pixelweisen Deckkraftmasken ab. Alle Vorlagen verwenden die normale UV-Anordnung der Lackierung, die der einfarbigen Lackierungen des Spiels und der Community-Vorlagen, auch bei Lkw, deren Materialien zusätzlich eine alternative Anordnung haben. Fehlende oder mehrdeutige UV-Zuordnungen werden abgelehnt. Materialien, die nur mit der Grundlackfarbe eingefärbt werden, legen keine UV-Zuordnung für eine Lackierungstextur fest; Zubehör, das nur solche Materialien hat, wird wie oben beschrieben ausgeschlossen.
+## Nach einem Spiel-Update
 
-Endliche UV-Koordinaten außerhalb von [0, 1] bleiben erhalten, ohne Wiederholung, Begrenzung der Werte oder Kanalwechsel. Der SVG-Anzeigebereich begrenzt das sichtbare Drahtgitter auf die Textur. Der Bericht enthält `uv_bounds` und `out_of_bounds_vertices`; diese Flächen erfordern besondere Aufmerksamkeit im Spiel. Nicht endliche oder nicht darstellbare Koordinaten bleiben ungültig.
+Wechselt das Spiel zu einer neuen Versionsreihe (zum Beispiel von 1.61 auf 1.62), zeigen die erstellten Fahrzeuge <Ui id="game-status-updated" />. Klicken Sie auf <Ui id="game-select-updates" /> und dann auf <Ui id="game-generate" args={{ count: 3 }} />. Das neue Paket erhält die Version des Spiels, und das alte bleibt daneben installiert, sodass Ihre Projekte weiter funktionieren.
 
-`dimension_diagnostics` führt sämtliches Zubehör mit fehlenden oder widersprüchlichen Zuschnittmaßen sowie mögliche Größen, Masken und referenzierende Definitionen und Archive auf. Gibt das Spiel für ein Zubehör mehrere Größen an, wird die größte verwendet (`disposition: "resolved_largest"`): Die Lackierungs-UVs passen zu jeder Größe. Aus demselben Grund wird eine Größe mit einer Seite unter 64 Pixeln vergrößert (`disposition: "raised_to_minimum"`). Zubehör, das das Spiel nur mit gemeinsam genutzten Füllmasken abdeckt, erhält keine eigene Textur und bleibt auf der Haupttextur (`disposition: "main_texture"`), wie in den Lackierungen des Spiels, die es nicht überschreiben. Der Extraktor erfindet nie eine Größe.
+Hat sich eine Vorlage nicht geändert, sind Projekte, die das Fahrzeug nutzen, nicht betroffen. Hat das Spiel eine geändert, sehen Projekte „Vorlage aktualisiert“: siehe [Die Fahrzeugbibliothek](../library/). Ein unverändertes Fahrzeug wird als aktuell gemeldet, und es wird nichts installiert.
 
-Erzeugte Pakete tragen eine Lizenz („Personal modding only, not for sale. Game content belongs to SCS Software.“), und nennen SCS Software unter ihren Autoren.
+Ein Patch innerhalb derselben Reihe (1.61.1, dann 1.61.2) wird nicht markiert. Um ein Fahrzeug nach so einem Patch zu aktualisieren, wählen Sie es aus und erzeugen Sie es erneut.
+
+## Was erstellt wird
+
+Jedes Lkw-Paket enthält alle Fahrerhäuser und lackierten Zubehörteile des Lkw. Die Namen von Lkw und Fahrerhäusern sind die englischen Namen des Spiels. Fahrerhaus-Vorlagen sind 4096 × 4096 groß; die Größen der Zubehörteile stammen aus den Lackdefinitionen des Spiels.
+
+Ein Auflieger-Paket hat eine Haupttextur für jeden lackierten Aufbau, jedes Fahrgestell und jedes Teil, das das Spiel nicht aus einer eigenen Region lackiert, und Zubehörtexturen, die der ganze Auflieger teilt. Teile, die das Spiel in jeder Lackierung aus derselben Region lackiert, teilen sich eine Textur, Sie lackieren sie also nur einmal. Auflieger haben keine Varianten. Die eigenen Auflieger von SCS heißen „SCS“ plus ihrem Namen im Spiel, etwa „SCS Box“. Auflieger, deren Lackierungen nur eine einfarbige Farbe setzen, wie die SCS-Plattform, haben keine Lackierung zu gestalten und werden daher nicht aufgelistet.
+
+Die Vorlagen zeichnen das Lacklayout des Modells nach; sie beweisen nicht, dass eine Lackierung im Spiel gut aussieht, prüfen Sie neue Arbeit also im Spiel.
+
+## Grenzen
+
+- Vorerst können nur ETS2-Fahrzeuge erstellt werden. Den Ordner von American Truck Simulator können Sie festlegen und prüfen lassen, und der Reiter sagt, dass dessen Fahrzeuge noch nicht unterstützt werden.
+- Es werden nur die Fahrzeuge Ihres installierten Spiels und der DLC aufgelistet.
+- Benutzer-Mods werden nicht gelesen.
+
+Die Pakete tragen die Lizenz „Personal modding only, not for sale. Game content belongs to SCS Software.“ TruckPaint wird nicht von SCS Software unterstützt. Beim Exportieren eines Pakets bleibt ein Hinweis, zu prüfen, ob Sie es weitergeben dürfen.
 
 ## Installieren und lackieren
 
-1. Öffnen Sie die [Fahrzeugbibliothek](../library/): Wählen Sie über <Ui id="vehicles-install" /> eine selbst erzeugte `.tpv`-Datei.
-2. Markieren Sie das installierte Fahrzeug in <Ui id="home-new-project" />, wählen Sie Fahrerhäuser und Zubehör und verwenden Sie <Ui id="new-project-create" />.
-3. Lackieren und speichern Sie das Projekt und folgen Sie [Mod exportieren](../../export/mod/).
+Erstellte Fahrzeuge sind bereits in der Bibliothek installiert.
 
-<Shot name="vehicles/library" alt="Die Fahrzeugbibliothek mit installierten Paketen und der Installationsschaltfläche" />
+1. Wählen Sie in <Ui id="home-new-project" /> das Fahrzeug aus, wählen Sie Fahrerhäuser und Zubehör und nutzen Sie <Ui id="new-project-create" />.
+2. Lackieren und speichern Sie das Projekt und folgen Sie dann dem [Mod-Export](../../export/mod/).
 
-Bewahren Sie die Pakete für spätere Installationen auf. Das Spiel wird nur zum Erzeugen benötigt. Eigene Fahrzeuge und Beispielpakete bleiben verfügbar.
+<Shot name="vehicles/library" alt="Die Fahrzeugbibliothek mit installierten Paketen und ihren Reitern" />
 
 ## Alte Pakete
 

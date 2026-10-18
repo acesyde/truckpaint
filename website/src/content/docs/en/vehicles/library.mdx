@@ -12,7 +12,7 @@ TruckPaint paints vehicles it knows through **vehicle packages**. A package (a `
 
 Your vehicles come from four places:
 
-- **official ETS2 truck and trailer packages** generated from the installed game and installed manually: see [Official vehicles](../official-vehicles/);
+- **official ETS2 truck and trailer packages** that you make from your own game, in the <Ui id="vehicles-tab-game" /> tab: see [Official vehicles](../official-vehicles/);
 - the **sample vehicles** that come with TruckPaint, a truck and a trailer drawn for it, to try the app without game files;
 - **custom vehicles** you make yourself from template files: see [Custom vehicles](../custom-vehicles/);
 - `.tpv` files someone shared with you.
@@ -23,7 +23,7 @@ Choose <Ui id="menu-vehicle" /> › <Ui id="cmd-vehicle-library" />. It works fr
 
 <Shot name="vehicles/library" alt="The Vehicle Library dialog, with the list of installed vehicles on the left and the details of the chosen vehicle on the right" />
 
-The dialog has two tabs: <Ui id="vehicles-tab-installed" args={{ count: 2 }} />, with every installed vehicle, and a second tab with only your custom vehicles. Each tab shows how many vehicles it holds. Above the list, search by name or brand, and filter by game and by kind.
+The dialog has three tabs: <Ui id="vehicles-tab-installed" args={{ count: 2 }} />, with every installed vehicle, <Ui id="vehicles-tab-mine" args={{ count: 0 }} />, with only your custom vehicles, and <Ui id="vehicles-tab-game" />, where you make the official vehicles of your game. The first two show how many vehicles they hold. Above the list, search by name or brand, and filter by game and by kind.
 
 Each row shows the vehicle's name, brand, kind and game, its newest installed version, and a status:
 
@@ -41,7 +41,7 @@ Under <Ui id="vehicles-installed-versions" />, every installed version of the ve
 
 Click <Ui id="vehicles-install" /> and choose one or more `.tpv` files. You can also drop `.tpv` files on the home screen or on an open project. A confirmation names each vehicle and version installed. Installing a version that is already there replaces it.
 
-With no vehicle installed, the library explains what packages are and offers <Ui id="vehicles-install-sample" />.
+With no vehicle installed, the library explains what packages are and offers <Ui id="vehicles-install-sample" /> and <Ui id="vehicles-tab-game" />.
 
 ## See what an update changes
 
