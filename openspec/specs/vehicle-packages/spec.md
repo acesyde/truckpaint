@@ -116,8 +116,8 @@ Installing the same version again SHALL replace it. A different version of an in
 - **THEN** the library lists the vehicle once, as version 1.3.0, and its details show 1.2.0 as an older installed version
 
 ### Requirement: Vehicle Library dialog
-Vehicle › Vehicle Library… SHALL open a dialog with two tabs, a list and a detail pane:
-- **Tabs:** **Installed**, every installed vehicle, and **My vehicles**, the custom vehicles (id starting with `custom.`). Each tab shows its count.
+Vehicle › Vehicle Library… SHALL open a dialog with three tabs, a list and a detail pane:
+- **Tabs:** **Installed**, every installed vehicle, **My vehicles**, the custom vehicles (id starting with `custom.`), and **My Game**, the official vehicles of the player's own game (see the vehicle-generation capability). Installed and My vehicles show their count.
 - **The list**, under a search field (name and brand) and the game and kind filters. Each row shows the vehicle's name, its brand, kind and game, its newest installed version, and a **status**, as text with an icon, never by color alone:
   - **Custom** for a custom vehicle, in the link color;
   - **Update** when the open project holds that vehicle at an older version than the newest installed one, in the signal color;
@@ -138,7 +138,7 @@ It SHALL offer:
 - **Export…** for a vehicle version. It saves that version's package, unchanged, as a `.tpv` file where the player chooses, proposing `<id>-<version>.tpv`. The save dialog SHALL remind the player that templates from the base games belong to SCS Software, and to check that they may share them;
 - **Remove** for a vehicle version, after confirmation. Removing never changes projects, which embed their templates.
 
-With no vehicle installed, the dialog SHALL show an empty state explaining what packages are and offering Install… and Custom Vehicle…. With no custom vehicle, the My vehicles tab SHALL explain that custom vehicles are made from template files and offer Custom Vehicle….
+With no vehicle installed, the dialog SHALL show an empty state explaining what packages are and offering Install…, Custom Vehicle… and a way to open the My Game tab. With no custom vehicle, the My vehicles tab SHALL explain that custom vehicles are made from template files and offer Custom Vehicle…. The My Game tab has its own list, status and actions, and the Install… and Custom Vehicle… actions stay available from every tab.
 
 #### Scenario: Remove a version
 - **WHEN** the user removes version 1.2.0 of a vehicle that also has 1.3.0 installed
@@ -171,6 +171,14 @@ With no vehicle installed, the dialog SHALL show an empty state explaining what 
 #### Scenario: Up to date without a project
 - **WHEN** the Vehicle Library is opened from the home screen with the sample truck 1.0.0 and 1.1.0 installed
 - **THEN** the sample truck's status is Up to date
+
+#### Scenario: My Game tab
+- **WHEN** the user opens the Vehicle Library and clicks the My Game tab
+- **THEN** the official vehicles of the game folder set in Preferences are listed with their generation status
+
+#### Scenario: Empty library points to My Game
+- **WHEN** no vehicle is installed and the Vehicle Library is opened
+- **THEN** the empty state offers Install…, Custom Vehicle… and My Game
 
 ### Requirement: Built-in sample vehicle
 TruckPaint SHALL include the newest versions of the sample truck and the sample trailer (see the vehicle-authoring capability). When no vehicle is installed, an **Install the sample vehicles** button SHALL appear in two places:
