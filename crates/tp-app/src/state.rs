@@ -134,6 +134,18 @@ impl NewProjectDraft {
     }
 }
 
+/// The tabs of Preferences.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum PrefsTab {
+    /// Interface and canvas settings.
+    #[default]
+    General,
+    /// The games' folders and mod folders.
+    Games,
+    /// The AI assistant (MCP) setting.
+    Ai,
+}
+
 pub enum Modal {
     NewProject(NewProjectDraft),
     Preferences,
@@ -291,9 +303,11 @@ pub struct AppState {
     pub first_run: Option<crate::ui::first_run::FirstRun>,
     /// The local MCP server and its calls.
     pub mcp: crate::mcp::McpHost,
-    /// Preferences should scroll to the AI assistant (MCP) section when
-    /// it opens (the status bar's MCP item was clicked).
-    pub reveal_mcp_preferences: bool,
+    /// The tab Preferences shows while it is open.
+    pub preferences_tab: PrefsTab,
+    /// The tab the next Preferences command should open on, when it is not
+    /// General (the status bar's MCP item has no way to open it itself).
+    pub preferences_request: Option<PrefsTab>,
 }
 
 impl AppState {
@@ -373,7 +387,8 @@ impl AppState {
             game: Default::default(),
             first_run: None,
             mcp: Default::default(),
-            reveal_mcp_preferences: false,
+            preferences_tab: PrefsTab::General,
+            preferences_request: None,
         };
         state.refresh_recent_availability();
         state
@@ -526,9 +541,10 @@ impl AppState {
         }
     }
 
-    /// Opens Preferences, checking the game folders again.
-    pub fn open_preferences(&mut self) {
+    /// Opens Preferences on a tab, checking the game folders again.
+    pub fn open_preferences(&mut self, tab: PrefsTab) {
         self.game.refresh_folders(&self.prefs.game_folders);
+        self.preferences_tab = tab;
         self.modal = Some(Modal::Preferences);
     }
 
@@ -927,7 +943,10 @@ impl AppState {
                 self.save(ctx, true);
             }
             CommandId::CloseProject => self.guard(ctx, PendingAction::CloseProject),
-            CommandId::Preferences => self.open_preferences(),
+            CommandId::Preferences => {
+                let tab = self.preferences_request.take().unwrap_or_default();
+                self.open_preferences(tab);
+            }
             CommandId::Quit => self.guard(ctx, PendingAction::Quit),
             CommandId::ShowSpace(space) => self.with_workspace(|ws| ws.show_space(space)),
             CommandId::ShowLeftTab(tab) => {

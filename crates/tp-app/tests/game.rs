@@ -42,6 +42,18 @@ fn app(dir: &Path, game: Option<&Path>) -> H {
     h
 }
 
+#[test]
+fn preferences_from_my_game_opens_the_games_tab() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut h = app(temp.path(), None);
+    open_my_game(&mut h);
+    h.get_by_label("Preferences…").click();
+    h.run();
+    assert!(matches!(h.state().modal, Some(Modal::Preferences)));
+    assert_eq!(h.state().preferences_tab, tp_app::state::PrefsTab::Games);
+    assert_eq!(count(&h, "I play this game"), 2);
+}
+
 fn open_my_game(h: &mut H) {
     h.state_mut().modal = Some(Modal::VehicleLibrary(Default::default()));
     h.run();
@@ -83,7 +95,8 @@ fn preferences_show_the_first_launch_choices_and_keep_one_game() {
     let mut h = common::builder()
         .with_size(Vec2::new(1440.0, 900.0))
         .build_ui_state(|ui, state: &mut AppState| state.show(ui), state);
-    h.state_mut().open_preferences();
+    h.state_mut()
+        .open_preferences(tp_app::state::PrefsTab::Games);
     h.run();
     assert!(shows(&h, &mods.display().to_string()));
     assert_eq!(count(&h, "I play this game"), 2);
@@ -122,9 +135,10 @@ fn preferences_set_check_refuse_and_clear_the_game_folders() {
         folders: [game.clone(), nothing.clone(), ats.clone()].into(),
         ..Default::default()
     });
-    h.state_mut().open_preferences();
+    h.state_mut()
+        .open_preferences(tp_app::state::PrefsTab::Games);
     h.run();
-    assert!(shows(&h, "Games"));
+    assert!(count(&h, "Games") >= 1, "the Games tab and its section");
     // The first Choose… is Euro Truck Simulator 2's.
     h.get_all_by_label("Choose…").next().unwrap().click();
     h.run();
@@ -139,13 +153,16 @@ fn preferences_set_check_refuse_and_clear_the_game_folders() {
     h.get_all_by_label("Choose…").next().unwrap().click();
     h.run();
     assert!(shows(&h, "This is an American Truck Simulator folder."));
-    // Reset to defaults keeps the folders.
+    // Reset to defaults, on the General tab, keeps the folders.
+    h.state_mut().preferences_tab = tp_app::state::PrefsTab::General;
+    h.run();
     h.get_by_label("Reset to defaults").click();
     h.run();
     assert_eq!(h.state().prefs.game_folders.len(), 1);
     // The saved folder disappears: a message, and Clear still works.
     std::fs::remove_dir_all(&game).unwrap();
-    h.state_mut().open_preferences();
+    h.state_mut()
+        .open_preferences(tp_app::state::PrefsTab::Games);
     h.run();
     assert!(shows(&h, "This folder cannot be found."));
     h.get_all_by_label("Clear").next().unwrap().click();

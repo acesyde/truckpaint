@@ -11,10 +11,10 @@ use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::theme::{TEXT_SCALE_RANGE, UI_SCALE_RANGE, label_strong_style, title_style};
 use tp_ui::tokens::{color, radius, space};
-use tp_ui::widgets::{primary_button, secondary_button};
+use tp_ui::widgets::{SegmentedControl, primary_button, secondary_button};
 
 use crate::commands::{CommandId, ShortcutFormatter};
-use crate::state::{AppState, Modal};
+use crate::state::{AppState, Modal, PrefsTab};
 
 fn dialog_frame() -> Frame {
     Frame::new()
@@ -279,7 +279,7 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
             &mut state.prefs,
             !state.macos,
             &mcp,
-            &mut state.reveal_mcp_preferences,
+            &mut state.preferences_tab,
             &mut GamesEnv {
                 state: &mut state.game,
                 dialogs: state.dialogs.as_mut(),
@@ -516,54 +516,77 @@ struct GamesEnv<'a> {
     mod_folders: &'a crate::mod_export::Folders,
 }
 
-/// What the Preferences dialog asks for this frame.
-/// The window height (points) under which the settings of Preferences
-/// always scroll.
-const PREFERENCES_HEIGHT: f32 = 700.0;
-/// Room the dialog's title, footer and margins take around its settings.
-const PREFERENCES_CHROME: f32 = 200.0;
+/// The height (points) of the settings area of Preferences: the Games tab,
+/// the tallest, fits whole at 100% in every language.
+const PREFERENCES_PAGE: f32 = 560.0;
+/// Room the dialog's title, tabs, footer and margins take around the
+/// settings area.
+const PREFERENCES_CHROME: f32 = 240.0;
 
-/// Preferences, scrolling when its settings do not fit the window.
+/// Preferences: one tab at a time, in an area that keeps its size and
+/// scrolls when the window is too small for it.
 fn preferences(
     ctx: &egui::Context,
     prefs: &mut crate::prefs::Prefs,
     title_bar: bool,
     mcp: &crate::mcp::McpView,
-    reveal_mcp: &mut bool,
+    tab: &mut PrefsTab,
     games: &mut GamesEnv,
 ) -> bool {
     let response = modal("preferences_modal").show(ctx, |ui| {
         ui.set_width(440.0);
         title(ui, &tr("home-preferences"), None);
-        ui.add_space(space::LG);
-        let height = ctx.content_rect().height();
-        let body_id = egui::Id::new("preferences_body_height");
-        let body = ctx.data(|d| d.get_temp::<f32>(body_id)).unwrap_or(0.0);
-        if height < PREFERENCES_HEIGHT || body + PREFERENCES_CHROME > height {
-            let out = egui::ScrollArea::vertical()
-                .max_height((height - 160.0).max(160.0))
-                .auto_shrink([false, true])
-                .show(ui, |ui| {
-                    preferences_body(ctx, ui, prefs, title_bar, mcp, reveal_mcp, games)
-                });
-            ctx.data_mut(|d| d.insert_temp(body_id, out.content_size.y));
-        } else {
-            // Unmeasured first frame: keep the reveal for the frame that may scroll.
-            let mut unmeasured = false;
-            let reveal = if body == 0.0 {
-                &mut unmeasured
-            } else {
-                reveal_mcp
-            };
-            let top = ui.cursor().top();
-            preferences_body(ctx, ui, prefs, title_bar, mcp, reveal, games);
-            let used = ui.cursor().top() - top;
-            ctx.data_mut(|d| d.insert_temp(body_id, used));
+        ui.add_space(space::SM);
+        let (general, games_tab, ai) = (
+            tr("prefs-tab-general"),
+            tr("prefs-tab-games"),
+            tr("prefs-tab-ai"),
+        );
+        if let Some(picked) = SegmentedControl::new()
+            .fill()
+            .segment(PrefsTab::General, "", &general, None)
+            .segment(PrefsTab::Games, "", &games_tab, None)
+            .segment(PrefsTab::Ai, "", &ai, None)
+            .show(ui, *tab)
+        {
+            *tab = picked;
         }
+        ui.add_space(space::LG);
+        let page =
+            PREFERENCES_PAGE.min((ctx.content_rect().height() - PREFERENCES_CHROME).max(160.0));
+        // The settings area is `page` tall on every tab. The tab scrolls
+        // only once its content, measured the frame before, is taller.
+        let measured_id = egui::Id::new(("preferences_content", *tab as u8));
+        let measured = ctx.data(|d| d.get_temp::<f32>(measured_id)).unwrap_or(0.0);
+        let mut content = |ui: &mut Ui| {
+            ui.spacing_mut().item_spacing.y = space::MD;
+            match *tab {
+                PrefsTab::General => general_tab(ctx, ui, prefs, title_bar),
+                PrefsTab::Games => games_section(ui, prefs, games),
+                PrefsTab::Ai => mcp_section(ui, prefs, mcp),
+            }
+        };
+        let used = if measured > page {
+            egui::ScrollArea::vertical()
+                .id_salt(measured_id)
+                .max_height(page)
+                .auto_shrink([false, false])
+                .show(ui, content)
+                .content_size
+                .y
+        } else {
+            let top = ui.cursor().top();
+            content(ui);
+            let used = ui.cursor().top() - top;
+            ui.add_space((page - used).max(0.0));
+            used
+        };
+        ctx.data_mut(|d| d.insert_temp(measured_id, used));
         let mut close = false;
         footer(ui, |ui| {
             close |= ui.add(primary_button(&tr("button-done"))).clicked();
-            if ui.add(secondary_button(&tr("prefs-reset"))).clicked() {
+            // In the footer, so it stays in reach when the settings scroll.
+            if *tab == PrefsTab::General && ui.add(secondary_button(&tr("prefs-reset"))).clicked() {
                 prefs.reset_scaling();
             }
         });
@@ -572,17 +595,8 @@ fn preferences(
     response.inner || response.should_close()
 }
 
-/// The settings of the Preferences dialog.
-fn preferences_body(
-    ctx: &egui::Context,
-    ui: &mut Ui,
-    prefs: &mut crate::prefs::Prefs,
-    title_bar: bool,
-    mcp: &crate::mcp::McpView,
-    reveal_mcp: &mut bool,
-    games: &mut GamesEnv,
-) {
-    ui.spacing_mut().item_spacing.y = space::MD;
+/// The General tab: the interface and the canvas.
+fn general_tab(ctx: &egui::Context, ui: &mut Ui, prefs: &mut crate::prefs::Prefs, title_bar: bool) {
     section(ui, &tr("prefs-interface"));
     // The room left beside the slider fits its value ("100%").
     let slider_width = ui.available_width() - 72.0;
@@ -660,8 +674,6 @@ fn preferences_body(
             WidgetInfo::labeled(WidgetType::DragValue, true, tr("prefs-grid-spacing"))
         });
     });
-    games_section(ui, prefs, games);
-    mcp_section(ui, prefs, mcp, reveal_mcp);
 }
 
 /// The Games section of Preferences: the installation folder of each game,
@@ -673,7 +685,6 @@ fn games_section(ui: &mut Ui, prefs: &mut crate::prefs::Prefs, env: &mut GamesEn
         dialogs,
         mod_folders,
     } = env;
-    ui.add_space(space::SM);
     section(ui, &tr("prefs-games"));
     for game in tp_vehicles::Game::ALL {
         let name = super::vehicle_dialogs::game_name(game);
@@ -828,21 +839,8 @@ fn play_and_mod_folder(
 /// The AI assistant (MCP) section of Preferences: the switch, the port
 /// (editable while the server is off), the address with Copy, what it is
 /// for, and the server's state. Scrolled into view when `reveal` is set.
-fn mcp_section(
-    ui: &mut Ui,
-    prefs: &mut crate::prefs::Prefs,
-    mcp: &crate::mcp::McpView,
-    reveal: &mut bool,
-) {
-    ui.add_space(space::SM);
-    let header = ui.label(
-        RichText::new(tr("prefs-mcp"))
-            .text_style(label_strong_style())
-            .color(color::TEXT_PRIMARY),
-    );
-    if std::mem::take(reveal) {
-        header.scroll_to_me(Some(Align::TOP));
-    }
+fn mcp_section(ui: &mut Ui, prefs: &mut crate::prefs::Prefs, mcp: &crate::mcp::McpView) {
+    section(ui, &tr("prefs-mcp"));
     ui.add(tp_ui::widgets::SquareCheckbox::new(
         &mut prefs.mcp_enabled,
         tr("prefs-mcp-enable"),

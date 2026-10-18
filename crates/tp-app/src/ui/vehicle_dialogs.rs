@@ -867,7 +867,7 @@ pub fn library(ctx: &egui::Context, state: &mut AppState, dialog: &mut LibraryDi
         state.game.folders.clear();
     }
     if clicks.preferences {
-        state.open_preferences();
+        state.open_preferences(crate::state::PrefsTab::Games);
         return true;
     }
     if clicks.confirm

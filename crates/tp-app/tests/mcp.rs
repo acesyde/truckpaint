@@ -1020,9 +1020,8 @@ fn turning_the_server_on() {
         ..Prefs::default()
     });
     h.state_mut().modal = Some(Modal::Preferences);
-    // The settings scroll in a 900-point window: shown scrolled to the
-    // section, as when opened from the status bar.
-    h.state_mut().reveal_mcp_preferences = true;
+    // Shown on its tab, as when opened from the status bar.
+    h.state_mut().preferences_tab = tp_app::state::PrefsTab::Ai;
     h.run();
     assert!(h.query_by_label("Off").is_some());
     h.get_by_label("Let an AI assistant draw on the open project")
@@ -1051,6 +1050,7 @@ fn port_in_use_in_preferences() {
         ..Prefs::default()
     });
     h.state_mut().modal = Some(Modal::Preferences);
+    h.state_mut().preferences_tab = tp_app::state::PrefsTab::Ai;
     h.run();
     let text = format!("Port {port} is in use by another program.");
     assert!(
@@ -1121,7 +1121,7 @@ fn status_bar_follows_the_server() {
     h.get_by_label("MCP · 3 changes").click();
     h.run();
     assert!(matches!(h.state().modal, Some(Modal::Preferences)));
-    assert!(!h.state().reveal_mcp_preferences, "scrolled to the section");
+    assert_eq!(h.state().preferences_tab, tp_app::state::PrefsTab::Ai);
     h.state_mut().modal = None;
     h.state_mut().prefs.mcp_enabled = false;
     h.run();

@@ -686,7 +686,7 @@ fn generate_now(h: &mut H, folder: &std::path::Path, ids: &[&str]) {
     }
 }
 
-/// The My Game tab (before and in the middle of a run) and the Games section of Preferences.
+/// The My Game tab (before and in the middle of a run) and the Games tab of Preferences.
 fn my_game_shots(language: Language) {
     use tp_app::state::Modal;
     use tp_app::ui::vehicle_dialogs::{LibraryDialog, LibraryTab};
@@ -749,7 +749,7 @@ fn my_game_shots(language: Language) {
         shot(&mut h, language, "vehicles/my-game-progress");
         drop(release);
 
-        // The Games section of Preferences, in a window tall enough to show it whole.
+        // The Games tab of Preferences, in a window tall enough to show it whole.
         let mut prefs = Prefs::default();
         prefs.set_language(Some(language));
         let mut h = common::wgpu_harness_hidpi(prefs, Vec2::new(1280.0, 1300.0), PPP, 1.0 / FPS);
@@ -762,7 +762,8 @@ fn my_game_shots(language: Language) {
             .game_folders
             .insert("ets2".into(), folder);
         played_games(&mut h.state_mut().prefs);
-        h.state_mut().open_preferences();
+        h.state_mut()
+            .open_preferences(tp_app::state::PrefsTab::Games);
         settle_dialog(&mut h);
         shot(&mut h, language, "vehicles/game-folders");
     }
@@ -1110,7 +1111,7 @@ fn section_ai_assistant() {
             .port();
         h.state_mut().prefs.mcp_enabled = true;
         played_games(&mut h.state_mut().prefs);
-        h.state_mut().reveal_mcp_preferences = true;
+        h.state_mut().preferences_tab = tp_app::state::PrefsTab::Ai;
         modal(&mut h, Modal::Preferences);
         shot(&mut h, language, "ai-assistant/preferences");
         h.state_mut().prefs.mcp_enabled = false;

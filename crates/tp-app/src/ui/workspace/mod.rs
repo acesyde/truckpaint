@@ -49,7 +49,7 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
     let mcp = state.mcp.view();
     let AppState {
         prefs,
-        reveal_mcp_preferences,
+        preferences_request,
         queue,
         screen,
         vehicles,
@@ -114,7 +114,7 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
         .frame(bar_frame().inner_margin(Margin::symmetric(space::MD as i8, 0)))
         .show(ui, |ui| {
             if status_bar::show(ui, &mut cmds, ws, aids, &mcp) {
-                *reveal_mcp_preferences = true;
+                *preferences_request = Some(crate::state::PrefsTab::Ai);
                 cmds.push(crate::commands::CommandId::Preferences);
             }
         });
