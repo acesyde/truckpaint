@@ -1,6 +1,6 @@
 ---
 title: First launch
-description: Find your way around the home screen, choose your language and set TruckPaint up the way you like.
+description: Set TruckPaint up on first launch, find your way around the home screen, choose your language and set the app up the way you like.
 sidebar:
   order: 2
 ---
@@ -8,11 +8,44 @@ import Shot from '~/components/Shot.astro';
 import Clip from '~/components/Clip.astro';
 import Ui from '~/components/Ui.astro';
 
-When no project is open, TruckPaint shows its home screen. It is where you start a new livery, open one you saved, or pick up recent work.
+The first time you open TruckPaint, it asks what it needs in three short steps, then lands you in your first project. After that, when no project is open, it shows its home screen.
+
+## The first launch
+
+You can leave at any time with **<Ui id="first-run-skip" />** (or Escape): TruckPaint keeps what you already chose and shows the home screen. It does not ask again.
+
+### Step 1: language and game
+
+<Shot name="getting-started/first-launch" alt="The first step of the first launch: the language, the games played, and for ETS2 the game folder found and the mod folder" />
+
+- Under <Ui id="first-run-language" />, TruckPaint starts with your system's language. Choose another one to switch at once and keep it.
+- Under <Ui id="first-run-games" />, check the game or games you play, at least one.
+- For each game, TruckPaint looks for the installation in your Steam libraries and shows <Ui id="first-run-game-found" /> with its path, or <Ui id="first-run-game-not-found" />. Click <Ui id="first-run-choose-folder" /> to pick the folder yourself. A game that is not found does not stop you.
+- For each game, it also shows the mod folder, the one <Ui id="cmd-export-mod" /> uses. Choose another one if your mods live elsewhere.
+
+Click <Ui id="first-run-next" />.
+
+### Step 2: vehicles to paint
+
+<Shot name="getting-started/first-launch-vehicles" alt="The second step of the first launch: the trucks and trailers of the game, two of them checked" />
+
+TruckPaint reads your game, without changing it, and lists the trucks and trailers you own. Search by brand or model, filter with <Ui id="vehicles-kind-all" />, <Ui id="vehicles-kind-trucks" /> and <Ui id="vehicles-kind-trailers" />, check the ones you want to paint, or use <Ui id="game-select-all" />.
+
+Click <Ui id="first-run-generate" />. TruckPaint makes the checked vehicles on your computer, one after another, with a progress bar and <Ui id="button-cancel" />. A cancel keeps the vehicles already made, and a vehicle that fails is named without stopping the others. With nothing checked, the button reads <Ui id="first-run-continue" /> and you make vehicles later, in the <Ui id="vehicles-tab-game" /> tab of the Vehicle Library (see [Official vehicles](../../vehicles/official-vehicles/)).
+
+If the game is not found, or if it is American Truck Simulator (not supported yet), the step offers <Ui id="vehicles-install-sample" /> instead. You can add another vehicle later with <Ui id="custom-open" />.
+
+### Step 3: your first project
+
+TruckPaint opens New Project on the game you chose first, with your new vehicles in the list. Continue with [Create your first project](../first-project/).
+
+### Run it again
+
+Choose <Ui id="menu-help" /> › <Ui id="cmd-run-first-launch" /> to go through the steps again, with your current choices already selected. From a project, TruckPaint first closes it and asks whether to save. Everything you chose can also be changed in the preferences, under <Ui id="prefs-games" />.
 
 ## The home screen
 
-The home screen holds:
+The home screen is where you start a new livery, open one you saved, or pick up recent work. It holds:
 
 - **<Ui id="home-new-project" />**, the main button, which starts a new project (Ctrl+N, ⌘ on macOS);
 - **<Ui id="cmd-open-project" />**, which opens a `.truckpaint` file you saved (Ctrl+O);

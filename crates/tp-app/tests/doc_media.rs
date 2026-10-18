@@ -554,8 +554,14 @@ fn section_getting_started() {
         let _ = std::fs::remove_dir_all(library.path().join("vehicles"));
         h.state_mut().vehicles =
             tp_app::vehicles::VehicleLibrary::open(&library.path().join("vehicles"));
-        h.state_mut().game.detected.insert(tp_vehicles::Game::Ets2, None);
-        h.state_mut().game.detected.insert(tp_vehicles::Game::Ats, None);
+        h.state_mut()
+            .game
+            .detected
+            .insert(tp_vehicles::Game::Ets2, None);
+        h.state_mut()
+            .game
+            .detected
+            .insert(tp_vehicles::Game::Ats, None);
         h.state_mut().begin_first_run_if_needed();
         settle(&mut h);
         shot(&mut h, language, "getting-started/first-launch");

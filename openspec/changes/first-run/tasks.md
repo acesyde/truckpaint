@@ -19,12 +19,12 @@
 ## 3. Strings
 
 - [x] 3.1 Add the flow's strings to `tp-i18n/locales/{en,fr,es,de}/*.ftl` with the same ids (English Title Case for buttons; sentence case elsewhere); run `mise run test` for the locale parity test.
-- [ ] 3.2 Check the three steps in German at the smallest window width with a kittest or screenshot; nothing truncated.
+- [x] 3.2 Check the three steps in German at the smallest window width with a kittest or screenshot; nothing truncated.
 
 ## 4. Documentation
 
-- [ ] 4.1 Write the English getting-started page for the first launch (use `<Ui id>`, `<Shot>`, `<Clip>`), then fr/es/de with matching `sidebar.order`; update pages that mention the home screen's first run.
-- [ ] 4.2 Add the first-launch screens to `crates/tp-app/tests/doc_media.rs`, run `mise run doc:media getting-started`, commit the media; `mise run doc:build` passes.
+- [x] 4.1 Write the English getting-started page for the first launch (use `<Ui id>`, `<Shot>`, `<Clip>`), then fr/es/de with matching `sidebar.order`; update pages that mention the home screen's first run.
+- [x] 4.2 Add the first-launch screens to `crates/tp-app/tests/doc_media.rs`, run `mise run doc:media getting-started`, commit the media; `mise run doc:build` passes.
 
 ## 5. Wrap up
 

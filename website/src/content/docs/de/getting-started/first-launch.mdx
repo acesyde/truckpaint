@@ -1,6 +1,6 @@
 ---
 title: Erster Start
-description: Finden Sie sich auf dem Startbildschirm zurecht, wählen Sie Ihre Sprache und richten Sie TruckPaint nach Ihren Wünschen ein.
+description: Richten Sie TruckPaint beim ersten Start ein, finden Sie sich auf dem Startbildschirm zurecht, wählen Sie Ihre Sprache und passen Sie die App an.
 sidebar:
   order: 2
 ---
@@ -8,11 +8,44 @@ import Shot from '~/components/Shot.astro';
 import Clip from '~/components/Clip.astro';
 import Ui from '~/components/Ui.astro';
 
-Wenn kein Projekt geöffnet ist, zeigt TruckPaint seinen Startbildschirm. Hier beginnen Sie eine neue Lackierung, öffnen eine gespeicherte oder setzen eine kürzlich begonnene Arbeit fort.
+Wenn Sie TruckPaint zum ersten Mal öffnen, fragt es in drei kurzen Schritten, was es braucht, und führt Sie dann in Ihr erstes Projekt. Danach zeigt es, wenn kein Projekt geöffnet ist, seinen Startbildschirm.
+
+## Der erste Start
+
+Sie können jederzeit mit **<Ui id="first-run-skip" />** (oder Esc) aussteigen: TruckPaint behält, was Sie schon gewählt haben, und zeigt den Startbildschirm. Es fragt nicht noch einmal.
+
+### Schritt 1: Sprache und Spiel
+
+<Shot name="getting-started/first-launch" alt="Der erste Schritt des ersten Starts: die Sprache, die gespielten Spiele und für ETS2 der gefundene Spielordner und der Mod-Ordner" />
+
+- Unter <Ui id="first-run-language" /> beginnt TruckPaint mit der Sprache Ihres Systems. Wählen Sie eine andere, um sofort umzuschalten und sie zu behalten.
+- Unter <Ui id="first-run-games" /> haken Sie das Spiel oder die Spiele an, die Sie spielen, mindestens eines.
+- Für jedes Spiel sucht TruckPaint die Installation in Ihren Steam-Bibliotheken und zeigt <Ui id="first-run-game-found" /> mit dem Pfad oder <Ui id="first-run-game-not-found" />. Klicken Sie auf <Ui id="first-run-choose-folder" />, um den Ordner selbst zu wählen. Ein nicht gefundenes Spiel hält Sie nicht auf.
+- Für jedes Spiel zeigt es auch den Mod-Ordner, den <Ui id="cmd-export-mod" /> verwendet. Wählen Sie einen anderen, wenn Ihre Mods woanders liegen.
+
+Klicken Sie auf <Ui id="first-run-next" />.
+
+### Schritt 2: Fahrzeuge zum Lackieren
+
+<Shot name="getting-started/first-launch-vehicles" alt="Der zweite Schritt des ersten Starts: die Lkw und Anhänger des Spiels, zwei davon angehakt" />
+
+TruckPaint liest Ihr Spiel, ohne es zu verändern, und listet die Lkw und Anhänger auf, die Sie besitzen. Suchen Sie nach Marke oder Modell, filtern Sie mit <Ui id="vehicles-kind-all" />, <Ui id="vehicles-kind-trucks" /> und <Ui id="vehicles-kind-trailers" />, haken Sie an, was Sie lackieren möchten, oder nutzen Sie <Ui id="game-select-all" />.
+
+Klicken Sie auf <Ui id="first-run-generate" />. TruckPaint erstellt die angehakten Fahrzeuge auf Ihrem Computer, eines nach dem anderen, mit Fortschrittsbalken und <Ui id="button-cancel" />. Ein Abbruch behält die bereits erstellten Fahrzeuge, und ein fehlgeschlagenes Fahrzeug wird genannt, ohne die anderen zu stoppen. Ist nichts angehakt, steht auf der Schaltfläche <Ui id="first-run-continue" />, und Sie erstellen Fahrzeuge später im Tab <Ui id="vehicles-tab-game" /> der Fahrzeugbibliothek (siehe [Offizielle Fahrzeuge](../../vehicles/official-vehicles/)).
+
+Wird das Spiel nicht gefunden oder ist es American Truck Simulator (noch nicht unterstützt), bietet der Schritt <Ui id="vehicles-install-sample" /> an. Ein weiteres Fahrzeug können Sie später mit <Ui id="custom-open" /> hinzufügen.
+
+### Schritt 3: Ihr erstes Projekt
+
+TruckPaint öffnet Neues Projekt mit dem Spiel, das Sie zuerst gewählt haben, und Ihren neuen Fahrzeugen in der Liste. Weiter mit [Ihr erstes Projekt erstellen](../first-project/).
+
+### Noch einmal ausführen
+
+Wählen Sie <Ui id="menu-help" /> › <Ui id="cmd-run-first-launch" />, um die Schritte erneut zu durchlaufen, mit Ihren aktuellen Einstellungen bereits ausgewählt. Aus einem Projekt heraus schließt TruckPaint dieses zuerst und fragt, ob es gespeichert werden soll. Alles, was Sie gewählt haben, lässt sich auch in den Einstellungen unter <Ui id="prefs-games" /> ändern.
 
 ## Der Startbildschirm
 
-Der Startbildschirm enthält:
+Auf dem Startbildschirm beginnen Sie eine neue Lackierung, öffnen eine gespeicherte oder setzen eine kürzlich begonnene Arbeit fort. Er enthält:
 
 - **<Ui id="home-new-project" />**, die Hauptschaltfläche, die ein neues Projekt beginnt (Strg+N, ⌘ unter macOS);
 - **<Ui id="cmd-open-project" />**, das eine gespeicherte `.truckpaint`-Datei öffnet (Strg+O);

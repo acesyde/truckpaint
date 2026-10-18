@@ -412,7 +412,11 @@ fn vehicles(ui: &mut Ui, state: &mut AppState, run: &mut FirstRun) -> (Ask, bool
     let folder = state.prefs.game_folders.get(ets2.code()).cloned();
     let valid = matches!(state.game.folders.get(&ets2), Some(FolderStatus::Valid(_)));
     let scannable = plays_ets2 && valid;
-    ui.label(RichText::new(tr("first-run-step-vehicles")).text_style(display_style()));
+    ui.label(
+        RichText::new(tr("first-run-step-vehicles"))
+            .text_style(display_style())
+            .color(color::TEXT_PRIMARY),
+    );
     ui.label(RichText::new(tr("first-run-vehicles-intro")).color(color::TEXT_SECONDARY));
     ui.add_space(space::MD);
 

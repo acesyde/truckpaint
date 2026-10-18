@@ -1,6 +1,6 @@
 ---
 title: Primer inicio
-description: Oriéntese en la pantalla de inicio, elija su idioma y configure TruckPaint a su gusto.
+description: Configure TruckPaint en el primer inicio, oriéntese en la pantalla de inicio, elija su idioma y ajuste la aplicación a su gusto.
 sidebar:
   order: 2
 ---
@@ -8,11 +8,44 @@ import Shot from '~/components/Shot.astro';
 import Clip from '~/components/Clip.astro';
 import Ui from '~/components/Ui.astro';
 
-Cuando no hay ningún proyecto abierto, TruckPaint muestra su pantalla de inicio. Desde ella se empieza una nueva librea, se abre una guardada o se retoma el trabajo reciente.
+La primera vez que abre TruckPaint, le pregunta lo que necesita en tres pasos cortos y luego le lleva a su primer proyecto. Después, cuando no hay ningún proyecto abierto, muestra su pantalla de inicio.
+
+## El primer inicio
+
+Puede salir en cualquier momento con **<Ui id="first-run-skip" />** (o Esc): TruckPaint conserva lo que ya eligió y muestra la pantalla de inicio. No vuelve a preguntar.
+
+### Paso 1: idioma y juego
+
+<Shot name="getting-started/first-launch" alt="El primer paso del primer inicio: el idioma, los juegos a los que juega y, para ETS2, la carpeta del juego encontrada y la carpeta de mods" />
+
+- Bajo <Ui id="first-run-language" />, TruckPaint empieza con el idioma de su sistema. Elija otro para cambiarlo al instante y conservarlo.
+- Bajo <Ui id="first-run-games" />, marque el juego o los juegos a los que juega, al menos uno.
+- Para cada juego, TruckPaint busca la instalación en sus bibliotecas de Steam y muestra <Ui id="first-run-game-found" /> con su ruta, o <Ui id="first-run-game-not-found" />. Pulse <Ui id="first-run-choose-folder" /> para elegir la carpeta usted mismo. Un juego que no se encuentra no le detiene.
+- Para cada juego, muestra también la carpeta de mods, la que usa <Ui id="cmd-export-mod" />. Elija otra si sus mods están en otro sitio.
+
+Pulse <Ui id="first-run-next" />.
+
+### Paso 2: vehículos para pintar
+
+<Shot name="getting-started/first-launch-vehicles" alt="El segundo paso del primer inicio: los camiones y remolques del juego, dos de ellos marcados" />
+
+TruckPaint lee su juego, sin modificarlo, y enumera los camiones y remolques que posee. Busque por marca o modelo, filtre con <Ui id="vehicles-kind-all" />, <Ui id="vehicles-kind-trucks" /> y <Ui id="vehicles-kind-trailers" />, marque los que quiere pintar o use <Ui id="game-select-all" />.
+
+Pulse <Ui id="first-run-generate" />. TruckPaint crea los vehículos marcados en su ordenador, uno tras otro, con una barra de progreso y <Ui id="button-cancel" />. Cancelar conserva los vehículos ya creados, y un vehículo que falla se nombra sin detener a los demás. Sin nada marcado, el botón dice <Ui id="first-run-continue" /> y creará vehículos más tarde, en la pestaña <Ui id="vehicles-tab-game" /> de la biblioteca de vehículos (vea [Vehículos oficiales](../../vehicles/official-vehicles/)).
+
+Si no se encuentra el juego, o si es American Truck Simulator (aún no admitido), el paso ofrece <Ui id="vehicles-install-sample" />. Podrá añadir otro vehículo más tarde con <Ui id="custom-open" />.
+
+### Paso 3: su primer proyecto
+
+TruckPaint abre Nuevo proyecto con el juego que eligió primero, con sus nuevos vehículos en la lista. Continúe con [Crear su primer proyecto](../first-project/).
+
+### Repetirlo
+
+Elija <Ui id="menu-help" /> › <Ui id="cmd-run-first-launch" /> para repasar los pasos, con sus opciones actuales ya seleccionadas. Desde un proyecto, TruckPaint lo cierra primero y pregunta si guardarlo. Todo lo que eligió también se cambia en las preferencias, en <Ui id="prefs-games" />.
 
 ## La pantalla de inicio
 
-La pantalla de inicio contiene:
+La pantalla de inicio es donde se empieza una nueva librea, se abre una guardada o se retoma el trabajo reciente. Contiene:
 
 - **<Ui id="home-new-project" />**, el botón principal, que crea un nuevo proyecto (Ctrl+N, ⌘ en macOS);
 - **<Ui id="cmd-open-project" />**, que abre un archivo `.truckpaint` que haya guardado (Ctrl+O);
