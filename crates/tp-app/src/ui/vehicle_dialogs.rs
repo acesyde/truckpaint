@@ -1929,6 +1929,21 @@ mod tests {
     }
 
     #[test]
+    fn new_project_starts_on_the_game_of_the_folders() {
+        let dir = tempfile::tempdir().unwrap();
+        let ats = ["ats".to_owned()];
+        // Nothing installed: the only game whose folder is set, else ETS2.
+        let empty = VehicleLibrary::open(dir.path());
+        assert_eq!(NewProjectDraft::new(&empty, &ats).game(), Game::Ats);
+        assert_eq!(NewProjectDraft::new(&empty, &[]).game(), Game::Ets2);
+        let both = ["ets2".to_owned(), "ats".to_owned()];
+        assert_eq!(NewProjectDraft::new(&empty, &both).game(), Game::Ets2);
+        // Only ETS2 vehicles installed: their game, even when only ATS is played.
+        let library = library(dir.path());
+        assert_eq!(NewProjectDraft::new(&library, &ats).game(), Game::Ets2);
+    }
+
+    #[test]
     fn new_project_opens_the_card_checked_last() {
         let dir = tempfile::tempdir().unwrap();
         let library = library(dir.path());

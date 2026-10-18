@@ -82,9 +82,6 @@ pub struct Prefs {
     pub game_folders: BTreeMap<String, PathBuf>,
     /// The first launch was finished or skipped.
     pub first_run_done: bool,
-    /// The games the player plays (`ets2`, `ats`), the first being New
-    /// Project's initial game (Reset to defaults keeps them).
-    pub games: Vec<String>,
     /// The mod folder the player chose for each game (Reset to defaults keeps them).
     pub mod_folders: BTreeMap<String, PathBuf>,
 }
@@ -108,7 +105,6 @@ impl Default for Prefs {
             mcp_port: tp_mcp::DEFAULT_PORT,
             game_folders: BTreeMap::new(),
             first_run_done: false,
-            games: Vec::new(),
             mod_folders: BTreeMap::new(),
         }
     }
@@ -140,25 +136,20 @@ impl Prefs {
         !self.first_run_done && self.recent.is_empty() && !vehicles_installed
     }
 
-    /// Whether the player plays `game` (`ets2`, `ats`).
+    /// Whether the player plays `game` (`ets2`, `ats`): its installation
+    /// folder is set.
     pub fn plays(&self, game: &str) -> bool {
-        self.games.iter().any(|g| g == game)
+        self.game_folders.contains_key(game)
     }
 
-    /// Sets whether the player plays `game`; the last game stays checked.
-    /// Returns whether it was applied.
-    pub fn set_plays(&mut self, game: &str, on: bool) -> bool {
-        if on {
-            if !self.plays(game) {
-                self.games.push(game.to_owned());
-            }
-            true
-        } else if self.games.len() == 1 && self.plays(game) {
-            false
-        } else {
-            self.games.retain(|g| g != game);
-            true
-        }
+    /// The games the player plays, ETS2 then ATS.
+    pub fn played(&self) -> Vec<String> {
+        tp_vehicles::Game::ALL
+            .into_iter()
+            .map(tp_vehicles::Game::code)
+            .filter(|code| self.plays(code))
+            .map(str::to_owned)
+            .collect()
     }
 
     /// Moves `rgba` to the front of the recent colors (no duplicates, capped).
@@ -506,16 +497,16 @@ mod tests {
         let loaded = store.load();
         assert!(loaded.issue.is_none() && loaded.backup.is_none());
         assert!(!loaded.prefs.first_run_done);
-        assert!(loaded.prefs.games.is_empty() && loaded.prefs.mod_folders.is_empty());
+        assert!(loaded.prefs.game_folders.is_empty() && loaded.prefs.mod_folders.is_empty());
         let mut prefs = loaded.prefs;
         prefs.first_run_done = true;
-        prefs.games = vec!["ats".into(), "ets2".into()];
+        prefs.game_folders.insert("ats".into(), "/ats".into());
         prefs.mod_folders.insert("ets2".into(), "/mods".into());
         store.save(&prefs).unwrap();
         assert_eq!(store.load().prefs, prefs);
         // Reset to defaults keeps them.
         prefs.reset_scaling();
-        assert!(prefs.first_run_done && prefs.games.len() == 2);
+        assert!(prefs.first_run_done && prefs.game_folders.len() == 1);
     }
 
     #[test]
@@ -531,12 +522,30 @@ mod tests {
     }
 
     #[test]
-    fn the_last_game_stays_checked() {
+    fn a_game_is_played_when_its_folder_is_set() {
         let mut prefs = Prefs::default();
-        assert!(prefs.set_plays("ets2", true) && prefs.set_plays("ats", true));
-        assert!(prefs.set_plays("ets2", false));
-        assert!(!prefs.set_plays("ats", false));
-        assert_eq!(prefs.games, ["ats"]);
+        assert!(prefs.played().is_empty() && !prefs.plays("ets2"));
+        prefs.game_folders.insert("ats".into(), "/ats".into());
+        assert_eq!(prefs.played(), ["ats"]);
+        prefs.game_folders.insert("ets2".into(), "/ets2".into());
+        assert_eq!(prefs.played(), ["ets2", "ats"]);
+        prefs.game_folders.remove("ets2");
+        assert!(!prefs.plays("ets2") && prefs.plays("ats"));
+    }
+
+    #[test]
+    fn a_retired_games_list_is_ignored() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = PrefsStore::new(dir.path());
+        fs::write(
+            store.path(),
+            r#"(version: 1, ui_scale: 1.25, games: ["ats"])"#,
+        )
+        .unwrap();
+        let loaded = store.load();
+        assert!(loaded.issue.is_none() && loaded.backup.is_none());
+        assert_eq!(loaded.prefs.ui_scale, 1.25);
+        assert!(loaded.prefs.played().is_empty());
     }
 
     #[test]

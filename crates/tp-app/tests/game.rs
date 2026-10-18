@@ -51,7 +51,7 @@ fn preferences_from_my_game_opens_the_games_tab() {
     h.run();
     assert!(matches!(h.state().modal, Some(Modal::Preferences)));
     assert_eq!(h.state().preferences_tab, tp_app::state::PrefsTab::Games);
-    assert_eq!(count(&h, "I play this game"), 2);
+    assert_eq!(count(&h, "I play this game"), 0);
 }
 
 fn open_my_game(h: &mut H) {
@@ -82,11 +82,10 @@ fn count(h: &H, label: &str) -> usize {
 }
 
 #[test]
-fn preferences_show_the_first_launch_choices_and_keep_one_game() {
+fn preferences_show_the_first_launch_choices_without_a_play_checkbox() {
     let temp = tempfile::tempdir().unwrap();
     let mods = temp.path().join("mods");
     let prefs = Prefs {
-        games: vec!["ets2".into()],
         mod_folders: [("ets2".to_owned(), mods.clone())].into(),
         ..Prefs::default()
     };
@@ -99,24 +98,8 @@ fn preferences_show_the_first_launch_choices_and_keep_one_game() {
         .open_preferences(tp_app::state::PrefsTab::Games);
     h.run();
     assert!(shows(&h, &mods.display().to_string()));
-    assert_eq!(count(&h, "I play this game"), 2);
-    // The only game played can't be unchecked.
-    h.get_all_by_label("I play this game")
-        .next()
-        .unwrap()
-        .click();
-    h.run();
-    assert_eq!(h.state().prefs.games, ["ets2"]);
-    assert!(shows(&h, "Keep at least one game checked."));
-    // Another game played lets it go.
-    h.state_mut().prefs.games.push("ats".into());
-    h.run();
-    h.get_all_by_label("I play this game")
-        .next()
-        .unwrap()
-        .click();
-    h.run();
-    assert_eq!(h.state().prefs.games, ["ats"]);
+    // A game is played when its folder is set: there is nothing to check.
+    assert_eq!(count(&h, "I play this game"), 0);
 }
 
 #[test]

@@ -7,13 +7,15 @@ Remembers the user's interface preferences and workspace layout between sessions
 ## Requirements
 
 ### Requirement: Persisted preferences
-The application SHALL persist, in the operating system's standard per-user configuration directory, at least: UI scale, text size, the workspace layout, window size/position/maximized state, the recent projects list, the interface language when the user has chosen one, whether the first launch is done, the games the player chose at first launch, the mod folder chosen for each game, whether the grid and guides are shown, whether snapping is on, the grid spacing, on Windows and Linux whether the system title bar is used.
+The application SHALL persist, in the operating system's standard per-user configuration directory, at least: UI scale, text size, the workspace layout, window size/position/maximized state, the recent projects list, the interface language when the user has chosen one, whether the first launch is done, the installation folder and the mod folder of each game, whether the grid and guides are shown, whether snapping is on, the grid spacing, on Windows and Linux whether the system title bar is used.
 
 The workspace layout SHALL be: the active tab of the left panel (Textures, Layers or Resources), the width of the left panel, the width of the inspector, and whether the panels are hidden (Hide Panels). The active space (Project, Workshop or Brand) SHALL NOT be persisted: opening a project always shows the Project space.
 
 A preferences file written by a build with the 3D preview, which also stores a view mode and the width of the 3D panel, SHALL load with all its other preferences. The view mode and the panel width are ignored.
 
 A preferences file written by a build before the spaces, which stores a stack of panels (their order, visibility and collapsed state), a panel column width, and the Vehicles sidebar's visibility and width, SHALL load with all its other preferences. Those fields are ignored and the workspace layout takes its default values.
+
+A preferences file that stores a list of the games the player plays SHALL load with all its other preferences. The list is ignored: a game is played when its installation folder is set.
 
 #### Scenario: Preferences survive restart
 - **WHEN** the user sets the UI scale to 125%, shows the Layers tab, quits and restarts the application, then opens a texture in the Workshop
@@ -56,6 +58,10 @@ A preferences file written by a build before the spaces, which stores a stack of
 - **THEN** the UI scale is 125%, the workspace layout has its default values (Textures tab, default widths, panels shown), no backup of the file is made, and no message about the preferences appears
 
 Old template pack folder fields SHALL be ignored when loading preferences and SHALL no longer be persisted.
+
+#### Scenario: Older preferences with a games list
+- **WHEN** the application starts with a preferences file that lists the games played
+- **THEN** all its other preferences load, the list is ignored, and no message about the preferences appears
 
 ### Requirement: Preferences dialog
 The application SHALL provide a Preferences dialog (Edit > Preferences, shortcut `⌘,` on macOS and `Ctrl+,` elsewhere) to change UI scale and text size with a live preview, the grid spacing (texture pixels, 4 to 1024) and the interface language, and a "Reset to defaults" action that restores UI scale, text size and grid spacing. The Language setting SHALL list "System default" followed by English, Français, Español and Deutsch, each named in its own language. "System default" follows the operating system's language, and choosing a language applies it immediately. "Reset to defaults" SHALL NOT change the language. On Windows and Linux, the dialog SHALL also offer **Use the system title bar** (see the window-title-bar capability), applied at once; "Reset to defaults" SHALL NOT change it.
@@ -152,7 +158,7 @@ The switch and the port SHALL be persisted with the other preferences. A prefere
 - **THEN** all its other preferences load, the server is off, and no message about the preferences appears
 
 ### Requirement: Game folders
-Preferences SHALL have a **Games** section (completed by the first-run change with the games played and their mod folders) with the installation folder of ETS2 and of ATS, each with: the folder (empty by default), the game's version when the folder is valid, **Detect**, **Choose…** and **Clear**. Detection and validity are those of the vehicle-generation capability. A folder SHALL be checked when it is chosen and when the dialog opens, and an invalid or missing one SHALL show a message next to its field while other settings stay usable. When a first run has no folder set, the app SHALL detect the folders by itself once, without asking. The folders SHALL be persisted with the other preferences; a preferences file without them SHALL load with both empty. "Reset to defaults" SHALL NOT change them.
+Preferences SHALL have a **Games** section (completed by the first-run change with the mod folders) with the installation folder of ETS2 and of ATS, each with: the folder (empty by default), the game's version when the folder is valid, **Detect**, **Choose…** and **Clear**. Detection and validity are those of the vehicle-generation capability. A game is played when its installation folder is set: there is no separate setting. A folder SHALL be accepted for a game only when it holds that game: a folder of the other game SHALL be refused with a message that names it. A folder SHALL be checked when it is chosen and when the dialog opens, and an invalid or missing one SHALL show a message next to its field while other settings stay usable. When a first run has no folder set, the app SHALL detect the folders by itself once, without asking. The folders SHALL be persisted with the other preferences; a preferences file without them SHALL load with both empty. "Reset to defaults" SHALL NOT change them.
 
 #### Scenario: Detect
 - **WHEN** the player clicks Detect and ETS2 is in a Steam library
@@ -161,6 +167,10 @@ Preferences SHALL have a **Games** section (completed by the first-run change wi
 #### Scenario: Refused folder
 - **WHEN** the player chooses a folder that is not a game
 - **THEN** a message names the reason and the field keeps its previous folder
+
+#### Scenario: Folder of the other game
+- **WHEN** the player chooses an ATS installation for ETS2
+- **THEN** a message says it is an ATS folder, and the ETS2 field keeps its previous folder
 
 #### Scenario: Folder removed
 - **WHEN** the saved ETS2 folder no longer exists and Preferences is opened
@@ -174,27 +184,29 @@ Preferences SHALL have a **Games** section (completed by the first-run change wi
 - **WHEN** the application starts with a preferences file written before this setting existed
 - **THEN** all its other preferences load, both folders are empty, and no message about the preferences appears
 
-### Requirement: Games played and mod folders in Preferences
-Every setting made in the first launch SHALL stay changeable afterwards in Preferences. The **Games** section of Preferences (whose installation folders come from the in-app-vehicle-generation change) SHALL show, for ETS2 and for ATS:
-- **I play this game**, the games chosen in the first launch; at least one SHALL stay checked. The first game checked is New Project's initial game;
+### Requirement: Mod folders in Preferences
+Every setting made in the first launch SHALL stay changeable afterwards in Preferences. The **Games** section of Preferences (whose installation folders come from the in-app-vehicle-generation change) SHALL show, for ETS2 and for ATS, and SHALL NOT have an "I play this game" setting:
 - the installation folder (Detect, Choose…, Clear);
 - the **mod folder**, with the detected folder when none was chosen, **Detect**, **Choose…** and **Clear**. Export Mod's save dialog SHALL open in it.
 
-A change SHALL be saved like the other preferences. "Reset to defaults" SHALL NOT change this section.
+New Project's initial game SHALL be the first game whose folder is set (ETS2 then ATS) that has installed vehicles, else the game of the installed vehicles when they are all of one game, else the only game whose folder is set, else ETS2. A change SHALL be saved like the other preferences. "Reset to defaults" SHALL NOT change this section.
 
 #### Scenario: First launch choices shown in Preferences
 - **WHEN** the player chose ETS2, an installation folder and a mod folder in the first launch, then opens Preferences
-- **THEN** the Games section shows ETS2 checked, the same installation folder and the same mod folder
+- **THEN** the Games section shows the same ETS2 installation folder and the same mod folder
 
 #### Scenario: Fix a wrong mod folder
 - **WHEN** the player chooses another mod folder for ETS2 in Preferences and exports a mod
 - **THEN** Export Mod's save dialog opens in the new folder
 
 #### Scenario: Start playing ATS
-- **WHEN** the player who chose only ETS2 checks I play this game for ATS
-- **THEN** its installation and mod folders are detected and shown, and New Project still starts on ETS2
+- **WHEN** the player who set only the ETS2 folder clicks Detect for ATS and ATS is found
+- **THEN** its installation folder is shown, and New Project still starts on ETS2
 
-#### Scenario: Last game unchecked
-- **WHEN** only ETS2 is checked and the player unchecks it
-- **THEN** it stays checked and a hint says at least one game is needed
+#### Scenario: Stop playing a game
+- **WHEN** the player clicks Clear on the ATS installation folder
+- **THEN** ATS is no longer played: the first launch and New Project no longer count it
 
+#### Scenario: No setting to check
+- **WHEN** the player opens the Games tab
+- **THEN** it has no "I play this game" checkbox for either game

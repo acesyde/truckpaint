@@ -61,19 +61,8 @@ impl FirstRun {
 }
 
 impl AppState {
-    /// Shows the first launch from its first step. The games played start
-    /// as the ones found, else ETS2.
+    /// Shows the first launch from its first step.
     pub fn start_first_run(&mut self, again: bool) {
-        if self.prefs.games.is_empty() {
-            let found = Game::ALL.map(Game::code).into_iter();
-            self.prefs.games = found
-                .filter(|code| self.prefs.game_folders.contains_key(*code))
-                .map(str::to_owned)
-                .collect();
-            if self.prefs.games.is_empty() {
-                self.prefs.games.push(Game::Ets2.code().to_owned());
-            }
-        }
         self.game.refresh_folders(&self.prefs.game_folders);
         self.game.last = None;
         self.first_run = Some(FirstRun::new(again));
@@ -93,20 +82,12 @@ impl AppState {
     }
 
     /// Ends the first launch (finished or skipped); with `hand_off`, opens New
-    /// Project on the first game played.
+    /// Project on the game of the folders.
     pub fn end_first_run(&mut self, hand_off: bool) {
         self.first_run = None;
         self.prefs.first_run_done = true;
         if hand_off && self.modal.is_none() {
-            let mut draft = NewProjectDraft::new(&self.vehicles, &self.prefs.games);
-            let first = self.prefs.games.first();
-            if let Some(game) = Game::ALL
-                .into_iter()
-                .find(|g| Some(g.code()) == first.map(|s| s.as_str()))
-                && self.vehicles.vehicles().is_empty()
-            {
-                draft.filter.game = Some(game);
-            }
+            let draft = NewProjectDraft::new(&self.vehicles, &self.prefs.played());
             self.modal = Some(Modal::NewProject(draft));
         }
     }
@@ -282,24 +263,10 @@ fn language_and_game(ui: &mut Ui, state: &mut AppState) -> Ask {
     ui.add_space(space::LG);
 
     heading(ui, &tr("first-run-games"));
-    for g in Game::ALL {
-        let mut on = prefs.plays(g.code());
-        if ui.add(SquareCheckbox::new(&mut on, game_name(g))).changed() {
-            if on {
-                prefs.games.push(g.code().to_owned());
-            } else {
-                prefs.games.retain(|x| x != g.code());
-            }
-        }
-    }
     if !game.folders.contains_key(&Game::Ets2) {
         game.refresh_folders(&prefs.game_folders);
     }
-    let chosen = prefs.games.clone();
-    for g in Game::ALL
-        .into_iter()
-        .filter(|g| chosen.iter().any(|c| c == g.code()))
-    {
+    for g in Game::ALL {
         ui.add_space(space::MD);
         heading(ui, game_label(g));
         // A folder not set yet is looked for in Steam, once.
@@ -356,12 +323,7 @@ fn language_and_game(ui: &mut Ui, state: &mut AppState) -> Ask {
             prefs.mod_folders.insert(g.code().to_owned(), path);
         }
     }
-    let none = prefs.games.is_empty();
-    buttons(
-        ui,
-        false,
-        Some((&tr("first-run-next"), !none, &tr("first-run-need-game"))),
-    )
+    buttons(ui, false, Some((&tr("first-run-next"), true, "")))
 }
 
 /// A row: an icon and what was found with its path, and **Choose Folder…**
