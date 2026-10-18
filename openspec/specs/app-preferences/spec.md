@@ -68,7 +68,7 @@ The application SHALL provide a Preferences dialog (Edit > Preferences, shortcut
 
 The dialog SHALL show its settings on three tabs, with the same segmented control as the Vehicle Library's tabs:
 - **General:** the Interface settings (UI scale, text size, language, and Use the system title bar where offered) and the Canvas setting (grid spacing), under the headings Interface and Canvas;
-- **Games:** the Games section (see the requirements Game folders and Games played and mod folders in Preferences);
+- **Games:** one group per game with its game folder and its mod folder, under no heading of its own (see the requirements Game folders, Mod folders in Preferences and Games tab layout);
 - **AI assistant:** the AI assistant (MCP) section (see the requirement AI assistant (MCP) setting).
 
 Edit > Preferences (and Preferences on the home screen) SHALL open the dialog on General. A tab chosen by the player SHALL stay chosen until the dialog is closed. The dialog SHALL keep the same width and height whichever tab is shown; a tab's content SHALL scroll inside the dialog only when the window is too small to show it whole. The footer SHALL hold **Done** and, on the General tab only, **Reset to defaults**, so it stays in reach when the settings scroll. A setting changed on one tab SHALL keep its value when the player switches tabs.
@@ -111,7 +111,7 @@ View > Reset Workspace SHALL restore the workspace layout to its defaults: the l
 
 #### Scenario: Switch tabs
 - **WHEN** the user clicks the Games tab, then the AI assistant tab
-- **THEN** the dialog shows the Games section, then the AI assistant (MCP) section, and its size doesn't change
+- **THEN** the dialog shows the games' folders, then the AI assistant (MCP) section, and its size doesn't change
 
 #### Scenario: Tab kept while open
 - **WHEN** the user changes the grid spacing, opens the Games tab, then goes back to General
@@ -158,7 +158,7 @@ The switch and the port SHALL be persisted with the other preferences. A prefere
 - **THEN** all its other preferences load, the server is off, and no message about the preferences appears
 
 ### Requirement: Game folders
-Preferences SHALL have a **Games** section (completed by the first-run change with the mod folders) with the installation folder of ETS2 and of ATS, each with: the folder (empty by default), the game's version when the folder is valid, **Detect**, **Choose…** and **Clear**. Detection and validity are those of the vehicle-generation capability. A game is played when its installation folder is set: there is no separate setting. A folder SHALL be accepted for a game only when it holds that game: a folder of the other game SHALL be refused with a message that names it. A folder SHALL be checked when it is chosen and when the dialog opens, and an invalid or missing one SHALL show a message next to its field while other settings stay usable. When a first run has no folder set, the app SHALL detect the folders by itself once, without asking. The folders SHALL be persisted with the other preferences; a preferences file without them SHALL load with both empty. "Reset to defaults" SHALL NOT change them.
+The Games tab of Preferences (completed by the first-run change with the mod folders) SHALL show the installation folder of ETS2 and of ATS, each with: the folder (empty by default), the game's version when the folder is valid, **Choose…**, **Detect** while the folder is empty and **Clear** once it is set; a button that cannot be used SHALL NOT be shown disabled. Detection and validity are those of the vehicle-generation capability. A game is played when its installation folder is set: there is no separate setting. A folder SHALL be accepted for a game only when it holds that game: a folder of the other game SHALL be refused with a message that names it. A folder SHALL be checked when it is chosen and when the dialog opens, and an invalid or missing one SHALL show a message next to its field while other settings stay usable. When a first run has no folder set, the app SHALL detect the folders by itself once, without asking. The folders SHALL be persisted with the other preferences; a preferences file without them SHALL load with both empty. "Reset to defaults" SHALL NOT change them.
 
 #### Scenario: Detect
 - **WHEN** the player clicks Detect and ETS2 is in a Steam library
@@ -185,15 +185,15 @@ Preferences SHALL have a **Games** section (completed by the first-run change wi
 - **THEN** all its other preferences load, both folders are empty, and no message about the preferences appears
 
 ### Requirement: Mod folders in Preferences
-Every setting made in the first launch SHALL stay changeable afterwards in Preferences. The **Games** section of Preferences (whose installation folders come from the in-app-vehicle-generation change) SHALL show, for ETS2 and for ATS, and SHALL NOT have an "I play this game" setting:
-- the installation folder (Detect, Choose…, Clear);
-- the **mod folder**, with the detected folder when none was chosen, **Detect**, **Choose…** and **Clear**. Export Mod's save dialog SHALL open in it.
+Every setting made in the first launch SHALL stay changeable afterwards in Preferences. The Games tab of Preferences (whose installation folders come from the in-app-vehicle-generation change) SHALL show, for ETS2 and for ATS, and SHALL NOT have an "I play this game" setting:
+- the installation folder (Choose…, and Detect or Clear as the Game folders requirement says);
+- the **mod folder**, with the detected folder shown when none was chosen, **Choose…**, and **Clear** once one is chosen (Clear goes back to the detected folder). There is no Detect button for the mod folder: the detected folder is already shown and used. Export Mod's save dialog SHALL open in it.
 
 New Project's initial game SHALL be the first game whose folder is set (ETS2 then ATS) that has installed vehicles, else the game of the installed vehicles when they are all of one game, else the only game whose folder is set, else ETS2. A change SHALL be saved like the other preferences. "Reset to defaults" SHALL NOT change this section.
 
 #### Scenario: First launch choices shown in Preferences
 - **WHEN** the player chose ETS2, an installation folder and a mod folder in the first launch, then opens Preferences
-- **THEN** the Games section shows the same ETS2 installation folder and the same mod folder
+- **THEN** the Games tab shows the same ETS2 installation folder and the same mod folder
 
 #### Scenario: Fix a wrong mod folder
 - **WHEN** the player chooses another mod folder for ETS2 in Preferences and exports a mod
@@ -210,3 +210,26 @@ New Project's initial game SHALL be the first game whose folder is set (ETS2 the
 #### Scenario: No setting to check
 - **WHEN** the player opens the Games tab
 - **THEN** it has no "I play this game" checkbox for either game
+
+### Requirement: Games tab layout
+The Games tab SHALL group its settings by game: each game has a heading with its name, and the game's version beside it when its folder is valid, then two rows labeled **Game folder** and **Mod folder**. The tab SHALL NOT repeat its own name as a heading. A one-sentence note that TruckPaint reads these folders for the player's own use and sends nothing anywhere SHALL come first. Both rows SHALL show a path in a field of the same look under their label; an empty one SHALL read **Not set** in a color that meets the contrast of secondary text and is visibly not a path. The game folder field SHALL accept a typed path as before; the mod folder field SHALL show its path and change through **Choose…**. Every button SHALL have an accessible name that includes the game and which folder it is for, such as "Choose…, Euro Truck Simulator 2 game folder", while its visible text stays the same.
+
+#### Scenario: Grouped by game
+- **WHEN** the player opens the Games tab
+- **THEN** it shows Euro Truck Simulator 2 with its Game folder and Mod folder rows, then American Truck Simulator with its two rows, and no heading that repeats Games
+
+#### Scenario: Empty folder
+- **WHEN** no ATS folder is set
+- **THEN** its Game folder field reads Not set, in a color distinct from a path and of at least 4.5:1 contrast
+
+#### Scenario: No disabled buttons
+- **WHEN** no folder is set for a game, then one is chosen
+- **THEN** first the row shows Detect and Choose…, then Choose… and Clear, and no button is shown disabled
+
+#### Scenario: Buttons named for a screen reader
+- **WHEN** a screen reader reads the buttons of the Games tab
+- **THEN** each says its action and its game and folder, so the four Choose… buttons are told apart
+
+#### Scenario: German
+- **WHEN** the language is German and the Games tab is shown at 100%
+- **THEN** every label, field and button is shown whole, without truncation, in the dialog's width

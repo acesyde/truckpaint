@@ -397,8 +397,8 @@ fn exporting_into_the_mod_folder_chosen_in_preferences() {
     h.state_mut()
         .open_preferences(tp_app::state::PrefsTab::Games);
     h.run();
-    // ETS2's rows come first: its installation folder, then its mod folder.
-    h.get_all_by_label("Choose…").nth(1).unwrap().click();
+    h.get_by_label("Choose…, Euro Truck Simulator 2 mod folder")
+        .click();
     h.run();
     assert_eq!(h.state().prefs.mod_folders["ets2"], chosen);
     h.state_mut().modal = None;

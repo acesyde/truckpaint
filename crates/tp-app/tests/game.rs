@@ -7,6 +7,7 @@ use std::sync::mpsc;
 use std::time::Duration;
 
 use egui::Vec2;
+use egui::accesskit::Role;
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
 use tp_app::AppState;
@@ -97,9 +98,67 @@ fn preferences_show_the_first_launch_choices_without_a_play_checkbox() {
     h.state_mut()
         .open_preferences(tp_app::state::PrefsTab::Games);
     h.run();
-    assert!(shows(&h, &mods.display().to_string()));
+    let field = h.get_by_role_and_label(Role::TextInput, "Euro Truck Simulator 2 mod folder");
+    assert_eq!(
+        field.value().as_deref(),
+        Some(mods.display().to_string().as_str())
+    );
     // A game is played when its folder is set: there is nothing to check.
     assert_eq!(count(&h, "I play this game"), 0);
+}
+
+#[test]
+fn the_games_tab_groups_by_game_and_shows_buttons_by_state() {
+    let temp = tempfile::tempdir().unwrap();
+    let game = temp.path().join("ets2");
+    std::fs::create_dir(&game).unwrap();
+    write_game(&game, "eut2", "1.61.1.9", &vehicles());
+    let mods = temp.path().join("mods");
+    std::fs::create_dir(&mods).unwrap();
+    let ats = temp.path().join("ats");
+    std::fs::create_dir(&ats).unwrap();
+    write_game(&ats, "ats", "1.55.0.1", &[]);
+    let mut h = app(temp.path(), None);
+    h.state_mut().dialogs = Box::new(ScriptedDialogs {
+        folders: [game, mods, ats.clone()].into(),
+        ..Default::default()
+    });
+    h.state_mut()
+        .open_preferences(tp_app::state::PrefsTab::Games);
+    h.run();
+    // One group per game, each with a game folder and a mod folder.
+    assert!(shows(&h, "Euro Truck Simulator 2") && shows(&h, "American Truck Simulator"));
+    assert_eq!(count(&h, "Game folder"), 2);
+    assert_eq!(count(&h, "Mod folder"), 2);
+    // Empty: Detect and Choose…, no Clear; the mod folder has no Detect at all.
+    let ets2 = "Euro Truck Simulator 2";
+    assert!(shows(&h, &format!("Detect, {ets2} game folder")));
+    assert!(shows(&h, &format!("Choose…, {ets2} game folder")));
+    assert!(!shows(&h, &format!("Clear, {ets2} game folder")));
+    assert!(shows(&h, &format!("Choose…, {ets2} mod folder")));
+    assert!(!shows(&h, &format!("Clear, {ets2} mod folder")));
+    assert!(!shows(&h, &format!("Detect, {ets2} mod folder")));
+    // The four Choose… are told apart by their names.
+    assert_eq!(count(&h, "Choose…"), 0);
+    // Set: Choose… and Clear, no Detect.
+    h.get_by_label(&format!("Choose…, {ets2} game folder"))
+        .click();
+    h.run();
+    assert!(!shows(&h, &format!("Detect, {ets2} game folder")));
+    assert!(shows(&h, &format!("Clear, {ets2} game folder")));
+    // A chosen mod folder gets Clear too.
+    h.get_by_label(&format!("Choose…, {ets2} mod folder"))
+        .click();
+    h.run();
+    assert!(shows(&h, &format!("Clear, {ets2} mod folder")));
+    h.get_by_label(&format!("Clear, {ets2} mod folder")).click();
+    h.run();
+    assert!(!shows(&h, &format!("Clear, {ets2} mod folder")));
+    // The button of ATS's game folder is ATS's own.
+    h.get_by_label("Choose…, American Truck Simulator game folder")
+        .click();
+    h.run();
+    assert_eq!(h.state().prefs.game_folders["ats"], ats);
 }
 
 #[test]
@@ -121,19 +180,21 @@ fn preferences_set_check_refuse_and_clear_the_game_folders() {
     h.state_mut()
         .open_preferences(tp_app::state::PrefsTab::Games);
     h.run();
-    assert!(count(&h, "Games") >= 1, "the Games tab and its section");
-    // The first Choose… is Euro Truck Simulator 2's.
-    h.get_all_by_label("Choose…").next().unwrap().click();
+    assert_eq!(count(&h, "Games"), 1, "the tab only, no heading repeats it");
+    h.get_by_label("Choose…, Euro Truck Simulator 2 game folder")
+        .click();
     h.run();
     assert_eq!(h.state().prefs.game_folders["ets2"], game);
     assert!(shows(&h, "Version 1.61.1.9"));
     // A folder that holds no game is refused with its reason; the folder stays.
-    h.get_all_by_label("Choose…").next().unwrap().click();
+    h.get_by_label("Choose…, Euro Truck Simulator 2 game folder")
+        .click();
     h.run();
     assert_eq!(h.state().prefs.game_folders["ets2"], game);
     assert!(shows(&h, "base.scs is missing in this folder."));
     // An ATS folder given as ETS2's.
-    h.get_all_by_label("Choose…").next().unwrap().click();
+    h.get_by_label("Choose…, Euro Truck Simulator 2 game folder")
+        .click();
     h.run();
     assert!(shows(&h, "This is an American Truck Simulator folder."));
     // Reset to defaults, on the General tab, keeps the folders.
@@ -148,7 +209,8 @@ fn preferences_set_check_refuse_and_clear_the_game_folders() {
         .open_preferences(tp_app::state::PrefsTab::Games);
     h.run();
     assert!(shows(&h, "This folder cannot be found."));
-    h.get_all_by_label("Clear").next().unwrap().click();
+    h.get_by_label("Clear, Euro Truck Simulator 2 game folder")
+        .click();
     h.run();
     assert!(h.state().prefs.game_folders.is_empty());
     assert!(!shows(&h, "This folder cannot be found."));
