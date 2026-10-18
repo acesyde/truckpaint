@@ -7,24 +7,24 @@ sidebar:
 import Shot from '~/components/Shot.astro';
 import Ui from '~/components/Ui.astro';
 
-Los camiones y remolques oficiales de ETS2 se presentan como paquetes `.tpv` que usted mismo genera desde el juego instalado, como se describe más abajo, y que instala a mano. <Ui id="home-new-project" /> y <Ui id="cmd-add-vehicle" /> muestran solo los vehículos instalados. Un paquete contiene sus plantillas y datos: después de generarlo, la instalación, la creación de proyectos y la exportación de mods no necesitan el juego ni ConverterPIX.
+Los camiones y remolques oficiales de ETS2 se presentan como paquetes `.tpv` que usted mismo genera desde el juego instalado, como se describe más abajo, y que instala a mano. <Ui id="home-new-project" /> y <Ui id="cmd-add-vehicle" /> muestran solo los vehículos instalados. Un paquete contiene sus plantillas y datos: después de generarlo, la instalación, la creación de proyectos y la exportación de mods no necesitan el juego.
 
 ## Generar paquetes
 
-Los autores de paquetes pueden usar el comando Rust `tpv` con [ConverterPIX](https://github.com/mwl4/ConverterPIX), un ejecutable externo:
+Los autores de paquetes pueden usar el comando Rust `tpv`, que lee por sí mismo los archivos del juego y no necesita ningún otro programa:
 
 ```sh
 mise exec -- cargo run --release -p tp-pack --bin tpv -- extract "/path/to/ETS2" \
-  --converter "/path/to/converter_pix" --package-version 2.0.0
+  --package-version 2.0.0
 ```
 
-Sustituya las rutas por su instalación de ETS2 y el ejecutable del convertidor. La versión SemVer del paquete es obligatoria. Añada `--vehicle man.tgx_2020` o `--vehicle krone.coolliner` para un camión o un remolque; sin el filtro se procesan todos los vehículos descubiertos. `--output <directorio>` cambia el directorio principal de los lotes. Al publicar un nuevo lote, añada `--previous <directorio del lote>` con el último lote publicado: una plantilla sin cambios conserva su versión de disposición y una plantilla modificada pasa a la siguiente, para que la aplicación avise a los jugadores que actualizan sus proyectos.
+Sustituya la ruta por su instalación de ETS2. La versión SemVer del paquete es obligatoria. Añada `--vehicle man.tgx_2020` o `--vehicle krone.coolliner` para un camión o un remolque; sin el filtro se procesan todos los vehículos descubiertos. `--output <directorio>` cambia el directorio principal de los lotes. Al publicar un nuevo lote, añada `--previous <directorio del lote>` con el último lote publicado: una plantilla sin cambios conserva su versión de disposición y una plantilla modificada pasa a la siguiente, para que la aplicación avise a los jugadores que actualizan sus proyectos.
 
 La herramienta descubre los camiones y los remolques propios oficiales de ETS2, incluidos los DLC de vehículos, remolques y tuning instalados. Excluye mods de usuario y ATS. Cada paquete de camión reúne todas las cabinas y accesorios pintados compatibles. Los nombres de camiones y cabinas son los nombres en inglés del juego. Las cabinas usan 4096 × 4096; las dimensiones de accesorios proceden de las definiciones de pintura del juego. Las plantillas principales superponen las opciones pintadas compatibles.
 
 Un paquete de remolque tiene una textura principal de 4096 × 4096 para cada carrocería, chasis y pieza pintados que el juego no pinta desde su propia zona, y texturas de accesorios compartidas por todo el remolque. Cuando el juego pinta cada pieza desde su propia zona, la textura principal mide solo 64 × 64 y lleva el color base. Las carrocerías o piezas que el juego pinta desde la misma zona en todas las pinturas comparten una textura (por ejemplo las carrocerías de caja seca, isotérmica y frigorífica de 13,6 m del remolque de caja de SCS): se pintan una sola vez. Los remolques no tienen variantes. Los remolques propios de SCS no tienen marca en el juego: se llaman «SCS» seguido de su nombre de juego, como «SCS Box» o «SCS Silo». Los remolques cuyas pinturas solo aplican un color liso, como la plataforma de SCS, no tienen nada que pintar: el informe los indica como omitidos, sin paquete.
 
-Cada ejecución crea un subdirectorio único en `dist/` por defecto, con paquetes válidos y `report.json`. Los archivos intermedios y registros solo se conservan en `target/` cuando falla un vehículo. Los modelos convertidos se guardan en `target/game-extraction/cache/` y se reutilizan en las siguientes ejecuciones mientras no cambien el juego ni el convertidor, así que una segunda ejecución con el mismo juego es mucho más rápida. Elimine esa carpeta para liberar espacio. Se rechazan vehículos incompletos o ambiguos, shaders y UV no compatibles. Los demás continúan; cualquier fallo produce un código de salida distinto de cero. No se publica ningún paquete parcial.
+Cada ejecución crea un subdirectorio único en `dist/` por defecto, con paquetes válidos y `report.json`. Los archivos intermedios solo se conservan en `target/` cuando falla un vehículo. Un archivo del juego de una versión que la herramienta no conoce detiene la ejecución con un mensaje que nombra el archivo y la versión. Se rechazan vehículos incompletos o ambiguos, shaders y UV no compatibles. Los demás continúan; cualquier fallo produce un código de salida distinto de cero. No se publica ningún paquete parcial.
 
 El informe recoge fuentes, versiones, cobertura de texturas, resultados y límites. La validación técnica no demuestra el funcionamiento en el juego: los nuevos vehículos y configuraciones aún deben comprobarse.
 
@@ -48,7 +48,7 @@ Los paquetes generados llevan una licencia («Personal modding only, not for sal
 
 <Shot name="vehicles/library" alt="La biblioteca de vehículos con paquetes instalados y el botón de instalación" />
 
-Conserve los paquetes para futuras instalaciones. El juego y el convertidor se necesitan solo para generarlos. Los vehículos personalizados y de ejemplo siguen disponibles.
+Conserve los paquetes para futuras instalaciones. El juego se necesita solo para generarlos. Los vehículos personalizados y de ejemplo siguen disponibles.
 
 ## Paquetes antiguos
 

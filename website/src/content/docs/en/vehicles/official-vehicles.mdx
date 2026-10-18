@@ -7,24 +7,24 @@ sidebar:
 import Shot from '~/components/Shot.astro';
 import Ui from '~/components/Ui.astro';
 
-Official ETS2 trucks and trailers come as `.tpv` packages that you generate yourself from your installed game, as described below, and install by hand. <Ui id="home-new-project" /> and <Ui id="cmd-add-vehicle" /> list only installed vehicles. A package contains its templates and game data: after generation, installation, project creation and mod export need neither the game installation nor ConverterPIX.
+Official ETS2 trucks and trailers come as `.tpv` packages that you generate yourself from your installed game, as described below, and install by hand. <Ui id="home-new-project" /> and <Ui id="cmd-add-vehicle" /> list only installed vehicles. A package contains its templates and game data: after generation, installation, project creation and mod export need no game installation.
 
 ## Generate packages
 
-Package authors can use the Rust `tpv` command with [ConverterPIX](https://github.com/mwl4/ConverterPIX), an external executable:
+Package authors can use the Rust `tpv` command, which reads the game's own archives and needs no other program:
 
 ```sh
 mise exec -- cargo run --release -p tp-pack --bin tpv -- extract "/path/to/ETS2" \
-  --converter "/path/to/converter_pix" --package-version 2.0.0
+  --package-version 2.0.0
 ```
 
-Replace the paths with your ETS2 installation and converter executable. Supply an explicit SemVer package version. Add `--vehicle man.tgx_2020` or `--vehicle krone.coolliner` to process one truck or trailer; omit it for every discovered vehicle. `--output <directory>` changes the parent directory of the batches. When you publish a new batch, add `--previous <batch directory>` with the last published batch: a template that did not change keeps its layout version, and a changed one gets the next version, so the app warns players who update their projects.
+Replace the path with your ETS2 installation. Supply an explicit SemVer package version. Add `--vehicle man.tgx_2020` or `--vehicle krone.coolliner` to process one truck or trailer; omit it for every discovered vehicle. `--output <directory>` changes the parent directory of the batches. When you publish a new batch, add `--previous <batch directory>` with the last published batch: a template that did not change keeps its layout version, and a changed one gets the next version, so the app warns players who update their projects.
 
 The tool discovers official ETS2 trucks and owned trailers, including installed vehicle, trailer and tuning DLC. User mods and ATS are excluded. Each truck package contains all supported cabins and painted accessories. Truck and cabin names are the game's English names. Cabin templates are 4096 × 4096; accessory dimensions come from the game's paint definitions. Main templates superpose compatible painted options.
 
 A trailer package has one main texture, 4096 × 4096, for every painted body, chassis and part that the game does not paint from its own region, and accessory textures shared by the whole trailer. When the game paints every part from its own region, the main texture is only 64 × 64 and carries the base colour. Bodies or parts that the game paints from the same region in every paint job share one texture (for example the 13.6 m dry van, insulated and reefer bodies of the SCS box trailer), so you paint them once. Trailers have no variants. SCS's own trailers have no brand in the game: they are named "SCS" followed by their game name, such as "SCS Box" or "SCS Silo". Trailers whose paint jobs only set a plain colour, such as the SCS flatbed, have no livery to paint: the report lists them as skipped, without a package.
 
-Each run writes a unique subdirectory under `dist/` by default, holding valid packages and `report.json`. Intermediates and converter logs are kept under `target/` only when a vehicle fails. Converted models are kept in `target/game-extraction/cache/` and reused by the next runs until the game or the converter changes, so a second run on the same game is much faster. Delete that folder to free its space. Incomplete or ambiguous vehicles, unsupported shaders and unsupported UV mappings are refused. Other vehicles continue; any failure makes the command exit unsuccessfully. No partial vehicle package is published.
+Each run writes a unique subdirectory under `dist/` by default, holding valid packages and `report.json`. Intermediates are kept under `target/` only when a vehicle fails. A game file of a version the tool does not know stops with a message that names the file and the version. Incomplete or ambiguous vehicles, unsupported shaders and unsupported UV mappings are refused. Other vehicles continue; any failure makes the command exit unsuccessfully. No partial vehicle package is published.
 
 The report records sources, versions, texture coverage, successes, failures and limits. Technical package validation does not prove correctness in game: new vehicles and new configurations still need game checks.
 
@@ -48,7 +48,7 @@ Generated packages carry a license ("Personal modding only, not for sale. Game c
 
 <Shot name="vehicles/library" alt="The Vehicle Library with installed packages and the Install button" />
 
-Keep packages for future installation. The game and converter are needed only for generation. Custom vehicles and sample packages remain available.
+Keep packages for future installation. The game is needed only for generation. Custom vehicles and sample packages remain available.
 
 ## Retired packages
 

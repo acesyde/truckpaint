@@ -161,8 +161,8 @@ mise run pack <folder> [-o file.tpv]   # pack a folder (PNG, SVG or DDS template
 mise run sample-vehicles               # rebuild the sample packages
 ```
 
-Official ETS2 truck packages are generated from an installed game with `tpv extract`
-and an external ConverterPIX executable. Supply an explicit package SemVer;
+Official ETS2 truck packages are generated from an installed game with `tpv extract`,
+which reads the game archives itself. Supply an explicit package SemVer;
 each batch writes validated packages and a JSON report into a unique `dist/`
 subdirectory, with intermediate files under `target/`. See the official vehicle
 documentation for the command and manual installation workflow.
@@ -179,6 +179,7 @@ documentation for the command and manual installation workflow.
 | `tp-ui` | Design system: tokens, theme, fonts, icons and widgets. |
 | `tp-vehicles` | Vehicle packages (`.tpv`): manifest, checks and templates. |
 | `tp-pack` | The `tpv` command: builds and checks vehicle packages. |
+| `tp-scs` | Reads the game's `.scs` archives and vehicle models, in memory. |
 | `tp-mcp` | The local MCP server: protocol, tools and their arguments (no UI). |
 | `tp-app` | The desktop app: screens, commands, layout and preferences. |
 

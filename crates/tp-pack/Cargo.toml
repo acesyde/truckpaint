@@ -13,6 +13,7 @@ path = "src/bin/tpv.rs"
 
 [dependencies]
 tp-vehicles.workspace = true
+tp-scs.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 semver.workspace = true

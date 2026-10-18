@@ -1,15 +1,16 @@
 # Extraction des véhicules depuis ETS2
 
 La chaîne maintenue est la commande Rust `tpv extract` dans `tp-pack`.
-Elle utilise les archives de l’installation ETS2 et ConverterPIX comme
-exécutable externe, puis la construction et la validation natives des `.tpv`.
+Elle lit elle-même les archives et les modèles de l’installation ETS2 (crate
+`tp-scs`), puis construit et valide les `.tpv`. Aucun programme externe n’est
+nécessaire.
 Le catalogue, l’import Carsmaniac et Paintjob Packer sont retirés. Les paquets
 s’installent manuellement dans la bibliothèque ; aucun parcours marketplace
 ou extraction intégrée à l’application n’est ajouté.
 
 ```sh
 mise exec -- cargo run --release -p tp-pack --bin tpv -- extract "/chemin/vers/ETS2" \
-  --converter "/chemin/vers/converter_pix" --package-version 2.0.0
+  --package-version 2.0.0
 ```
 
 Ajouter `--vehicle man.tgx_2020` ou `--vehicle daf.2021` limite le lot.
@@ -55,7 +56,7 @@ DLC ou les différences dues aux variantes UK.
 - Sélection du look et de la variante demandés, puis des pièces visibles
   avec matériau de peinture ordinaire.
 - Choix du flux par l’alias `_TEXCOORD1`, sans retournement vertical
-  supplémentaire des coordonnées d’image de ConverterPIX.
+  supplémentaire des coordonnées d’image des modèles convertis.
 - Le prototype refusait les UV alternatifs ; l’outil maintenu prend désormais
   en charge les familles décrites ci-dessous et refuse les cas non reconnus.
 - Gabarits principaux superposant les options peintes compatibles.
@@ -117,11 +118,11 @@ Sources consultées :
 - [Définition accessory_paint_job_data](https://modding.scssoft.com/wiki/Documentation/Engine/Units/accessory_paint_job_data) : `alternate_uvset` choisit les UV alternatifs et la configuration de peinture détermine le matériau résultant.
 - [ConverterPIX, commit 3cd4e73a86d0c6bd28e117664c50a36cabeccf38](https://github.com/mwl4/ConverterPIX/blob/3cd4e73a86d0c6bd28e117664c50a36cabeccf38/src/model/model.cpp) : les alias `_TEXCOORD…` proviennent du masque des coordonnées du modèle.
 
-Le test local ignoré `replay_validated_game_templates` relit les intermédiaires
-indiqués par `TRUCKPAINT_BASELINE_REPORTS` (liste de chemins de rapports,
-séparés par le séparateur de la plateforme), régénère leurs SVG et exige une
-égalité octet pour octet avec les TPV validés. Il ne requiert ni nouvelle
-conversion ni ressources du jeu dans le dépôt.
+Le test local ignoré `replay_validated_game_templates` relit, depuis
+l’installation nommée par chaque rapport de `TRUCKPAINT_BASELINE_REPORTS`
+(liste de chemins de rapports, séparés par le séparateur de la plateforme), les
+modèles choisis, régénère leurs SVG et exige une égalité octet pour octet avec
+les TPV validés. Il ne met aucune ressource du jeu dans le dépôt.
 
 La variante `truckpaint.tsnmapuv.asafew.a` est présente sur la prise d’air
 `fh16_aero` du Volvo FH 2024. Le [code SCS de remappage alpha](https://github.com/SCSSoftware/BlenderTools/blob/34dff5239e0f46512af0400a84f6effa5933d4ab/addon/io_scs_tools/internals/shaders/flavors/asafew.py)
@@ -479,3 +480,28 @@ Mesures du 17 octobre 2026, même installation et même passe de référence
 - La moitié des cœurs seulement : une CI `cargo` sur tous les cœurs avait fait
   tuer la session GNOME par `systemd-oomd` (24,4 Go sur 30). La passe
   parallèle reste sous 6 Go au total.
+
+
+## Lecture native des archives et des modèles
+
+Mesures du 18 octobre 2026, ETS2 1.61.1.9 avec tous les DLC (115 archives),
+machine à 16 cœurs, 8 fils de travail. La passe de référence (84 véhicules :
+69 paquets et 15 remorques ignorées, faite avec le convertisseur externe épinglé
+au commit 3cd4e73a, cache de modèles rempli) est comparée à la passe native.
+
+| Passe | Durée | Pic de mémoire |
+|---|---|---|
+| Référence (convertisseur, cache rempli) | 54 s | 1,26 Go |
+| Native (`tp-scs`) | 6 s | 0,77 Go |
+
+- Les 69 `.tpv` sont identiques octet pour octet. Le `report.json` est égal
+  champ par champ, sauf l’identité du lecteur (`reader` à la place de
+  `converter`), le dossier de travail et le chemin de l’installation.
+- Le test `replay_validated_game_templates` passe sur les deux rapports.
+- Archives : toutes en HashFS v2 (hachage `CITY`). Les `.sii`, `.sui`, `.mat`,
+  `.pmd` et `.pmg` sont stockés ou en zlib (identifiants 0 et 1) ; GDeflate
+  (3) n’apparaît que sur des `.tobj`. Modèles : `.pmg` 0x15 et `.pmd` 4 pour les
+  17 672 et 17 670 fichiers sous `/vehicle/`. Une autre version est refusée
+  avec le nom du fichier et la version.
+- Le cache `target/game-extraction/cache/` et les journaux du convertisseur
+  n’existent plus.

@@ -1,4 +1,4 @@
-//! The text subset used by SII definitions and ConverterPIX sections.
+//! The text subset used by SII definitions.
 
 use std::collections::BTreeMap;
 
@@ -7,7 +7,6 @@ pub struct Section {
     pub header: String,
     pub fields: BTreeMap<String, Vec<String>>,
     pub children: Vec<Section>,
-    pub rows: Vec<String>,
 }
 
 impl Section {
@@ -20,12 +19,6 @@ impl Section {
             return Err(format!("ambiguous {name}"));
         };
         Ok(unquote(value))
-    }
-
-    pub fn named(&self, name: &str) -> impl Iterator<Item = &Section> {
-        self.children
-            .iter()
-            .filter(move |child| child.header == name)
     }
 }
 
@@ -127,8 +120,6 @@ fn finish(statement: &mut String, section: &mut Section) -> Result<(), String> {
         }
         let entries = section.fields.entry(key.to_owned()).or_default();
         entries.push(value.trim().to_owned());
-    } else if !line.is_empty() {
-        section.rows.push(line.to_owned());
     }
     statement.clear();
     Ok(())

@@ -7,24 +7,24 @@ sidebar:
 import Shot from '~/components/Shot.astro';
 import Ui from '~/components/Ui.astro';
 
-Les camions et remorques officiels ETS2 existent sous forme de paquets `.tpv` que vous générez vous-même depuis le jeu installé, comme décrit plus bas, et que vous installez à la main. <Ui id="home-new-project" /> et <Ui id="cmd-add-vehicle" /> affichent uniquement les véhicules installés. Chaque paquet contient ses gabarits et les données du jeu : après génération, l’installation, la création d’un projet et l’export d’un mod ne nécessitent ni le jeu ni ConverterPIX.
+Les camions et remorques officiels ETS2 existent sous forme de paquets `.tpv` que vous générez vous-même depuis le jeu installé, comme décrit plus bas, et que vous installez à la main. <Ui id="home-new-project" /> et <Ui id="cmd-add-vehicle" /> affichent uniquement les véhicules installés. Chaque paquet contient ses gabarits et les données du jeu : après génération, l’installation, la création d’un projet et l’export d’un mod ne nécessitent pas le jeu.
 
 ## Générer les paquets
 
-Les auteurs de paquets utilisent la commande Rust `tpv` avec [ConverterPIX](https://github.com/mwl4/ConverterPIX), un exécutable externe :
+Les auteurs de paquets utilisent la commande Rust `tpv`, qui lit elle-même les archives du jeu et n’a besoin d’aucun autre programme :
 
 ```sh
 mise exec -- cargo run --release -p tp-pack --bin tpv -- extract "/path/to/ETS2" \
-  --converter "/path/to/converter_pix" --package-version 2.0.0
+  --package-version 2.0.0
 ```
 
-Remplacez les chemins par votre installation ETS2 et l’exécutable du convertisseur. La version SemVer du paquet est obligatoire. Ajoutez `--vehicle man.tgx_2020` ou `--vehicle krone.coolliner` pour un seul camion ou une seule remorque ; sans ce filtre, tous les véhicules découverts sont traités. `--output <répertoire>` change le dossier parent des lots. Pour publier un nouveau lot, ajoutez `--previous <dossier du lot>` avec le dernier lot publié : un gabarit inchangé garde sa version de disposition, un gabarit modifié passe à la version suivante, et l’application prévient les joueurs qui mettent à jour leurs projets.
+Remplacez le chemin par votre installation ETS2. La version SemVer du paquet est obligatoire. Ajoutez `--vehicle man.tgx_2020` ou `--vehicle krone.coolliner` pour un seul camion ou une seule remorque ; sans ce filtre, tous les véhicules découverts sont traités. `--output <répertoire>` change le dossier parent des lots. Pour publier un nouveau lot, ajoutez `--previous <dossier du lot>` avec le dernier lot publié : un gabarit inchangé garde sa version de disposition, un gabarit modifié passe à la version suivante, et l’application prévient les joueurs qui mettent à jour leurs projets.
 
 L’outil découvre les camions et les remorques possédées officiels ETS2, avec les DLC de véhicules, de remorques et de tuning installés. Les mods utilisateur et ATS sont exclus. Un paquet de camion rassemble toutes les cabines et tous les accessoires peints pris en charge. Les noms des camions et des cabines sont les noms anglais du jeu. Les cabines utilisent des gabarits de 4096 × 4096 ; les dimensions des accessoires viennent des définitions de peinture du jeu. Les gabarits principaux superposent les options peintes compatibles.
 
 Un paquet de remorque a une texture principale de 4096 × 4096 pour chaque carrosserie, châssis et pièce peints que le jeu ne peint pas depuis leur propre zone, et des textures d’accessoires partagées par toute la remorque. Quand le jeu peint chaque pièce depuis sa propre zone, la texture principale ne fait que 64 × 64 et porte la couleur de base. Les carrosseries ou pièces que le jeu peint depuis la même zone dans toutes les livrées partagent une texture (par exemple les carrosseries fourgon, isotherme et frigorifique de 13,6 m de la remorque fourgon SCS) : vous ne les peignez qu’une fois. Les remorques n’ont pas de variantes. Les remorques propres à SCS n’ont pas de marque dans le jeu : elles s’appellent « SCS » suivi de leur nom de jeu, comme « SCS Box » ou « SCS Silo ». Les remorques dont les livrées ne posent qu’une couleur unie, comme le plateau SCS, n’ont rien à peindre : le rapport les indique comme ignorées, sans paquet.
 
-Chaque exécution crée un sous-dossier unique de `dist/` par défaut, contenant les paquets valides et `report.json`. Les intermédiaires et journaux du convertisseur ne restent sous `target/` que si un véhicule échoue. Les modèles convertis sont gardés dans `target/game-extraction/cache/` et réutilisés par les exécutions suivantes tant que le jeu et le convertisseur ne changent pas : une deuxième exécution sur le même jeu est bien plus rapide. Supprimez ce dossier pour libérer sa place. Les véhicules incomplets ou ambigus, shaders et UV non pris en charge sont refusés. Les autres véhicules continuent ; le moindre échec donne un code de sortie non nul. Aucun paquet partiel n’est publié.
+Chaque exécution crée un sous-dossier unique de `dist/` par défaut, contenant les paquets valides et `report.json`. Les intermédiaires ne restent sous `target/` que si un véhicule échoue. Un fichier du jeu dont la version est inconnue de l’outil arrête l’exécution avec un message qui nomme le fichier et la version. Les véhicules incomplets ou ambigus, shaders et UV non pris en charge sont refusés. Les autres véhicules continuent ; le moindre échec donne un code de sortie non nul. Aucun paquet partiel n’est publié.
 
 Le rapport décrit les sources, versions, textures couvertes, réussites, échecs et limites. La validation technique ne prouve pas le bon fonctionnement en jeu : les nouveaux véhicules et configurations doivent encore être contrôlés.
 
@@ -48,7 +48,7 @@ Les paquets générés portent une licence (« Personal modding only, not for sa
 
 <Shot name="vehicles/library" alt="La bibliothèque de véhicules avec les paquets installés et le bouton d’installation" />
 
-Conservez les paquets pour les réinstaller. Le jeu et le convertisseur servent uniquement à la génération. Les véhicules personnalisés et les exemples restent disponibles.
+Conservez les paquets pour les réinstaller. Le jeu sert uniquement à la génération. Les véhicules personnalisés et les exemples restent disponibles.
 
 ## Anciens paquets
 

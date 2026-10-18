@@ -4133,6 +4133,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "texpresso",
+ "tp-scs",
  "tp-vehicles",
  "zip",
 ]
@@ -4146,6 +4147,14 @@ dependencies = [
  "texpresso",
  "tp-core",
  "tp-text",
+]
+
+[[package]]
+name = "tp-scs"
+version = "0.1.0"
+dependencies = [
+ "flate2",
+ "tempfile",
 ]
 
 [[package]]
