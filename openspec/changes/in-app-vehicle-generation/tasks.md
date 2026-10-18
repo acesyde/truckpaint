@@ -31,6 +31,7 @@
 ## 5. Documentation
 
 - [ ] 5.1 Update `vehicles/library.mdx`, `vehicles/official-vehicles.mdx` and `getting-started/first-project.mdx` in English: setting the game folder, My Game, generating, updating after a game patch, ATS not yet, the notice
+- [ ] 5.1a Player docs talk only about My Game: remove the `tpv extract` section (command, options, report details) from `vehicles/official-vehicles.mdx` and keep only what a player needs (which vehicles, what is generated, game updates, limits). Move the command and report reference to the developer side: `CONTRIBUTING.md` (or `docs/game-extraction-plan.md`) as a tool for maintainers and contributors (whole-game batch, `report.json` diagnostics, checking a game update, comparing batches); keep `tpv pack` / `tpv check` documented in `vehicles/package-format.mdx` for package authors; verify no player page under `website/src/content/docs/` tells players to run `tpv extract`
 - [ ] 5.2 Translate to fr, es and de (same files and `sidebar.order`); the build passes with `<Ui id>` ids present in all four locales
 - [ ] 5.3 `mise run doc:media vehicles` for the new screens (synthetic game folder in `doc_media.rs`); run `docs-drift-checker` before archiving
 
