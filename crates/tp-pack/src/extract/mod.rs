@@ -22,7 +22,6 @@ use syntax::Section;
 /// Inputs supplied explicitly by the package author.
 pub struct Options {
     pub installation: PathBuf,
-    pub converter: PathBuf,
     pub vehicle: Option<String>,
     pub output: PathBuf,
     pub package_version: semver::Version,
@@ -87,7 +86,7 @@ fn publish(path: &Path, bytes: &[u8]) -> Result<(), String> {
 }
 
 fn definition(
-    sources: &mut Sources,
+    sources: &Sources,
     path: &str,
     evidence: &mut BTreeSet<String>,
 ) -> Result<Section, String> {
@@ -106,7 +105,7 @@ const NAME_FILES: [&str; 3] = [
 ];
 
 /// Brand, series and cabin names; absent files fall back to the keys.
-fn names(sources: &mut Sources) -> Result<Names, String> {
+fn names(sources: &Sources) -> Result<Names, String> {
     let mut names = Names::new();
     for path in NAME_FILES {
         let text = match sources.read(path) {
@@ -176,19 +175,28 @@ fn crop_size(mask: &str) -> Option<[u32; 2]> {
     Some([width.parse().ok()?, height.parse().ok()?])
 }
 
+/// Reads a model's descriptor and geometry and selects the painted pieces of one look and variant.
 fn model_geometry(
-    exported: &Path,
+    sources: &Sources,
     model: &str,
     look: &str,
     variant: &str,
     alt_uv: Option<bool>,
 ) -> Result<(Vec<geometry::Mesh>, Value), String> {
-    let local = exported
-        .join(model.trim_start_matches('/'))
-        .with_extension("pim");
-    let pim = std::fs::read_to_string(&local).map_err(|e| format!("{}: {e}", local.display()))?;
-    let pit = std::fs::read_to_string(local.with_extension("pit")).map_err(|e| e.to_string())?;
-    let mesh = geometry::painted(&pim, &pit, look, variant, alt_uv)
+    let stem = model.trim_end_matches(".pmd");
+    let (pmd, pmg) = (format!("{stem}.pmd"), format!("{stem}.pmg"));
+    let descriptor = tp_scs::Descriptor::parse(&pmd, &sources.bytes(&pmd)?)?;
+    let geometry = tp_scs::Model::parse(&pmg, &sources.bytes(&pmg)?)?;
+    let effects = |look: &tp_scs::Look| {
+        look.materials
+            .iter()
+            .map(|file| {
+                let path = source::virtual_path(&pmd, file)?;
+                tp_scs::material_effect(&path, &sources.bytes(&path)?)
+            })
+            .collect::<Result<Vec<_>, _>>()
+    };
+    let mesh = geometry::painted(&geometry, &descriptor, effects, look, variant, alt_uv)
         .map_err(|e| format!("{model}, {look}/{variant}: {e}"))?;
     let surfaces = mesh.iter().map(|m| {
         let min = std::array::from_fn::<_, 2, _>(|axis| m.uv.iter().map(|uv| uv[axis]).fold(f64::INFINITY, f64::min));
@@ -333,7 +341,7 @@ struct Textures {
 
 /// One truck's extraction; what it gathered stays readable after a failure.
 struct Build<'a> {
-    sources: &'a mut Sources,
+    sources: &'a Sources,
     names: &'a Names,
     previous: Option<&'a tp_vehicles::Package>,
     kind: Kind,
@@ -346,7 +354,7 @@ struct Build<'a> {
 
 impl<'a> Build<'a> {
     fn new(
-        sources: &'a mut Sources,
+        sources: &'a Sources,
         names: &'a Names,
         previous: Option<&'a tp_vehicles::Package>,
         kind: Kind,
@@ -465,42 +473,23 @@ impl<'a> Build<'a> {
         unit: &Section,
         path: &str,
     ) -> Result<(Vec<geometry::Mesh>, Vec<Value>), String> {
-        let export = self.sources.work.join("models");
-        std::fs::create_dir_all(&export).map_err(|e| e.to_string())?;
-        let models = self.sources.models.clone();
         let (mut mesh, mut selections) = (Vec::new(), Vec::new());
         for [model, look, variant] in model_selections(unit, path)? {
-            // Locating the PMD records its binary source; conversion uses the same mount order.
+            // The descriptor is the model's recorded source.
             self.evidence.insert(model.clone());
-            self.sources.locate(&model)?;
-            let relative = Path::new(model.trim_start_matches('/')).with_extension("pim");
-            let pim = models.join(&relative);
-            if pim.is_file() && pim.with_extension("pit").is_file() {
-                self.sources.reused += 1;
-            } else {
-                self.stage = "model-conversion";
-                let mounts = (0..self.sources.archives.len()).collect::<Vec<_>>();
-                let args = ["-m", model.trim_end_matches(".pmd")];
-                self.sources.command(&mounts, &export, &args)?;
-                // The .pim moves last: a model counts as cached only with both files.
-                let converted = export.join(&relative);
-                let error = |e: std::io::Error| format!("{model}: {e}");
-                std::fs::create_dir_all(pim.parent().ok_or("invalid model path")?)
-                    .map_err(error)?;
-                for extension in ["pit", "pim"] {
-                    std::fs::rename(
-                        converted.with_extension(extension),
-                        pim.with_extension(extension),
-                    )
-                    .map_err(error)?;
-                }
-                self.sources.converted += 1;
-            }
             self.stage = "geometry-selection";
             // Always the ordinary paint UVs, as the game's colour paint jobs and the
             // community templates use; `.altuv` materials also carry them.
-            let (found, selection) = model_geometry(&models, &model, &look, &variant, Some(false))
-                .map_err(|e| format!("{path}: {e}"))?;
+            let (found, selection) =
+                model_geometry(self.sources, &model, &look, &variant, Some(false))
+                    // A missing file keeps its message: the report lists it as a dependency.
+                    .map_err(|e| {
+                        if e.starts_with("missing game file ") {
+                            e
+                        } else {
+                            format!("{path}: {e}")
+                        }
+                    })?;
             mesh.extend(found);
             selections.push(selection);
         }
@@ -826,13 +815,12 @@ fn previous_packages(dir: &Path) -> Result<BTreeMap<String, tp_vehicles::Package
 /// Extracts a batch, continuing after per-vehicle refusals.
 pub fn run(options: &Options) -> Result<Batch, String> {
     let preliminary = reserve(Path::new("target/game-extraction"))?;
-    let mut sources = Sources::new(&options.installation, &options.converter, &preliminary)?;
-    sources.share_models(Path::new("target/game-extraction/cache"))?;
+    let mut sources = Sources::new(&options.installation)?;
     let kinds = [Kind::Truck, Kind::Trailer];
     let folders = kinds.map(|k| format!("/def/vehicle/{}", k.folder()));
     sources.inventory(&folders.each_ref().map(String::as_str))?;
     let mut evidence = BTreeSet::new();
-    let version = definition(&mut sources, "/version.sii", &mut evidence)?;
+    let version = definition(&sources, "/version.sii", &mut evidence)?;
     let version = units(&version)
         .iter()
         .find(|s| s.header.starts_with("fs_pack_set :"))
@@ -845,7 +833,7 @@ pub fn run(options: &Options) -> Result<Batch, String> {
         Some(dir) => previous_packages(dir)?,
         None => BTreeMap::new(),
     };
-    let names = names(&mut sources)?;
+    let names = names(&sources)?;
     // Game id -> the kinds defining it; more than one is a collision, refused below.
     let mut discovered = BTreeMap::<String, BTreeSet<Kind>>::new();
     for kind in kinds {
@@ -873,14 +861,14 @@ pub fn run(options: &Options) -> Result<Batch, String> {
     // Trucks first, then trailers, each in id order.
     vehicles.sort_by_key(|v| (discovered[v].first().copied(), v.clone()));
     let output = reserve(&options.output)?;
-    let extract = |sources: &mut Sources, vehicle: &String| -> Value {
+    let extract = |vehicle: &String| -> Value {
         eprintln!("extracting {vehicle}");
         let found = &discovered[vehicle];
         let [kind] = found.iter().copied().collect::<Vec<_>>()[..] else {
             return json!({"vehicle":vehicle,"kinds":found.iter().map(|k| k.manifest()).collect::<Vec<_>>(),"status":"failure","stage":"discovery","error":"defined both as a truck and as an owned trailer"});
         };
         let previous_package = previous.get(&format!("official.ets2.{vehicle}"));
-        let mut build = Build::new(sources, &names, previous_package, kind, vehicle);
+        let mut build = Build::new(&sources, &names, previous_package, kind, vehicle);
         let result = build
             .package(&game_version, &options.package_version)
             .and_then(|(packed, coverage)| {
@@ -910,15 +898,13 @@ pub fn run(options: &Options) -> Result<Batch, String> {
             }
         }
     };
-    // Half the cores: concurrent converters must leave the desktop memory and CPU.
+    // Half the cores: concurrent builds must leave the desktop memory and CPU.
     let cores = std::thread::available_parallelism().map_or(1, |n| n.get());
     let workers = (cores / 2).clamp(1, vehicles.len().max(1));
-    sources.share();
-    let mut views = (0..workers).map(|n| sources.worker(n)).collect::<Vec<_>>();
     let next = AtomicUsize::new(0);
     let done = Mutex::new(Vec::new());
     std::thread::scope(|scope| {
-        for view in &mut views {
+        for _ in 0..workers {
             let (extract, next, done, vehicles) = (&extract, &next, &done, &vehicles);
             scope.spawn(move || {
                 loop {
@@ -926,7 +912,7 @@ pub fn run(options: &Options) -> Result<Batch, String> {
                     let Some(vehicle) = vehicles.get(position) else {
                         break;
                     };
-                    let result = extract(view, vehicle);
+                    let result = extract(vehicle);
                     done.lock().unwrap().push((position, result));
                 }
             });
@@ -940,14 +926,12 @@ pub fn run(options: &Options) -> Result<Batch, String> {
         .map(|(_, result)| result)
         .collect::<Vec<_>>();
     let failed = results.iter().filter(|r| r["status"] == "failure").count();
-    sources.converted = views.iter().map(|v| v.converted).sum();
-    sources.reused = views.iter().map(|v| v.reused).sum();
-    let report = json!({"format":1,"installation":options.installation,"converter":{"executable":sources.converter,"version":null,"version_status":"not exposed by CLI"},"tool_version":env!("CARGO_PKG_VERSION"),"game_version":game_version,"package_version":options.package_version,"archives":sources.archives,"archive_precedence":"last mounted wins; base source order and sorted DLC as observed in ETS2 mount log","requested_vehicle":options.vehicle,"previous_batch":options.previous,"discovered_vehicles":discovered.keys().collect::<Vec<_>>(),"processed_vehicles":vehicles,"name_sources":NAME_FILES.iter().map(|p| sources.provenance(&BTreeSet::from([(*p).to_owned()]))[0].clone()).collect::<Vec<_>>(),"work_directory":preliminary,"work_directory_kept":failed > 0,"model_cache":{"directory":sources.models,"converted":sources.converted,"reused":sources.reused},"results":results,"failed":failed,"limits":["Truckpaint, tsnmap and tsnmapuv exterior models with optional airbrush/flipflake/altuv flavors and a/asafew.a alpha-test suffixes","All paint materials use the ordinary paint UVs (_TEXCOORD1), including altuv flavors; packages never set alternate_uvset","Finite UV overflow is preserved in SVG coordinates; the texture viewport clips the wireframe without wrapping or changing UV mode; out-of-bounds surfaces need game checks","Main templates union compatible painted options","Accessories without a truckpaint material in their selected look/variant are excluded from templates","Cabin size 4096 square; accessory dimensions from crop names; conflicting sizes use the largest, accessories with only unsized (shared fill) masks stay on the main texture","Package validation does not establish correctness in game"]});
+    let report = json!({"format":1,"installation":options.installation,"reader":{"name":tp_scs::READER,"version":tp_scs::VERSION},"tool_version":env!("CARGO_PKG_VERSION"),"game_version":game_version,"package_version":options.package_version,"archives":sources.archives,"archive_precedence":"last mounted wins; base source order and sorted DLC as observed in ETS2 mount log","requested_vehicle":options.vehicle,"previous_batch":options.previous,"discovered_vehicles":discovered.keys().collect::<Vec<_>>(),"processed_vehicles":vehicles,"name_sources":NAME_FILES.iter().map(|p| sources.provenance(&BTreeSet::from([(*p).to_owned()]))[0].clone()).collect::<Vec<_>>(),"work_directory":preliminary,"work_directory_kept":failed > 0,"results":results,"failed":failed,"limits":["Truckpaint, tsnmap and tsnmapuv exterior models with optional airbrush/flipflake/altuv flavors and a/asafew.a alpha-test suffixes","All paint materials use the ordinary paint UVs (_TEXCOORD1), including altuv flavors; packages never set alternate_uvset","Finite UV overflow is preserved in SVG coordinates; the texture viewport clips the wireframe without wrapping or changing UV mode; out-of-bounds surfaces need game checks","Main templates union compatible painted options","Accessories without a truckpaint material in their selected look/variant are excluded from templates","Cabin size 4096 square; accessory dimensions from crop names; conflicting sizes use the largest, accessories with only unsized (shared fill) masks stay on the main texture","Package validation does not establish correctness in game"]});
     publish(
         &output.join("report.json"),
         &serde_json::to_vec_pretty(&report).map_err(|e| e.to_string())?,
     )?;
-    // A failed vehicle's message names converter logs there: keep them.
+    // The folder of a failed batch stays for the failed vehicles' intermediates.
     if failed == 0
         && let Err(e) = std::fs::remove_dir_all(&preliminary)
     {

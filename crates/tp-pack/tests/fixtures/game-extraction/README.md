@@ -8,7 +8,7 @@ contains no model, texture or game geometry.
 The original probes mounted the base archives plus their vehicle DLC only,
 not additional tuning DLC. They selected a definition's look and variant,
 visible parts, painted materials and the stream aliased `_TEXCOORD1`.
-ConverterPIX coordinates were used without another vertical flip. The
+The converted-model coordinates were used without another vertical flip. The
 prototype accepted ordinary truckpaint effects, refused alternate UVs and
 required one crop-name-derived dimension per accessory. Main templates
 superposed compatible painted options. Vehicle names, archive lists, cabin

@@ -1,88 +1,98 @@
-//! No game required: synthetic archives and a converter stand-in.
-#![cfg(unix)]
+//! No game required: synthetic HashFS archives built from folders of files.
 
-use std::os::unix::fs::PermissionsExt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use serde_json::Value;
+use tp_scs::synthetic::{ArchiveBuilder, PieceSpec, mat, pmd, pmg};
 
-fn write(root: &Path, path: &str, text: &str) {
+fn write(root: &Path, path: &str, bytes: impl AsRef<[u8]>) {
     let path = root.join(path);
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-    std::fs::write(path, text).unwrap();
+    std::fs::write(path, bytes).unwrap();
 }
 
-const CONVERTER: &str = r#"#!/bin/sh
-set -eu
-mount=''
-export=''
-action=''
-path=''
-while [ "$#" -gt 0 ]; do
-    case "$1" in
-        -b) mount="$2"; shift 2 ;;
-        -e) export="$2"; shift 2 ;;
-        *) action="$1"; path="$2"; shift 2 ;;
-    esac
-done
-root="$mount.files"
-printf '%s %s %s\n' "$action" "$path" "${mount##*/}" >> "${0%/*}/calls.log"
-case "$action" in
-    --list-directory)
-        # Like locale.scs, an archive marked `.noroot` cannot list its root.
-        if [ ! -d "$root$path" ] || { [ "$path" = / ] && [ -e "$root/.noroot" ]; }; then
-            echo '<error> [system] : readDir returned null!'
-            exit 1
-        fi
-        for file in "$root${path%/}"/*; do
-            [ -e "$file" ] || continue
-            relative="${file#"$root"}"
-            if [ -d "$file" ]; then echo "[D] $relative"; else echo "[F] $relative"; fi
-        done
-        ;;
-    --list-directory-recursive)
-        if [ ! -d "$root$path" ] || { [ "$path" = / ] && [ -e "$root/.noroot" ]; }; then
-            echo '<error> [system] : readDir returned null!'
-            exit 1
-        fi
-        find "$root${path%/}" -mindepth 1 | sort | while read -r file; do
-            relative="${file#"$root"}"
-            if [ -d "$file" ]; then echo "[D] $relative"; else echo "[F] $relative"; fi
-        done
-        ;;
-    --extract-directory|--extract-file)
-        mkdir -p "$(dirname "$export$path")"
-        cp -R "$root$path" "$export$path"
-        ;;
-    -m)
-        case "$path" in
-            *broken*) echo '[err] model conversion failed'; exit 0 ;;
-        esac
-        mkdir -p "$(dirname "$export$path")"
-        cp "$root$path.pim" "$export$path.pim"
-        cp "$root$path.pit" "$export$path.pit"
-        ;;
-    *) echo '[err] unknown action'; exit 1 ;;
-esac
-"#;
+const CORNERS: [[f32; 2]; 3] = [[0., 0.], [1., 0.], [0., 1.]];
+const INNER: [[f32; 2]; 3] = [[0.25, 0.25], [0.75, 0.25], [0.25, 0.75]];
 
-const PIM: &str = "Material {\nAlias: \"paint\"\n}\nPiece {\nIndex: 0\nMaterial: 0\nVertexCount: 3\nTriangleCount: 1\nStream {\nAliases: \"_TEXCOORD1\"\n0 ( 0 0 )\n1 ( 1 0 )\n2 ( 0 1 )\n}\nTriangles {\n0 ( 0 1 2 )\n}\n}\nPart {\nName: \"body\"\nPieces: 0\n}\n";
-const PIT: &str = "Look {\nName: \"default\"\nMaterial {\nAlias: \"paint\"\nEffect: \"eut2.truckpaint.tsnmapuv\"\n}\n}\nVariant {\nName: \"default\"\nPart {\nName: \"body\"\nAttribute {\nTag: \"visible\"\nValue: ( 1 )\n}\n}\n}\n";
+/// A body of one piece whose first set is `_TEXCOORD1`; `second` adds a `_TEXCOORD2` set.
+fn geometry(first: [[f32; 2]; 3], second: Option<[[f32; 2]; 3]>) -> Vec<u8> {
+    let mut sets = vec![first.to_vec()];
+    let mut mask = 0;
+    if let Some(second) = second {
+        sets.push(second.to_vec());
+        mask = 0x100;
+    }
+    let piece = PieceSpec {
+        material: 0,
+        mask,
+        uv_sets: sets,
+        triangles: vec![[0, 1, 2]],
+    };
+    pmg(&[("body", 0, 1)], &[piece])
+}
+
+/// Writes `vehicle/shared/<name>` as a one-part, one-look model with the given shader.
+fn write_model(source: &Path, name: &str, geometry: &[u8], effect: &str) {
+    let material = format!("/vehicle/shared/{name}.mat");
+    write(source, &format!("vehicle/shared/{name}.pmg"), geometry);
+    write(
+        source,
+        &format!("vehicle/shared/{name}.pmd"),
+        pmd(&[("default", &[&material])], &[("default", &[1])], 1),
+    );
+    write(source, &format!("vehicle/shared/{name}.mat"), mat(effect));
+}
+
+fn files(dir: &Path) -> Vec<PathBuf> {
+    let mut result = Vec::new();
+    for entry in std::fs::read_dir(dir).unwrap() {
+        let path = entry.unwrap().path();
+        if path.is_dir() {
+            result.extend(files(&path));
+        } else {
+            result.push(path);
+        }
+    }
+    result.sort();
+    result
+}
+
+/// Builds `game/<name>.scs` from the files under `game/<name>.scs.files`. A file named
+/// `.noroot` makes the archive leave out its root listing, like `locale.scs`.
+fn pack(root: &Path) {
+    let game = root.join("game");
+    for name in ["base", "def", "version"] {
+        std::fs::create_dir_all(game.join(format!("{name}.scs.files"))).unwrap();
+    }
+    for entry in std::fs::read_dir(&game).unwrap() {
+        let folder = entry.unwrap().path();
+        let Some(name) = folder
+            .file_name()
+            .and_then(|n| n.to_str())
+            .and_then(|n| n.strip_suffix(".files"))
+            .map(str::to_owned)
+        else {
+            continue;
+        };
+        let mut archive = ArchiveBuilder::default();
+        for file in files(&folder) {
+            let relative = file.strip_prefix(&folder).unwrap().to_str().unwrap();
+            let game_path = format!("/{relative}");
+            let bytes = std::fs::read(&file).unwrap();
+            archive = match relative {
+                ".noroot" => archive.without_root(),
+                _ if relative.ends_with(".mat") => archive.file(&game_path, &bytes),
+                _ => archive.compressed(&game_path, &bytes),
+            };
+        }
+        std::fs::write(game.join(name), archive.build()).unwrap();
+    }
+}
 
 fn fixture() -> tempfile::TempDir {
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path();
-    write(root, "converter", CONVERTER);
-    std::fs::set_permissions(
-        root.join("converter"),
-        std::fs::Permissions::from_mode(0o755),
-    )
-    .unwrap();
-    for archive in ["base.scs", "def.scs", "version.scs"] {
-        write(root, &format!("game/{archive}"), "fake archive");
-    }
-    // The stand-in reads the last mounted archive; mirror a complete mounted view here.
     let archive = root.join("game/version.scs.files");
     write(
         &archive,
@@ -98,54 +108,46 @@ fn fixture() -> tempfile::TempDir {
         write(
             &archive,
             &format!("def/vehicle/truck/{vehicle}/data.sii"),
-            &format!(
+            format!(
                 "SiiNunit\n{{\naccessory_truck_data : vehicle.{vehicle} {{\ninfo[]: \"Example\"\ninfo[]: \"Truck\"\n}}\n}}\n"
             ),
         );
         write(
             &archive,
             &format!("def/vehicle/truck/{vehicle}/cabin/high.sii"),
-            &format!(
+            format!(
                 "SiiNunit\n{{\naccessory_cabin_data : high.{vehicle}.cabin {{\nname: \"High\"\n@include \"../common.sui\"\n}}\n}}\n"
             ),
         );
         write(
             &archive,
             &format!("def/vehicle/truck/{vehicle}/common.sui"),
-            &format!("model: \"/vehicle/shared/{vehicle}.pmd\"\n"),
+            format!("model: \"/vehicle/shared/{vehicle}.pmd\"\n"),
         );
-        for (extension, content) in [("pmd", "binary"), ("pim", PIM), ("pit", PIT)] {
-            write(
-                &archive,
-                &format!("vehicle/shared/{vehicle}.{extension}"),
-                content,
-            );
+        let mut bytes = geometry(CORNERS, None);
+        if vehicle == "example.broken" {
+            // A geometry version the reader does not know.
+            bytes[0] = 0x16;
         }
+        write_model(&archive, vehicle, &bytes, "eut2.truckpaint.tsnmapuv");
     }
     temp
 }
 
-/// Converter calls of every batch run in `root`: (action, path, last mounted archive).
-fn calls(root: &Path) -> Vec<[String; 3]> {
-    std::fs::read_to_string(root.join("calls.log"))
-        .unwrap_or_default()
-        .lines()
-        .map(|line| {
-            let mut fields = line.splitn(3, ' ').map(str::to_owned);
-            [(); 3].map(|()| fields.next().unwrap_or_default())
-        })
-        .collect()
-}
-
-fn run(root: &Path, vehicle: Option<&str>) -> std::process::Output {
+/// An `extract` command for the game folder of `root`, with its archives built.
+fn command(root: &Path) -> Command {
+    pack(root);
     let mut command = Command::new(env!("CARGO_BIN_EXE_tpv"));
     command
         .current_dir(root)
         .arg("extract")
-        .arg(root.join("game"))
-        .arg("--converter")
-        .arg(root.join("converter"))
-        .args(["--package-version", "2.0.0"]);
+        .arg(root.join("game"));
+    command
+}
+
+fn run(root: &Path, vehicle: Option<&str>) -> std::process::Output {
+    let mut command = command(root);
+    command.args(["--package-version", "2.0.0"]);
     if let Some(vehicle) = vehicle {
         command.args(["--vehicle", vehicle]);
     }
@@ -218,12 +220,7 @@ fn isolated_failures_reports_and_unique_complete_outputs() {
 fn invalid_version_and_excluded_vehicle_publish_nothing() {
     let fixture = fixture();
     let root = fixture.path();
-    let result = Command::new(env!("CARGO_BIN_EXE_tpv"))
-        .current_dir(root)
-        .arg("extract")
-        .arg(root.join("game"))
-        .arg("--converter")
-        .arg(root.join("converter"))
+    let result = command(root)
         .args(["--package-version", "not-a-version"])
         .output()
         .unwrap();
@@ -260,7 +257,7 @@ fn conflicting_sizes_use_the_largest_and_unsized_masks_stay_on_the_main_texture(
         write(
             &source,
             "def/vehicle/truck/example.good/paint_job/accessory/first.sii",
-            &format!(
+            format!(
                 "SiiNunit\n{{\nsimple_paint_job_data : .first {{\nacc_list[]: \"mirror.high\"\npaint_job_mask: \"{mask}\"\n}}\n}}\n"
             ),
         );
@@ -338,8 +335,8 @@ fn conflicting_sizes_use_the_largest_and_unsized_masks_stay_on_the_main_texture(
 fn missing_model_outputs_refuse_whole_vehicle() {
     let fixture = fixture();
     let root = fixture.path();
-    let script = CONVERTER.replace("cp \"$root$path.pit\" \"$export$path.pit\"", ":");
-    write(root, "converter", &script);
+    std::fs::remove_file(root.join("game/version.scs.files/vehicle/shared/example.good.mat"))
+        .unwrap();
     assert!(!run(root, Some("example.good")).status.success());
     assert_eq!(
         std::fs::read_dir(batches(root).pop().unwrap())
@@ -430,7 +427,7 @@ fn every_material_uses_the_ordinary_paint_uvs() {
         let fixture = fixture();
         let root = fixture.path();
         let source = root.join("game/version.scs.files");
-        let pim = PIM.replace("Triangles {", "Stream {\nTag: \"_UV7\"\nAliases: \"_TEXCOORD2\"\n0 ( 0.25 0.25 )\n1 ( 0.75 0.25 )\n2 ( 0.25 0.75 )\n}\nTriangles {");
+        let both = geometry(CORNERS, Some(INNER));
         let cabin_shader = if alternate {
             "eut2.truckpaint.tsnmapuv.altuv"
         } else {
@@ -442,13 +439,7 @@ fn every_material_uses_the_ordinary_paint_uvs() {
             "eut2.truckpaint.tsnmap.airbrush.altuv"
         };
         for (model, shader) in [("example.good", cabin_shader), ("mirror", accessory_shader)] {
-            write(&source, &format!("vehicle/shared/{model}.pmd"), "binary");
-            write(&source, &format!("vehicle/shared/{model}.pim"), &pim);
-            write(
-                &source,
-                &format!("vehicle/shared/{model}.pit"),
-                &PIT.replace("eut2.truckpaint.tsnmapuv", shader),
-            );
+            write_model(&source, model, &both, shader);
         }
         write(
             &source,
@@ -511,18 +502,11 @@ fn metallic_shaders_and_finite_uv_overflow_produce_traceable_packages() {
     let fixture = fixture();
     let root = fixture.path();
     let source = root.join("game/version.scs.files");
-    write(
+    write_model(
         &source,
-        "vehicle/shared/example.good.pim",
-        &PIM.replace("0 ( 0 0 )", "0 ( -2.125 1.75 )"),
-    );
-    write(
-        &source,
-        "vehicle/shared/example.good.pit",
-        &PIT.replace(
-            "truckpaint.tsnmapuv",
-            "truckpaint.tsnmapuv.airbrush.flipflake",
-        ),
+        "example.good",
+        &geometry([[-2.125, 1.75], [1., 0.], [0., 1.]], None),
+        "eut2.truckpaint.tsnmapuv.airbrush.flipflake",
     );
     let result = run(root, Some("example.good"));
     assert!(
@@ -560,19 +544,12 @@ fn solid_colour_surface_is_excluded_without_inventing_a_paint_job_uv_mapping() {
     let fixture = fixture();
     let root = fixture.path();
     let source = root.join("game/version.scs.files");
-    for (extension, text) in [
-        ("pmd", "binary"),
-        ("pim", PIM),
-        (
-            "pit",
-            &PIT.replace(
-                "eut2.truckpaint.tsnmapuv",
-                "eut2.dif.spec.weight.add.env.tsnmapuv.paint.a",
-            ),
-        ),
-    ] {
-        write(&source, &format!("vehicle/shared/solid.{extension}"), text);
-    }
+    write_model(
+        &source,
+        "solid",
+        &geometry(CORNERS, None),
+        "eut2.dif.spec.weight.add.env.tsnmapuv.paint.a",
+    );
     write(
         &source,
         "def/vehicle/truck/example.good/accessory/guard/painted.sii",
@@ -713,14 +690,8 @@ fn changed_templates_get_the_next_layout_version() {
     let fixture = fixture();
     let root = fixture.path();
     let layout = |previous: Option<&Path>| {
-        let mut command = Command::new(env!("CARGO_BIN_EXE_tpv"));
-        command
-            .current_dir(root)
-            .arg("extract")
-            .arg(root.join("game"))
-            .arg("--converter")
-            .arg(root.join("converter"))
-            .args(["--package-version", "2.0.0", "--vehicle", "example.good"]);
+        let mut command = command(root);
+        command.args(["--package-version", "2.0.0", "--vehicle", "example.good"]);
         if let Some(previous) = previous {
             command.arg("--previous").arg(previous);
         }
@@ -743,13 +714,12 @@ fn changed_templates_get_the_next_layout_version() {
     let (second, version) = layout(Some(&first));
     assert_eq!(version, 1);
     // A game update moves the UVs: the next version.
-    let source = root.join("game/version.scs.files/vehicle/shared/example.good.pim");
-    let moved = std::fs::read_to_string(&source)
-        .unwrap()
-        .replace("1 ( 1 0 )", "1 ( 0.5 0 )");
-    std::fs::write(&source, moved).unwrap();
-    // The update also changes the archive itself, which invalidates converted models.
-    write(&root.join("game"), "version.scs", "updated fake archive");
+    write_model(
+        &root.join("game/version.scs.files"),
+        "example.good",
+        &geometry([[0., 0.], [0.5, 0.], [0., 1.]], None),
+        "eut2.truckpaint.tsnmapuv",
+    );
     let (third, version) = layout(Some(&second));
     assert_eq!(version, 2);
     let (_, version) = layout(Some(&third));
@@ -764,7 +734,7 @@ fn trailer(root: &Path, id: &str, brand: &str) {
     write(
         &source,
         &format!("{def}/data.sii"),
-        &format!(
+        format!(
             "SiiNunit\n{{\naccessory_trailer_data : vehicle.{id} {{\ninfo[]: \"{brand}\"\ninfo[]: \"@@series_trailer@@\"\n}}\n}}\n"
         ),
     );
@@ -775,7 +745,7 @@ fn trailer(root: &Path, id: &str, brand: &str) {
         write(
             &source,
             &format!("{def}/{group}/{unit}.sii"),
-            &format!(
+            format!(
                 "SiiNunit\n{{\n{data} : {unit}.{id}.{group} {{\nmodel: \"/vehicle/shared/example.good.pmd\"\n}}\n}}\n"
             ),
         );
@@ -783,7 +753,7 @@ fn trailer(root: &Path, id: &str, brand: &str) {
     write(
         &source,
         &format!("{def}/paint_job/default.sii"),
-        &format!(
+        format!(
             "SiiNunit\n{{\naccessory_paint_job_data : default.{id}.paint_job {{\npaint_job_mask: \"/trailer/pjm_at_0x0_size_4x4.tobj\"\n}}\n}}\n"
         ),
     );
@@ -899,7 +869,7 @@ fn trailer_bodies_sharing_a_mask_in_every_paint_job_share_one_texture() {
         write(
             &source,
             &format!("{def}/body/{body}.sii"),
-            &format!(
+            format!(
                 "SiiNunit\n{{\naccessory_trailer_body_data : {body}.scs.box.body {{\nmodel: \"/vehicle/shared/example.good.pmd\"\n}}\n}}\n"
             ),
         );
@@ -918,7 +888,7 @@ fn trailer_bodies_sharing_a_mask_in_every_paint_job_share_one_texture() {
     write(
         &source,
         &format!("{def}/paint_job/accessory/first.sii"),
-        &format!(
+        format!(
             "SiiNunit\n{{\n{}}}\n",
             ovr(shared, &["body.dry_van", "body.ins", "body.reefer"])
         ),
@@ -927,7 +897,7 @@ fn trailer_bodies_sharing_a_mask_in_every_paint_job_share_one_texture() {
     write(
         &source,
         &format!("{def}/paint_job/accessory/second.sii"),
-        &format!(
+        format!(
             "SiiNunit\n{{\n{}{}}}\n",
             ovr(shared, &["body.dry_van", "body.ins"]),
             ovr("/t/pjm_at_512x0_size_512x256.tobj", &["body.reefer"])
@@ -980,24 +950,17 @@ fn trailers_follow_the_truck_rules_and_need_a_paint_job() {
     assert_eq!(std::fs::read_dir(batch).unwrap().count(), 1);
     // An override alone is enough; its 32×32 size is scaled up, and a part without
     // livery material is left out.
-    for (extension, text) in [
-        ("pmd", "binary"),
-        ("pim", PIM),
-        (
-            "pit",
-            &PIT.replace(
-                "eut2.truckpaint.tsnmapuv",
-                "eut2.dif.spec.weight.add.env.tsnmapuv.paint.a",
-            ),
-        ),
-    ] {
-        write(&source, &format!("vehicle/shared/solid.{extension}"), text);
-    }
+    write_model(
+        &source,
+        "solid",
+        &geometry(CORNERS, None),
+        "eut2.dif.spec.weight.add.env.tsnmapuv.paint.a",
+    );
     for (unit, model) in [("mudflap", "example.good"), ("guard", "solid")] {
         write(
             &source,
             &format!("{def}/accessory/{unit}.sii"),
-            &format!(
+            format!(
                 "SiiNunit\n{{\naccessory_addon_data : {unit}.scs.box.r_part {{\nmodel: \"/vehicle/shared/{model}.pmd\"\n}}\n}}\n"
             ),
         );
@@ -1025,12 +988,7 @@ fn trailers_follow_the_truck_rules_and_need_a_paint_job() {
     );
     // Rebuilt against that batch: unchanged layouts keep version 1.
     let first = batches(root).pop().unwrap();
-    let result = Command::new(env!("CARGO_BIN_EXE_tpv"))
-        .current_dir(root)
-        .arg("extract")
-        .arg(root.join("game"))
-        .arg("--converter")
-        .arg(root.join("converter"))
+    let result = command(root)
         .args([
             "--package-version",
             "2.0.0",
@@ -1092,41 +1050,16 @@ fn a_trailer_whose_parts_all_have_their_own_region_gets_a_plain_main_texture() {
 }
 
 #[test]
-fn archives_are_listed_once_whole_or_folder_by_folder() {
+fn an_archive_without_a_root_listing_is_still_searched_by_path() {
     let fixture = fixture();
     let root = fixture.path();
-    // base.scs lists its root, without /vehicle.
-    write(&root.join("game/base.scs.files"), "material/a.mat", "");
     // The model also lives in def.scs, whose root cannot be listed (like locale.scs):
     // both sources stay recorded, last mounted wins.
     let def = root.join("game/def.scs.files");
-    write(&def, "vehicle/shared/example.good.pmd", "binary");
+    write(&def, "vehicle/shared/example.good.pmd", "shadowed");
     write(&def, ".noroot", "");
     let output = run(root, Some("example.good"));
     assert!(output.status.success(), "{output:?}");
-    let listings = calls(root)
-        .into_iter()
-        .filter(|[action, ..]| action.starts_with("--list-directory"))
-        .collect::<Vec<_>>();
-    let unique = listings.iter().collect::<std::collections::BTreeSet<_>>();
-    assert_eq!(unique.len(), listings.len(), "{listings:?}");
-    for archive in ["base.scs", "def.scs", "version.scs"] {
-        let mine = listings
-            .iter()
-            .filter(|[.., a]| a == archive)
-            .map(|[action, path, _]| (action.as_str(), path.as_str()))
-            .collect::<Vec<_>>();
-        assert_eq!(mine[0], ("--list-directory-recursive", "/"), "{archive}");
-        if archive == "def.scs" {
-            // No whole listing: its folders are listed one by one, where needed.
-            assert!(
-                mine.contains(&("--list-directory", "/vehicle/shared")),
-                "{mine:?}"
-            );
-        } else {
-            assert_eq!(mine.len(), 1, "{archive}: {mine:?}");
-        }
-    }
     let report = report(&batches(root)[0]);
     let model = report["results"][0]["sources"]
         .as_array()
@@ -1142,41 +1075,69 @@ fn archives_are_listed_once_whole_or_folder_by_folder() {
 }
 
 #[test]
-fn converted_models_are_reused_until_an_archive_changes() {
+fn the_reader_replaces_the_converter() {
     let fixture = fixture();
     let root = fixture.path();
-    let conversions = |root: &Path| {
-        calls(root)
-            .iter()
-            .filter(|[action, ..]| action == "-m")
-            .count()
-    };
-    let cached = root.join("target/game-extraction/cache/models/vehicle/shared");
-    // example.broken fails its conversion: nothing of it enters the cache.
+    assert!(run(root, Some("example.good")).status.success());
+    let report = report(&batches(root)[0]);
+    assert_eq!(report["reader"]["name"], "tp-scs");
+    assert!(report["reader"]["version"].is_string());
+    assert!(report.get("converter").is_none() && report.get("model_cache").is_none());
+    assert!(!root.join("target/game-extraction/cache").exists());
+    // The old option is refused before anything is read.
+    let result = command(root)
+        .args(["--package-version", "2.0.0", "--converter", "converter"])
+        .output()
+        .unwrap();
+    assert!(!result.status.success());
+    assert!(String::from_utf8_lossy(&result.stderr).contains("--converter"));
+}
+
+#[test]
+fn an_unsupported_archive_version_stops_the_batch_before_any_vehicle() {
+    let fixture = fixture();
+    let root = fixture.path();
+    pack(root);
+    let path = root.join("game/def.scs");
+    let mut bytes = std::fs::read(&path).unwrap();
+    bytes[4] = 3;
+    std::fs::write(&path, bytes).unwrap();
+    // Not repacked: run the binary directly on the damaged archive.
+    let result = Command::new(env!("CARGO_BIN_EXE_tpv"))
+        .current_dir(root)
+        .arg("extract")
+        .arg(root.join("game"))
+        .args(["--package-version", "2.0.0"])
+        .output()
+        .unwrap();
+    assert!(!result.status.success());
+    let error = String::from_utf8_lossy(&result.stderr);
+    assert!(
+        error.contains("def.scs") && error.contains("HashFS version 3"),
+        "{error}"
+    );
+    assert!(!root.join("dist").exists());
+}
+
+#[test]
+fn an_unknown_geometry_version_refuses_only_the_vehicles_using_it() {
+    let fixture = fixture();
+    let root = fixture.path();
     assert!(!run(root, None).status.success());
-    assert_eq!(conversions(root), 2);
-    let first = report(&batches(root)[0]);
-    assert_eq!(first["model_cache"]["converted"], 1);
-    assert_eq!(first["model_cache"]["reused"], 0);
-    assert!(cached.join("example.good.pim").is_file());
-    assert!(!cached.join("example.broken.pim").exists());
-    assert!(!cached.join("example.broken.pit").exists());
-
-    assert!(run(root, Some("example.good")).status.success());
-    assert_eq!(conversions(root), 2, "the second batch converts nothing");
-    let package =
-        |batch: &Path| std::fs::read(batch.join("official.ets2.example.good-2.0.0.tpv")).unwrap();
-    let all = batches(root);
-    assert_eq!(package(&all[0]), package(&all[1]));
-    let second = report(&all[1]);
-    assert_eq!(second["model_cache"]["converted"], 0);
-    assert_eq!(second["model_cache"]["reused"], 1);
-
-    // A game update changes an archive: the cache is cleared and the model converted again.
-    write(&root.join("game"), "def.scs", "updated fake archive");
-    assert!(run(root, Some("example.good")).status.success());
-    assert_eq!(conversions(root), 3);
-    assert_eq!(report(&batches(root)[2])["model_cache"]["converted"], 1);
+    let report = report(&batches(root)[0]);
+    let broken = report["results"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["vehicle"] == "example.broken")
+        .unwrap();
+    assert_eq!(broken["status"], "failure");
+    let error = broken["error"].as_str().unwrap();
+    assert!(
+        error.contains("/vehicle/shared/example.broken.pmg") && error.contains("0x16"),
+        "{error}"
+    );
+    assert_eq!(report["results"][1]["status"], "success");
 }
 
 #[test]
@@ -1193,7 +1154,6 @@ fn successful_batches_remove_their_work_folder() {
         std::fs::read_dir(root.join("target/game-extraction"))
             .unwrap()
             .map(|e| e.unwrap().path())
-            .filter(|p| p.file_name().unwrap() != "cache")
             .collect::<Vec<_>>()
     };
     // A built truck, then a skipped colour-only trailer: both batches succeed.
@@ -1203,14 +1163,15 @@ fn successful_batches_remove_their_work_folder() {
         assert_eq!(report["work_directory_kept"], false);
         assert!(work().is_empty(), "{vehicle}: {:?}", work());
     }
-    // A failed vehicle keeps the folder and the converter log its error names.
+    // A failed vehicle keeps the folder, and the report names it.
     assert!(!run(root, Some("example.broken")).status.success());
     let report = report(&batches(root).pop().unwrap());
     assert_eq!(report["work_directory_kept"], true);
     assert_eq!(work().len(), 1);
-    let error = report["results"][0]["error"].as_str().unwrap();
-    let log = error.rsplit_once("see ").unwrap().1;
-    assert!(root.join(log).is_file(), "{error}");
+    assert!(
+        root.join(report["work_directory"].as_str().unwrap())
+            .is_dir()
+    );
 }
 
 #[test]

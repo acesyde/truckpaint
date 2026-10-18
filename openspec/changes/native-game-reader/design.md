@@ -58,6 +58,8 @@ Not released, so no migration. Order: reader crate and tests, native source in `
 
 ## Open Questions
 
-- Does any file we read (defs, `.pmd`, `.pmg`, `.mat`) use GDeflate or zstd on ETS2 1.61 with all DLC? Expected no; answered by the spike (task 1.1). If yes, GDeflate becomes a task of this change.
-- Which `.pmg` versions (0x13, 0x14, 0x15) do the 69 vehicles use? Answered by the spike; unused versions are refused, not implemented.
-- Is HashFS v1 or zip needed for any installation we support (older game versions)? Expected no.
+Resolved by the spike (task 1.1) on the maintainer's ETS2 1.61.1.9 install, every file reachable from the root of all 115 archives:
+
+- Compression ids by extension (plain record, top nibble of the first word): `.sii`, `.sui`, `.mat`, `.pmd`, `.pmg` use only 0 (stored) or 1 (zlib): `.sii` 1,481 stored and 166,691 zlib; `.sui` 14 and 10,106; `.mat` 80 and 98,230; `.pmd` 71,027 zlib; `.pmg` 71,030 zlib. No id 2 (headerless zlib) or 4 (zstd) exists anywhere. GDeflate (id 3) is used only by `.tobj` (139,599 entries, with an unknown flag nibble set in the second word, which the reader refuses on any file it reads). No GDeflate task is needed.
+- `.pmg` versions under `/vehicle/`: 17,672 files, all 0x15. `.pmd`: 17,670 files, all version 4. Versions 0x13 and 0x14 are therefore refused with the clear message, not implemented.
+- HashFS v1 and zip are not needed: every archive is HashFS version 2 with hash method `CITY`.

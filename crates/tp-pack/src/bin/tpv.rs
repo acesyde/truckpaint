@@ -12,7 +12,7 @@ Usage:
                                       templates (PNG, SVG or DDS, converted to PNG).
                                       Default output: <id>-<version>.tpv
   tpv check <file.tpv>                Validate a package and print its contents.
-  tpv extract <installation> --converter <executable> --package-version <version>
+  tpv extract <installation> --package-version <version>
               [--vehicle <identifier>] [--output <directory>] [--previous <batch>]
                                       Extract official ETS2 trucks and owned
                                       trailers. Output parent:
@@ -94,18 +94,9 @@ fn check(args: &[String]) -> Result<(), String> {
 fn extract(args: &[String]) -> Result<(), String> {
     let (installation, values) = parse_options(
         args,
-        &[
-            "--converter",
-            "--vehicle",
-            "--output",
-            "--package-version",
-            "--previous",
-        ],
+        &["--vehicle", "--output", "--package-version", "--previous"],
     )?;
     let installation = installation.ok_or("extract needs an ETS2 installation directory")?;
-    let converter = values
-        .get("--converter")
-        .ok_or("extract needs --converter <executable>")?;
     let package_version = values
         .get("--package-version")
         .ok_or("extract needs --package-version <version>")?
@@ -113,7 +104,6 @@ fn extract(args: &[String]) -> Result<(), String> {
         .map_err(|e| format!("invalid package version: {e}"))?;
     let options = tp_pack::extract::Options {
         installation: installation.into(),
-        converter: converter.into(),
         vehicle: values.get("--vehicle").map(|v| (*v).to_owned()),
         output: values.get("--output").unwrap_or(&"dist").into(),
         package_version,

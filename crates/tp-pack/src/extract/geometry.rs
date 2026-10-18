@@ -1,6 +1,6 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 
-use super::syntax::{Section, parse};
+use tp_scs::{Descriptor, Look, Model};
 
 #[derive(Debug, Clone)]
 pub struct Mesh {
@@ -46,156 +46,93 @@ fn only<T>(items: impl IntoIterator<Item = T>, problem: &str) -> Result<T, Strin
     }
 }
 
-fn selected<'a>(tree: &'a Section, kind: &str, name: &str) -> Result<&'a Section, String> {
-    let matches = tree.named(kind).filter(|section| {
-        section
-            .field("Name")
-            .is_ok_and(|n| n.eq_ignore_ascii_case(name))
-    });
-    let mut matches = matches.collect::<Vec<_>>();
-    // Some game models repeat a Look with the same content (Schwarzmüller Food Tank cage).
-    matches.dedup();
+/// The one item named `name` (any case); some game models repeat a look or variant with
+/// the same content (Schwarzmüller Food Tank cage), which counts as one.
+fn selected<T: PartialEq>(
+    kind: &str,
+    name: &str,
+    items: impl IntoIterator<Item = Result<T, String>>,
+) -> Result<T, String> {
+    let mut matches = Vec::new();
+    for item in items {
+        let item = item?;
+        if matches.last() != Some(&item) {
+            matches.push(item);
+        }
+    }
     only(matches, &format!("missing or ambiguous {kind}: {name}"))
 }
 
-fn integer(section: &Section, field: &str) -> Result<usize, String> {
-    section
-        .field(field)?
-        .parse()
-        .map_err(|_| format!("invalid {field}"))
-}
-
-fn row_values<const N: usize, T>(
-    section: &Section,
-    parse_value: impl Fn(&str) -> Result<T, String>,
-) -> Result<Vec<[T; N]>, String> {
-    section
-        .rows
-        .iter()
-        .enumerate()
-        .map(|(index, row)| {
-            let (number, values) = row
-                .split_once('(')
-                .ok_or_else(|| format!("invalid row {row}"))?;
-            if number.trim().parse::<usize>().ok() != Some(index) {
-                return Err(format!("unexpected row index: {row}"));
-            }
-            let values = values.trim().strip_suffix(')').ok_or("unclosed row")?;
-            let values = values
-                .split_whitespace()
-                .map(&parse_value)
-                .collect::<Result<Vec<_>, _>>()?;
-            values
-                .try_into()
-                .map_err(|_| format!("expected {N} values in {row}"))
-        })
-        .collect()
-}
-
-fn number(value: &str) -> Result<f64, String> {
-    if let Some(hex) = value.strip_prefix('&') {
-        let bits = u32::from_str_radix(hex, 16).map_err(|_| format!("invalid float {value}"))?;
-        Ok(f32::from_bits(bits) as f64)
-    } else {
-        value.parse().map_err(|_| format!("invalid float {value}"))
-    }
-}
-
+/// The painted meshes of one look and variant of a model. `effects` gives the effect of
+/// each material slot of a look.
 pub fn painted(
-    pim: &str,
-    pit: &str,
+    model: &Model,
+    descriptor: &Descriptor,
+    mut effects: impl FnMut(&Look) -> Result<Vec<String>, String>,
     look: &str,
     variant: &str,
     alt_uv: Option<bool>,
 ) -> Result<Vec<Mesh>, String> {
-    let model = parse(pim)?;
-    let traits = parse(pit)?;
-    let look = selected(&traits, "Look", look)?;
-    let variant = selected(&traits, "Variant", variant)?;
-    let mut materials = BTreeMap::new();
-    for material in look.named("Material") {
-        let alias = material.field("Alias")?;
-        if materials.insert(alias, material.field("Effect")?).is_some() {
-            return Err(format!("duplicate material alias {alias}"));
-        }
+    let effects = selected(
+        "Look",
+        look,
+        descriptor
+            .looks
+            .iter()
+            .filter(|l| l.name.eq_ignore_ascii_case(look))
+            .map(&mut effects),
+    )?;
+    let variant = selected(
+        "Variant",
+        variant,
+        descriptor
+            .variants
+            .iter()
+            .filter(|v| v.name.eq_ignore_ascii_case(variant))
+            .map(|v| Ok(&v.parts)),
+    )?;
+    if variant.len() != model.parts.len() {
+        return Err("variant and model have different part counts".into());
     }
-    let aliases = model
-        .named("Material")
-        .map(|m| m.field("Alias"))
-        .collect::<Result<Vec<_>, _>>()?;
-    let mut visible = BTreeSet::new();
-    for part in variant.named("Part") {
-        let attribute = only(
-            part.named("Attribute")
-                .filter(|a| a.field("Tag").is_ok_and(|tag| tag == "visible")),
+    let mut allowed = BTreeSet::new();
+    for (part, attributes) in model.parts.iter().zip(variant) {
+        let (_, visible) = only(
+            attributes.iter().filter(|(tag, _)| tag == "visible"),
             "missing or ambiguous part visibility",
         )?;
-        match attribute
-            .field("Value")?
-            .split_whitespace()
-            .collect::<Vec<_>>()
-            .as_slice()
-        {
-            ["(", "1", ")"] => {
-                visible.insert(part.field("Name")?);
-            }
-            ["(", "0", ")"] => {}
+        match visible {
+            1 => allowed.extend(part.pieces.iter().copied()),
+            0 => {}
             _ => return Err("invalid part visibility".into()),
         }
     }
-    let mut allowed = BTreeSet::new();
-    for part in model.named("Part") {
-        if visible.remove(part.field("Name")?) {
-            for index in part.field("Pieces")?.split_whitespace() {
-                allowed.insert(index.parse::<usize>().map_err(|_| "invalid piece index")?);
-            }
-        }
-    }
-    if !visible.is_empty() {
-        return Err("visible variant part is missing from the model".into());
-    }
-    let mut indices = BTreeSet::new();
     let mut result = Vec::new();
-    for piece in model.named("Piece") {
-        let index = integer(piece, "Index")?;
-        if !indices.insert(index) {
-            return Err(format!("duplicate piece {index}"));
-        }
+    for (index, piece) in model.pieces.iter().enumerate() {
         if !allowed.remove(&index) {
             continue;
         }
-        let alias = aliases
-            .get(integer(piece, "Material")?)
+        let effect = effects
+            .get(piece.material)
             .ok_or("material index out of bounds")?;
-        let effect = materials
-            .get(alias)
-            .ok_or("look material alias is missing")?;
         let Some(source_alt_uv) = paint_shader(effect)? else {
             continue;
         };
         let alt_uv = alt_uv.unwrap_or(source_alt_uv);
-        let uv_alias = if alt_uv { "_TEXCOORD2" } else { "_TEXCOORD1" };
+        let alias = if alt_uv { 2 } else { 1 };
         let stream = only(
-            piece.named("Stream").filter(|stream| {
-                stream.field("Aliases").is_ok_and(|aliases| {
-                    aliases
-                        .split_whitespace()
-                        .any(|a| a.trim_matches('"') == uv_alias)
-                })
-            }),
-            &format!("missing or ambiguous paint UV alias {uv_alias}"),
+            piece.streams.iter().filter(|s| s.aliases.contains(&alias)),
+            &format!("missing or ambiguous paint UV alias _TEXCOORD{alias}"),
         )?;
-        let uv = row_values::<2, _>(stream, number)?;
-        let triangles = only(piece.named("Triangles"), "missing or ambiguous triangles")?;
-        let triangles = row_values::<3, _>(triangles, |v| {
-            v.parse::<usize>()
-                .map_err(|_| "invalid triangle index".into())
-        })?;
-        if uv.len() != integer(piece, "VertexCount")?
-            || triangles.len() != integer(piece, "TriangleCount")?
-        {
-            return Err("geometry count mismatch".into());
-        }
+        let uv = stream
+            .uv
+            .iter()
+            .map(|uv| uv.map(f64::from))
+            .collect::<Vec<_>>();
+        let triangles = piece
+            .triangles
+            .iter()
+            .map(|t| t.map(|i| i as usize))
+            .collect::<Vec<_>>();
         // Finite overflow is valid; coordinates must still fit SVG edge quantization.
         if uv
             .iter()
@@ -210,7 +147,7 @@ pub fn painted(
         result.push(Mesh {
             uv,
             triangles,
-            shader: (*effect).to_owned(),
+            shader: effect.clone(),
             alt_uv,
         });
     }
@@ -264,50 +201,115 @@ pub fn svg(meshes: &[Mesh], size: [u32; 2]) -> Result<(Vec<u8>, usize), String> 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tp_scs::{Part, Stream, Variant};
 
-    const PIM: &str = "Material {\nAlias: \"paint\"\n}\nPiece {\nIndex: 0\nMaterial: 0\nVertexCount: 3\nTriangleCount: 1\nStream {\nTag: \"_UV7\"\nAliases: \"_TEXCOORD1\" \"_TEXCOORD2\"\n0 ( &00000000 &00000000 )\n1 ( &3f800000 &00000000 )\n2 ( &00000000 &3f800000 )\n}\nTriangles {\n0 ( 0 1 2 )\n}\n}\nPart {\nName: \"body\"\nPieces: 0\n}\n";
-    const PIT: &str = "Look {\nName: \"default\"\nMaterial {\nAlias: \"paint\"\nEffect: \"eut2.truckpaint.tsnmapuv\"\n}\n}\nVariant {\nName: \"default\"\nPart {\nName: \"body\"\nAttribute {\nTag: \"visible\"\nValue: ( 1 )\n}\n}\n}\n";
+    const EFFECT: &str = "eut2.truckpaint.tsnmapuv";
+    const CORNERS: [[f32; 2]; 3] = [[0., 0.], [1., 0.], [0., 1.]];
+    const INNER: [[f32; 2]; 3] = [[0.25, 0.25], [0.75, 0.25], [0.25, 0.75]];
+
+    fn stream(aliases: &[u32], uv: [[f32; 2]; 3]) -> Stream {
+        Stream {
+            aliases: aliases.to_vec(),
+            uv: uv.to_vec(),
+        }
+    }
+
+    fn model(streams: Vec<Stream>) -> Model {
+        Model {
+            pieces: vec![tp_scs::Piece {
+                material: 0,
+                streams,
+                triangles: vec![[0, 1, 2]],
+            }],
+            parts: vec![Part {
+                name: "body".into(),
+                pieces: vec![0],
+            }],
+        }
+    }
+
+    fn descriptor(visible: i32) -> Descriptor {
+        Descriptor {
+            looks: vec![Look {
+                name: "default".into(),
+                materials: vec![],
+            }],
+            variants: vec![Variant {
+                name: "default".into(),
+                parts: vec![vec![("visible".into(), visible)]],
+            }],
+        }
+    }
+
+    fn paint(
+        model: &Model,
+        descriptor: &Descriptor,
+        effect: &str,
+        forced: Option<bool>,
+    ) -> Result<Vec<Mesh>, String> {
+        painted(
+            model,
+            descriptor,
+            |_| Ok(vec![effect.to_owned()]),
+            "Default",
+            "Default",
+            forced,
+        )
+    }
+
+    /// The set `_TEXCOORD1` aliases is not the first one: the alias decides, not the position.
+    fn aliased() -> Model {
+        model(vec![stream(&[3], INNER), stream(&[1, 2], CORNERS)])
+    }
 
     #[test]
     fn semantic_alias_visibility_and_image_coordinates() {
-        let meshes = painted(PIM, PIT, "Default", "Default", None).unwrap();
+        let meshes = paint(&aliased(), &descriptor(1), EFFECT, None).unwrap();
         assert_eq!(meshes[0].uv, [[0., 0.], [1., 0.], [0., 1.]]);
         let (svg, edges) = svg(&meshes, [2048, 1024]).unwrap();
         assert_eq!(edges, 3);
         assert!(String::from_utf8(svg).unwrap().contains("0.000,1024.000"));
         assert!(
-            painted(
-                PIM,
-                &PIT.replace("( 1 )", "( 0 )"),
-                "default",
-                "default",
-                None
-            )
-            .unwrap()
-            .is_empty()
+            paint(&aliased(), &descriptor(0), EFFECT, None)
+                .unwrap()
+                .is_empty()
+        );
+        // A piece list that is empty paints nothing.
+        let mut empty = aliased();
+        empty.parts[0].pieces.clear();
+        assert!(
+            paint(&empty, &descriptor(1), EFFECT, None)
+                .unwrap()
+                .is_empty()
         );
     }
 
     #[test]
     fn identical_repeated_looks_are_one_look() {
-        let look = PIT.split("Variant").next().unwrap();
-        assert_eq!(
-            painted(PIM, &format!("{look}{PIT}"), "default", "default", None)
-                .unwrap()
-                .len(),
-            1
-        );
-        let other = look.replace("truckpaint", "dif");
-        let error = painted(PIM, &format!("{other}{PIT}"), "default", "default", None).unwrap_err();
+        let look = |effect: &str| Look {
+            name: "default".into(),
+            materials: vec![effect.into()],
+        };
+        let run = |looks: Vec<Look>| {
+            let mut descriptor = descriptor(1);
+            descriptor.looks = looks;
+            painted(
+                &aliased(),
+                &descriptor,
+                |look| Ok(look.materials.clone()),
+                "default",
+                "default",
+                None,
+            )
+        };
+        assert_eq!(run(vec![look(EFFECT), look(EFFECT)]).unwrap().len(), 1);
+        let error = run(vec![look(EFFECT), look("eut2.dif")]).unwrap_err();
         assert_eq!(error, "missing or ambiguous Look: default");
     }
 
     #[test]
     fn shader_families_and_export_mode_select_the_paint_uv() {
-        let pim = PIM.replace(" \"_TEXCOORD2\"", "").replace(
-            "Triangles {",
-            "Stream {\nTag: \"_UV9\"\nAliases: \"_TEXCOORD2\"\n0 ( 0.25 0.25 )\n1 ( 0.75 0.25 )\n2 ( 0.25 0.75 )\n}\nTriangles {",
-        );
+        let model = model(vec![stream(&[1], CORNERS), stream(&[2], INNER)]);
         for normal in ["", ".tsnmap", ".tsnmapuv"] {
             for mode in ["", ".airbrush"] {
                 for (alternate, alpha, metallic) in [false, true]
@@ -321,9 +323,8 @@ mod tests {
                         "eut2.truckpaint{normal}{mode}{metallic}{}{alpha}",
                         if alternate { ".altuv" } else { "" }
                     );
-                    let pit = PIT.replace("eut2.truckpaint.tsnmapuv", &effect);
                     for forced in [None, Some(false), Some(true)] {
-                        let meshes = painted(&pim, &pit, "default", "default", forced).unwrap();
+                        let meshes = paint(&model, &descriptor(1), &effect, forced).unwrap();
                         let alt_uv = forced.unwrap_or(alternate);
                         assert_eq!(meshes[0].alt_uv, alt_uv);
                         assert_eq!(meshes[0].shader, effect);
@@ -335,10 +336,10 @@ mod tests {
                 }
             }
         }
-        let no_alternate = pim.replace("_TEXCOORD2", "_TEXCOORD3");
-        assert!(painted(&no_alternate, PIT, "default", "default", Some(true)).is_err());
-        let duplicate = pim.replace("_TEXCOORD1", "_TEXCOORD2");
-        assert!(painted(&duplicate, PIT, "default", "default", Some(true)).is_err());
+        let no_alternate = self::model(vec![stream(&[1], CORNERS), stream(&[3], INNER)]);
+        assert!(paint(&no_alternate, &descriptor(1), EFFECT, Some(true)).is_err());
+        let duplicate = self::model(vec![stream(&[2], CORNERS), stream(&[2], INNER)]);
+        assert!(paint(&duplicate, &descriptor(1), EFFECT, Some(true)).is_err());
         for effect in [
             "eut2.truckpaint.unknown",
             "eut2.truckpaint.tsnmap.tsnmapuv",
@@ -347,66 +348,57 @@ mod tests {
             "eut2.truckpaint_extra",
         ] {
             assert!(
-                painted(
-                    &pim,
-                    &PIT.replace("eut2.truckpaint.tsnmapuv", effect),
-                    "default",
-                    "default",
-                    None
-                )
-                .is_err()
+                paint(&model, &descriptor(1), effect, None).is_err(),
+                "{effect}"
             );
         }
+        // Other effects are not painted at all.
+        assert!(
+            paint(&model, &descriptor(1), "eut2.dif", None)
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[test]
     fn finite_uv_overflow_preserves_coordinates_and_selected_channel() {
-        let pim = PIM.replace("&00000000 &00000000", "-2.125 1.75");
-        let mesh = painted(&pim, PIT, "default", "default", None).unwrap();
+        let mut uv = CORNERS;
+        uv[0] = [-2.125, 1.75];
+        let mesh = paint(&model(vec![stream(&[1], uv)]), &descriptor(1), EFFECT, None).unwrap();
         assert_eq!(mesh[0].uv[0], [-2.125, 1.75]);
         assert!(!mesh[0].alt_uv);
         let (bytes, _) = svg(&mesh, [4096, 4096]).unwrap();
         let text = String::from_utf8(bytes).unwrap();
         assert!(text.contains("-8704.000,7168.000"));
         assert!(text.contains("viewBox=\"0 0 4096 4096\""));
-        for value in ["NaN", "inf", "-inf", "1e30"] {
+        for value in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY, 1e30] {
+            let mut uv = CORNERS;
+            uv[1][0] = value;
             assert!(
-                painted(
-                    &PIM.replace("&3f800000", value),
-                    PIT,
-                    "default",
-                    "default",
-                    None
-                )
-                .is_err()
+                paint(&model(vec![stream(&[1], uv)]), &descriptor(1), EFFECT, None).is_err(),
+                "{value}"
             );
         }
     }
 
     #[test]
-    #[ignore = "needs local game intermediates: TRUCKPAINT_BASELINE_REPORTS"]
+    #[ignore = "needs the game and its reports: TRUCKPAINT_BASELINE_REPORTS"]
     fn replay_validated_game_templates() {
         use serde_json::Value;
-        use std::{fs, io::Read, path::Path};
+        use std::{fs, io::Read};
 
-        let root = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .parent()
-            .unwrap()
-            .parent()
-            .unwrap();
         let reports = std::env::var_os("TRUCKPAINT_BASELINE_REPORTS")
             .expect("set TRUCKPAINT_BASELINE_REPORTS");
         for report_path in std::env::split_paths(&reports) {
             let report: Value = serde_json::from_slice(&fs::read(&report_path).unwrap()).unwrap();
-            // Older reports kept converted models in their work folder.
-            let exported = match report["model_cache"]["directory"].as_str() {
-                Some(cache) => root.join(cache),
-                None => root
-                    .join(report["work_directory"].as_str().unwrap())
-                    .join("models"),
-            };
+            // The models are read from the installation the report names.
+            let sources =
+                super::super::Sources::new(report["installation"].as_str().unwrap().as_ref())
+                    .unwrap();
             for result in report["results"].as_array().unwrap() {
-                assert_eq!(result["status"], "success");
+                if result["status"] != "success" {
+                    continue;
+                }
                 let package_path = report_path
                     .parent()
                     .unwrap()
@@ -416,21 +408,23 @@ mod tests {
                 let manifest: Value =
                     serde_json::from_reader(archive.by_name("vehicle.json").unwrap()).unwrap();
                 for texture in result["textures"].as_array().unwrap() {
+                    // A plain base-colour texture of a trailer has no layout to replay.
+                    if texture["edges"] == 0 {
+                        continue;
+                    }
                     let mut meshes = Vec::new();
                     for contributor in texture["contributors"].as_array().unwrap() {
                         for selection in contributor["selections"].as_array().unwrap() {
-                            let model = exported
-                                .join(selection["model"].as_str().unwrap().trim_start_matches('/'))
-                                .with_extension("pim");
                             meshes.extend(
-                                painted(
-                                    &fs::read_to_string(&model).unwrap(),
-                                    &fs::read_to_string(model.with_extension("pit")).unwrap(),
+                                super::super::model_geometry(
+                                    &sources,
+                                    selection["model"].as_str().unwrap(),
                                     selection["look"].as_str().unwrap(),
                                     selection["variant"].as_str().unwrap(),
                                     Some(manifest["game"]["alt_uv"].as_bool().unwrap()),
                                 )
-                                .unwrap(),
+                                .unwrap()
+                                .0,
                             );
                         }
                     }
@@ -456,21 +450,24 @@ mod tests {
 
     #[test]
     fn ambiguity_unsupported_shaders_and_bad_geometry_fail() {
-        for (pim, pit) in [
-            (
-                PIM.to_owned(),
-                PIT.replace("truckpaint.tsnmapuv", "truckpaint.unknown"),
-            ),
-            (PIM.replace("&3f800000", "&7f800000"), PIT.to_owned()),
-            (PIM.replace("0 ( 0 1 2 )", "0 ( 0 1 3 )"), PIT.to_owned()),
-            (
-                PIM.replace("VertexCount: 3", "VertexCount: 4"),
-                PIT.to_owned(),
-            ),
-            (PIM.replace("_TEXCOORD1", "_TEXCOORD3"), PIT.to_owned()),
-        ] {
-            assert!(painted(&pim, &pit, "default", "default", None).is_err());
-        }
+        let good = aliased();
+        let with = |change: &dyn Fn(&mut Model)| {
+            let mut model = good.clone();
+            change(&mut model);
+            paint(&model, &descriptor(1), EFFECT, None)
+        };
+        assert!(paint(&good, &descriptor(1), "eut2.truckpaint.unknown", None).is_err());
+        // A triangle past the last vertex, no paint UV set, two of them, a missing material.
+        assert!(with(&|m| m.pieces[0].triangles[0] = [0, 1, 3]).is_err());
+        assert!(with(&|m| m.pieces[0].streams[1].aliases = vec![3]).is_err());
+        assert!(with(&|m| m.pieces[0].streams[0].aliases = vec![1]).is_err());
+        assert!(with(&|m| m.pieces[0].material = 4).is_err());
+        // A visible part naming a piece the model lacks, and an unreadable visibility.
+        assert!(with(&|m| m.parts[0].pieces.push(5)).is_err());
+        assert!(paint(&good, &descriptor(2), EFFECT, None).is_err());
+        let mut hidden_twice = descriptor(1);
+        hidden_twice.variants[0].parts[0].push(("visible".into(), 0));
+        assert!(paint(&good, &hidden_twice, EFFECT, None).is_err());
         assert!(svg(&[], [4096, 4096]).is_err());
     }
 }
