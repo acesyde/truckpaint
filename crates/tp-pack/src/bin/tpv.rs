@@ -19,13 +19,6 @@ Usage:
                                       dist/ by default, one unique directory per batch.
                                       --previous: the last published batch; changed
                                       templates get the next layout version.
-  tpv index <folder> --base-url <url> [-o <catalog.json>] [--previous <catalog.json>]
-            [--default-license <text>] [--default-notice <text>] [--check]
-                                      Build the Marketplace catalog from the folder's
-                                      .tpv files. Default output: <folder>/catalog.json.
-                                      --previous: the published catalog; its versions
-                                      may not change or disappear.
-                                      --check: run every check, write nothing.
   tpv --help                          Show this help.
 
 Each texture's size is [width, height] in pixels, each side a power of two
@@ -39,7 +32,6 @@ fn main() -> ExitCode {
         Some("pack") => pack(&args[1..]),
         Some("check") => check(&args[1..]),
         Some("extract") => extract(&args[1..]),
-        Some("index") => index(&args[1..]),
         Some("-h" | "--help" | "help") => {
             println!("{USAGE}");
             return ExitCode::SUCCESS;
@@ -96,70 +88,6 @@ fn check(args: &[String]) -> Result<(), String> {
     let bytes = std::fs::read(file).map_err(|e| format!("{file}: {e}"))?;
     let manifest = tp_pack::check(&bytes).map_err(|e| format!("{file}: {e}"))?;
     print!("{}", tp_pack::summary(&manifest));
-    Ok(())
-}
-
-fn index(args: &[String]) -> Result<(), String> {
-    let check_only = args.iter().any(|a| a == "--check");
-    let args: Vec<String> = args.iter().filter(|a| *a != "--check").cloned().collect();
-    let (folder, values) = parse_options(
-        &args,
-        &[
-            "--base-url",
-            "-o",
-            "--output",
-            "--previous",
-            "--default-license",
-            "--default-notice",
-        ],
-    )?;
-    let folder = PathBuf::from(folder.ok_or("index needs a folder of .tpv files")?);
-    let base_url = values
-        .get("--base-url")
-        .ok_or("index needs --base-url <url>")?;
-    let mut files = Vec::new();
-    for entry in std::fs::read_dir(&folder).map_err(|e| format!("{}: {e}", folder.display()))? {
-        let path = entry.map_err(|e| e.to_string())?.path();
-        if path
-            .extension()
-            .is_some_and(|e| e == tp_vehicles::EXTENSION)
-        {
-            let name = path
-                .file_name()
-                .unwrap_or_default()
-                .to_string_lossy()
-                .into_owned();
-            let bytes = std::fs::read(&path).map_err(|e| format!("{}: {e}", path.display()))?;
-            files.push((name, bytes));
-        }
-    }
-    files.sort();
-    let previous = match values.get("--previous") {
-        Some(p) => {
-            let bytes = std::fs::read(p).map_err(|e| format!("{p}: {e}"))?;
-            Some(tp_vehicles::catalog::Catalog::parse(&bytes).map_err(|e| format!("{p}: {e}"))?)
-        }
-        None => None,
-    };
-    let options = tp_pack::index::Options {
-        base_url,
-        default_license: values.get("--default-license").copied(),
-        default_notice: values.get("--default-notice").copied(),
-        previous: previous.as_ref(),
-    };
-    let catalog = tp_pack::index::build(&files, &options).map_err(|p| p.join("\n"))?;
-    if check_only {
-        println!("{} packages, all valid", catalog.packages.len());
-        return Ok(());
-    }
-    let output = values
-        .get("-o")
-        .or(values.get("--output"))
-        .map(PathBuf::from)
-        .unwrap_or_else(|| folder.join("catalog.json"));
-    std::fs::write(&output, tp_pack::index::to_json(&catalog))
-        .map_err(|e| format!("{}: {e}", output.display()))?;
-    println!("{}: {} packages", output.display(), catalog.packages.len());
     Ok(())
 }
 

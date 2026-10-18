@@ -10,12 +10,11 @@ import Ui from '~/components/Ui.astro';
 
 TruckPaint peint les véhicules qu’il connaît grâce aux **paquets de véhicules**. Un paquet (un fichier `.tpv`) décrit un camion ou une remorque : les gabarits de ses textures, et les données de jeu dont un mod a besoin, comme le chemin du véhicule dans le jeu, les noms internes de ses cabines et les identifiants de ses accessoires. Chaque paquet a une version, pour qu’un véhicule puisse suivre les mises à jour du jeu.
 
-Vos véhicules viennent de cinq sources :
+Vos véhicules viennent de quatre sources :
 
 - les **paquets de camions et remorques officiels ETS2**, générés depuis le jeu installé puis installés manuellement : voir [Véhicules officiels](../official-vehicles/) ;
 - les **véhicules d’exemple** fournis avec TruckPaint, un camion et une remorque dessinés pour lui, pour essayer l’application sans fichiers du jeu ;
 - les **véhicules personnalisés** que vous créez vous-même à partir de fichiers de gabarit : voir [Véhicules personnalisés](../custom-vehicles/) ;
-- la **Marketplace**, le catalogue public de paquets, dans la bibliothèque de véhicules : voir [Installer depuis la Marketplace](#installer-depuis-la-marketplace) ;
 - les fichiers `.tpv` que quelqu’un a partagés avec vous.
 
 ## Ouvrir la bibliothèque de véhicules
@@ -24,7 +23,7 @@ Choisissez <Ui id="menu-vehicle" /> › <Ui id="cmd-vehicle-library" />. Cela fo
 
 <Shot name="vehicles/library" alt="La boîte de dialogue Bibliothèque de véhicules, avec la liste des véhicules installés à gauche et les détails du véhicule choisi à droite" />
 
-La boîte de dialogue a trois onglets : <Ui id="vehicles-tab-installed" args={{ count: 2 }} />, avec tous les véhicules installés, un deuxième onglet avec uniquement vos véhicules personnalisés, et <Ui id="vehicles-tab-marketplace" />, les véhicules à télécharger. Chaque onglet indique combien de véhicules il contient. Au-dessus de la liste, recherchez par nom ou par marque, et filtrez par jeu et par type.
+La boîte de dialogue a deux onglets : <Ui id="vehicles-tab-installed" args={{ count: 2 }} /> avec tous les véhicules installés et un deuxième onglet avec uniquement vos véhicules personnalisés. Chaque onglet indique combien de véhicules il contient. Au-dessus de la liste, recherchez par nom ou par marque, et filtrez par jeu et par type.
 
 Chaque ligne affiche le nom du véhicule, sa marque, son type et son jeu, sa version installée la plus récente, et un statut :
 
@@ -43,29 +42,6 @@ Sous <Ui id="vehicles-installed-versions" />, toutes les versions installées du
 Cliquez sur <Ui id="vehicles-install" /> et choisissez un ou plusieurs fichiers `.tpv`. Vous pouvez aussi déposer des fichiers `.tpv` sur l’écran d’accueil ou sur un projet ouvert. Une confirmation nomme chaque véhicule et chaque version installés. Installer une version déjà présente la remplace.
 
 Quand aucun véhicule n’est installé, la bibliothèque explique ce que sont les paquets et propose <Ui id="vehicles-install-sample" />.
-
-## Installer depuis la Marketplace
-
-L’onglet <Ui id="vehicles-tab-marketplace" /> liste les véhicules du catalogue public. TruckPaint télécharge le catalogue quand vous ouvrez l’onglet, et à nouveau quand vous cliquez sur <Ui id="market-refresh" />. Il ne contacte le catalogue à aucun autre moment et n’envoie rien sur vous.
-
-<Shot name="vehicles/marketplace" alt="L’onglet Marketplace de la bibliothèque de véhicules : la mention légale, les véhicules du catalogue avec leur taille et leur statut, et les détails du véhicule choisi" />
-
-Au-dessus de la liste, une mention rappelle que les véhicules issus des jeux appartiennent à SCS Software et aux constructeurs, et que les paquets sont réservés au modding personnel, jamais à la vente.
-
-Recherchez et filtrez la liste comme dans les autres onglets. Chaque ligne indique la version proposée, sa taille de téléchargement et un statut :
-
-- <Ui id="market-status-install" /> : le véhicule n’est pas installé ;
-- <Ui id="vehicles-status-update" /> : une version plus ancienne est installée ;
-- <Ui id="market-status-installed" /> : la version la plus récente est installée ;
-- <Ui id="market-status-too-new" /> : cette version de TruckPaint ne sait pas la lire.
-
-Cliquez sur un véhicule pour voir sa licence, ses auteurs, ses nouveautés et ses versions précédentes, puis sur <Ui id="market-install-version" args={{ version: '1.2.0' }} /> ou <Ui id="market-update-to" args={{ version: '1.2.0' }} />. Pour en installer plusieurs à la fois, cochez-les et cliquez sur <Ui id="market-install-checked" args={{ count: 3 }} />. Vous pouvez annuler entre deux téléchargements ; les véhicules déjà téléchargés restent installés.
-
-Chaque téléchargement est comparé au catalogue avant d’être installé, puis vérifié comme n’importe quel paquet. Un fichier endommagé ou modifié est refusé, et rien n’est installé.
-
-**Hors ligne,** l’onglet affiche le dernier catalogue téléchargé, avec la date de sa mise à jour, et l’installation est désactivée jusqu’à ce que le catalogue soit de nouveau accessible.
-
-**Un autre catalogue :** <Ui id="prefs-catalog-url" /> dans <Ui id="cmd-preferences" /> fait pointer la Marketplace vers un autre catalogue, pour en tester un avant de le publier. Laissez le champ vide pour le catalogue officiel. Pour publier un paquet, voir [le format des paquets](../package-format/#publishing-in-the-marketplace).
 
 ## Voir ce que change une mise à jour
 

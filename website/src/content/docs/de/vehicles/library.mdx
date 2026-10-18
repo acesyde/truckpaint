@@ -10,12 +10,11 @@ import Ui from '~/components/Ui.astro';
 
 TruckPaint lackiert Fahrzeuge, die es über **Fahrzeugpakete** kennt. Ein Paket (eine `.tpv`-Datei) beschreibt einen Lkw oder Anhänger: die Vorlagen seiner Texturen und die Spieldaten, die ein Mod braucht, etwa den Pfad des Fahrzeugs im Spiel, die internen Namen seiner Kabinen und die Kennungen seiner Zubehörteile. Jedes Paket hat eine Version, damit ein Fahrzeug den Updates des Spiels folgen kann.
 
-Ihre Fahrzeuge stammen aus fünf Quellen:
+Ihre Fahrzeuge stammen aus vier Quellen:
 
 - **offizielle ETS2-Lkw- und Auflieger-Pakete**, die aus dem installierten Spiel erzeugt und manuell installiert werden: siehe [Offizielle Fahrzeuge](../official-vehicles/);
 - die **Beispielfahrzeuge**, die mit TruckPaint geliefert werden, ein eigens dafür gezeichneter Lkw und Anhänger, um die App ohne Spieldateien auszuprobieren;
 - **eigene Fahrzeuge**, die Sie selbst aus Vorlagendateien erstellen: siehe [Eigene Fahrzeuge](../custom-vehicles/);
-- der **Marktplatz**, der öffentliche Paketkatalog in der Fahrzeugbibliothek: siehe [Aus dem Marktplatz installieren](#aus-dem-marktplatz-installieren);
 - `.tpv`-Dateien, die jemand mit Ihnen geteilt hat.
 
 ## Die Fahrzeugbibliothek öffnen
@@ -24,7 +23,7 @@ Wählen Sie <Ui id="menu-vehicle" /> › <Ui id="cmd-vehicle-library" />. Das fu
 
 <Shot name="vehicles/library" alt="Der Dialog Fahrzeugbibliothek, links die Liste der installierten Fahrzeuge, rechts die Details des gewählten Fahrzeugs" />
 
-Der Dialog hat drei Registerkarten: <Ui id="vehicles-tab-installed" args={{ count: 2 }} /> mit allen installierten Fahrzeugen, eine zweite nur mit Ihren eigenen Fahrzeugen und <Ui id="vehicles-tab-marketplace" /> mit den Fahrzeugen zum Herunterladen. Jede Registerkarte zeigt, wie viele Fahrzeuge sie enthält. Über der Liste suchen Sie nach Name oder Marke und filtern nach Spiel und Art.
+Der Dialog hat zwei Registerkarten: <Ui id="vehicles-tab-installed" args={{ count: 2 }} /> mit allen installierten Fahrzeugen und eine zweite nur mit Ihren eigenen Fahrzeugen. Jede Registerkarte zeigt, wie viele Fahrzeuge sie enthält. Über der Liste suchen Sie nach Name oder Marke und filtern nach Spiel und Art.
 
 Jede Zeile zeigt Name, Marke, Art und Spiel des Fahrzeugs, seine neueste installierte Version und einen Status:
 
@@ -43,29 +42,6 @@ Unter <Ui id="vehicles-installed-versions" /> ist jede installierte Version des 
 Klicken Sie auf <Ui id="vehicles-install" /> und wählen Sie eine oder mehrere `.tpv`-Dateien. Sie können `.tpv`-Dateien auch auf den Startbildschirm oder auf ein geöffnetes Projekt ziehen. Eine Bestätigung nennt jedes installierte Fahrzeug und seine Version. Wird eine bereits vorhandene Version installiert, ersetzt sie die alte.
 
 Ist kein Fahrzeug installiert, erklärt die Bibliothek, was Pakete sind, und bietet <Ui id="vehicles-install-sample" /> an.
-
-## Aus dem Marktplatz installieren
-
-Die Registerkarte <Ui id="vehicles-tab-marketplace" /> listet die Fahrzeuge des öffentlichen Katalogs. TruckPaint lädt den Katalog, wenn Sie die Registerkarte öffnen, und erneut, wenn Sie auf <Ui id="market-refresh" /> klicken. Zu keinem anderen Zeitpunkt kontaktiert es den Katalog, und es sendet nichts über Sie.
-
-<Shot name="vehicles/marketplace" alt="Die Registerkarte Marktplatz der Fahrzeugbibliothek: der rechtliche Hinweis, die Fahrzeuge des Katalogs mit Größe und Status und die Details des gewählten Fahrzeugs" />
-
-Über der Liste erinnert ein Hinweis daran, dass Fahrzeuge aus den Spielen SCS Software und den Fahrzeugherstellern gehören und dass die Pakete nur für privates Modding gedacht sind, nie zum Verkauf.
-
-Suchen und filtern Sie die Liste wie in den anderen Registerkarten. Jede Zeile zeigt die angebotene Version, ihre Downloadgröße und einen Status:
-
-- <Ui id="market-status-install" />: das Fahrzeug ist nicht installiert;
-- <Ui id="vehicles-status-update" />: eine ältere Version ist installiert;
-- <Ui id="market-status-installed" />: die neueste Version ist installiert;
-- <Ui id="market-status-too-new" />: diese Version von TruckPaint kann es nicht lesen.
-
-Klicken Sie auf ein Fahrzeug, um Lizenz, Autoren, Änderungen und ältere Versionen zu sehen, und dann auf <Ui id="market-install-version" args={{ version: '1.2.0' }} /> oder <Ui id="market-update-to" args={{ version: '1.2.0' }} />. Um mehrere auf einmal zu installieren, markieren Sie sie und klicken auf <Ui id="market-install-checked" args={{ count: 3 }} />. Sie können zwischen zwei Downloads abbrechen; bereits heruntergeladene Fahrzeuge bleiben installiert.
-
-Jeder Download wird vor der Installation mit dem Katalog verglichen und dann wie jedes Paket geprüft. Eine beschädigte oder veränderte Datei wird abgelehnt, und nichts wird installiert.
-
-**Offline** zeigt die Registerkarte den zuletzt geladenen Katalog mit dem Zeitpunkt seiner Aktualisierung, und das Installieren ist deaktiviert, bis der Katalog wieder erreichbar ist.
-
-**Ein anderer Katalog:** <Ui id="prefs-catalog-url" /> in <Ui id="cmd-preferences" /> lässt den Marktplatz einen anderen Katalog verwenden, um ihn vor der Veröffentlichung zu testen. Lassen Sie das Feld leer für den offiziellen Katalog. Zum Veröffentlichen eines Pakets siehe [das Paketformat](../package-format/#publishing-in-the-marketplace).
 
 ## Sehen, was ein Update ändert
 

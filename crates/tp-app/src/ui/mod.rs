@@ -7,7 +7,6 @@ pub mod export_dialog;
 pub mod gallery;
 pub mod home;
 pub mod library_dialog;
-pub mod marketplace_tab;
 pub mod menu_bar;
 pub mod mod_export_dialog;
 pub mod new_project;

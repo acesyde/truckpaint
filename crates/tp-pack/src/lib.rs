@@ -12,7 +12,6 @@ use tp_vehicles::{MANIFEST, Manifest, Package, PackageError};
 pub mod custom;
 pub mod dds;
 pub mod extract;
-pub mod index;
 
 /// Why a folder could not be packed or a package is invalid.
 #[derive(Debug)]

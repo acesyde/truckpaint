@@ -795,7 +795,7 @@ impl<'a> Build<'a> {
             .map_err(|_| "invalid game minor version")?;
         let next = minor.checked_add(1).ok_or("invalid game version")?;
         let vehicle = self.vehicle;
-        let manifest = json!({"format":1,"id":format!("official.ets2.{vehicle}"),"version":package_version,"name":name,"brand":brand,"kind":self.kind.manifest(),"description":format!("Generated from ETS2 {game_version}; technical validation only."),"authors":["SCS Software","TruckPaint contributors"],"license":LICENSE,"homepage":"https://github.com/acesyde/truckpaint-marketplace","game":{"id":"ets2","path":vehicle,"versions":format!(">=1.{minor}, <1.{next}"),"alt_uv":false,"colour_picker":false},"paint_job":{"main":textures.main,"accessories":textures.accessories}});
+        let manifest = json!({"format":1,"id":format!("official.ets2.{vehicle}"),"version":package_version,"name":name,"brand":brand,"kind":self.kind.manifest(),"description":format!("Generated from ETS2 {game_version}; technical validation only."),"authors":["SCS Software","TruckPaint contributors"],"license":LICENSE,"game":{"id":"ets2","path":vehicle,"versions":format!(">=1.{minor}, <1.{next}"),"alt_uv":false,"colour_picker":false},"paint_job":{"main":textures.main,"accessories":textures.accessories}});
         self.stage = "package-validation";
         let packed =
             crate::pack_entries(manifest, textures.templates).map_err(|e| e.to_string())?;

@@ -467,8 +467,6 @@ pub enum LibraryTab {
     Installed,
     /// The custom vehicles.
     Mine,
-    /// The catalog's vehicles, to install.
-    Marketplace,
 }
 
 /// State of the Vehicle Library dialog.
@@ -483,8 +481,6 @@ pub struct LibraryDialog {
     pub confirm_remove: Option<(String, semver::Version, String)>,
     /// Results of the last installation.
     pub messages: Vec<Result<String, String>>,
-    /// Marketplace vehicles checked for installation.
-    pub market_checked: std::collections::BTreeSet<String>,
 }
 
 /// A vehicle's status in the Vehicle Library.
@@ -668,7 +664,6 @@ struct LibraryClicks {
     update: Option<String>,
     /// Update in the update summary: the shown vehicle of the open project.
     update_open: bool,
-    market: super::marketplace_tab::MarketClicks,
     export: Option<(std::path::PathBuf, String)>,
     remove: Option<(String, semver::Version, String)>,
 }
@@ -677,11 +672,6 @@ struct LibraryClicks {
 pub fn library(ctx: &egui::Context, state: &mut AppState, dialog: &mut LibraryDialog) -> bool {
     let mut keep = true;
     let mut clicks = LibraryClicks::default();
-    let catalog_url = crate::marketplace::address(state.prefs.catalog_url.as_deref());
-    if dialog.tab == LibraryTab::Marketplace {
-        state.marketplace.open(ctx, &catalog_url);
-    }
-    install_downloaded(state, dialog);
     let screen = ctx.content_rect();
     let width = (screen.width() - 96.0).clamp(760.0, 1100.0);
     let body_height = (screen.height() - 280.0).clamp(300.0, 600.0);
@@ -730,14 +720,9 @@ pub fn library(ctx: &egui::Context, state: &mut AppState, dialog: &mut LibraryDi
                 tr!("vehicles-tab-installed", count = installed),
                 tr!("vehicles-tab-mine", count = mine),
             );
-            let market = match &state.marketplace.catalog {
-                Some(c) => tr!("vehicles-tab-marketplace-count", count = c.ids().len()),
-                None => tr("vehicles-tab-marketplace"),
-            };
             if let Some(tab) = SegmentedControl::new()
                 .segment(LibraryTab::Installed, "", &all, None)
                 .segment(LibraryTab::Mine, "", &custom, None)
-                .segment(LibraryTab::Marketplace, "", &market, None)
                 .show(ui, dialog.tab)
             {
                 dialog.tab = tab;
@@ -754,19 +739,7 @@ pub fn library(ctx: &egui::Context, state: &mut AppState, dialog: &mut LibraryDi
         ui.add_space(space::SM);
         super::dialogs::messages(ui, &dialog.messages);
         ui.add_space(space::SM);
-        if dialog.tab == LibraryTab::Marketplace {
-            super::marketplace_tab::body(
-                ui,
-                &state.marketplace,
-                library,
-                &mut dialog.filter,
-                &mut dialog.selected,
-                &mut dialog.market_checked,
-                body_height,
-                DETAIL_WIDTH,
-                &mut clicks.market,
-            );
-        } else if installed == 0 {
+        if installed == 0 {
             ui.allocate_ui(egui::vec2(ui.available_width(), body_height), |ui| {
                 ui.vertical_centered(|ui| {
                     EmptyState::new(
@@ -866,25 +839,6 @@ pub fn library(ctx: &egui::Context, state: &mut AppState, dialog: &mut LibraryDi
         });
     });
     keep &= !clicks.close;
-    if clicks.market.refresh {
-        state.marketplace.refresh(ctx, &catalog_url);
-    }
-    if clicks.market.cancel {
-        state.marketplace.cancel();
-    }
-    if !clicks.market.install.is_empty()
-        && let Some(catalog) = &state.marketplace.catalog
-    {
-        let app = super::marketplace_tab::app_version();
-        let entries = clicks
-            .market
-            .install
-            .iter()
-            .filter_map(|id| catalog.newest_compatible(id, &app).cloned())
-            .collect();
-        dialog.messages.clear();
-        state.marketplace.install(ctx, entries);
-    }
     if clicks.confirm
         && let Some((id, version, _)) = dialog.confirm_remove.take()
         && let Err(err) = state.vehicles.remove(&id, &version)
@@ -945,33 +899,7 @@ pub fn library(ctx: &egui::Context, state: &mut AppState, dialog: &mut LibraryDi
             keep = false;
         }
     }
-    if !keep {
-        // Closing stops the downloads; those already done are installed.
-        state.marketplace.cancel();
-        install_downloaded(state, dialog);
-    }
     keep
-}
-
-/// Installs the packages the Marketplace downloaded since the last frame,
-/// adding one result line each.
-fn install_downloaded(state: &mut AppState, dialog: &mut LibraryDialog) {
-    for (entry, result) in state.marketplace.poll() {
-        let line = match result {
-            Ok(bytes) => install_named(state, vec![(entry.name.clone(), Ok(bytes))])
-                .pop()
-                .unwrap_or_else(|| Err(String::new())),
-            Err(failure) => Err(tr!(
-                "market-install-failed",
-                name = entry.name.as_str(),
-                reason = super::marketplace_tab::failure_text(&failure)
-            )),
-        };
-        if line.is_ok() {
-            dialog.market_checked.remove(&entry.id);
-        }
-        dialog.messages.push(line);
-    }
 }
 
 /// A vehicle of the library's list: its thumbnail (the package's preview),

@@ -17,7 +17,6 @@ pub mod import;
 pub mod layout;
 pub mod library;
 pub mod logging;
-pub mod marketplace;
 pub mod mcp;
 pub mod menus;
 pub mod mod_export;
