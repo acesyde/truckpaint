@@ -51,9 +51,10 @@ pub struct NewProjectDraft {
 }
 
 impl NewProjectDraft {
-    /// The dialog as it opens: the first game the player plays (`played`)
-    /// that has installed vehicles, else the game of the installed
-    /// vehicles, or ETS2 when vehicles of both games or none are installed.
+    /// The dialog as it opens: the first game the player plays (`played`, a
+    /// game whose folder is set) that has installed vehicles, else the game
+    /// of the installed vehicles when they are all of one game, else the
+    /// only game played, or ETS2.
     pub fn new(library: &crate::vehicles::VehicleLibrary, played: &[String]) -> Self {
         let installed = |code: &String| {
             library
@@ -61,24 +62,29 @@ impl NewProjectDraft {
                 .iter()
                 .any(|v| v.newest().manifest.game.id.code() == code)
         };
-        if let Some(game) = played
-            .iter()
-            .find(|g| installed(g))
-            .and_then(|g| tp_vehicles::Game::ALL.into_iter().find(|x| x.code() == g))
-        {
-            let mut draft = Self::default();
-            draft.filter.game = Some(game);
-            return draft;
-        }
+        let of_code = |code: &String| {
+            tp_vehicles::Game::ALL
+                .into_iter()
+                .find(|x| x.code() == code)
+        };
         let mut games = library
             .vehicles()
             .iter()
             .map(|v| v.newest().manifest.game.id);
         let first = games.next();
-        let game = match first {
-            Some(g) if games.all(|other| other == g) => g,
-            _ => tp_vehicles::Game::Ets2,
-        };
+        let game = played
+            .iter()
+            .find(|g| installed(g))
+            .and_then(of_code)
+            .or(match first {
+                Some(g) if games.all(|other| other == g) => Some(g),
+                _ => None,
+            })
+            .or(match played {
+                [only] => of_code(only),
+                _ => None,
+            })
+            .unwrap_or(tp_vehicles::Game::Ets2);
         let mut draft = Self::default();
         draft.filter.game = Some(game);
         draft

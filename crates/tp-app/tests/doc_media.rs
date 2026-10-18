@@ -404,10 +404,9 @@ fn modal(h: &mut H, modal: tp_app::state::Modal) {
     settle_dialog(h);
 }
 
-/// ETS2 played, and a chosen mod folder per game so the detected ones of the
-/// machine rendering the media never show.
+/// A chosen mod folder per game so the detected ones of the machine rendering
+/// the media never show.
 fn played_games(prefs: &mut Prefs) {
-    prefs.games = vec!["ets2".into()];
     for (game, name) in [
         ("ets2", "Euro Truck Simulator 2"),
         ("ats", "American Truck Simulator"),
@@ -599,7 +598,8 @@ fn section_getting_started() {
 /// Clicks the widget labeled with the text of `key`.
 fn click_key(h: &mut H, key: &str) {
     h.get_by_label(&tp_i18n::tr(key)).click();
-    h.run();
+    // A click can start a scan, whose spinner repaints until it ends.
+    let _ = h.run_ok();
 }
 
 // --- Vehicles -----------------------------------------------------------------

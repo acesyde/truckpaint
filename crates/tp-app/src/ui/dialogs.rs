@@ -755,7 +755,7 @@ fn games_section(ui: &mut Ui, prefs: &mut crate::prefs::Prefs, env: &mut GamesEn
                 _ => {}
             }
         }
-        play_and_mod_folder(ui, prefs, game, &name, &mut **dialogs, mod_folders);
+        mod_folder_row(ui, prefs, game, &name, &mut **dialogs, mod_folders);
     }
     ui.add(
         egui::Label::new(
@@ -767,9 +767,9 @@ fn games_section(ui: &mut Ui, prefs: &mut crate::prefs::Prefs, env: &mut GamesEn
     );
 }
 
-/// What a game's rows of Preferences hold beyond its installation folder: "I play this
-/// game" (one stays checked) and the mod folder, chosen or the one Export Mod finds.
-fn play_and_mod_folder(
+/// What a game's rows of Preferences hold beyond its installation folder: the mod
+/// folder, chosen or the one Export Mod finds.
+fn mod_folder_row(
     ui: &mut Ui,
     prefs: &mut crate::prefs::Prefs,
     game: tp_vehicles::Game,
@@ -778,25 +778,6 @@ fn play_and_mod_folder(
     folders: &crate::mod_export::Folders,
 ) {
     let code = game.code();
-    let refused_id = egui::Id::new(("prefs_play_refused", code));
-    let mut on = prefs.plays(code);
-    if ui
-        .add(tp_ui::widgets::SquareCheckbox::new(
-            &mut on,
-            tr("prefs-play"),
-        ))
-        .changed()
-    {
-        let applied = prefs.set_plays(code, on);
-        ui.data_mut(|d| d.insert_temp(refused_id, !applied));
-    }
-    if ui.data(|d| d.get_temp::<bool>(refused_id)).unwrap_or(false) {
-        ui.label(
-            RichText::new(tr("prefs-play-hint"))
-                .small()
-                .color(color::TEXT_SECONDARY),
-        );
-    }
     let chosen = prefs.mod_folders.get(code).cloned();
     let detected = crate::mod_export::existing_mod_folder(
         code,

@@ -50,7 +50,9 @@ fn each_tab_shows_its_settings() {
     let mut h = open();
     pick(&mut h, "Games");
     assert_eq!(h.state().preferences_tab, PrefsTab::Games);
-    assert_eq!(h.query_all_by_label("I play this game").count(), 2);
+    // Each game has a folder row and a mod folder row, and no play setting.
+    assert_eq!(h.query_all_by_label("Choose…").count(), 4);
+    assert!(h.query_by_label("I play this game").is_none());
     assert!(h.query_by_label("Reset to defaults").is_none());
     assert!(
         h.query_by_role_and_label(Role::SpinButton, "Grid spacing")

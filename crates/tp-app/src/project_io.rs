@@ -98,7 +98,7 @@ impl AppState {
             PendingAction::NewProject => {
                 self.modal = Some(Modal::NewProject(NewProjectDraft::new(
                     &self.vehicles,
-                    &self.prefs.games,
+                    &self.prefs.played(),
                 )));
             }
             PendingAction::OpenDialog => {

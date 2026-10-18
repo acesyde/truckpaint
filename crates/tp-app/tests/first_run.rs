@@ -87,7 +87,8 @@ fn choose(h: &mut H, n: usize) {
 
 fn click(h: &mut H, label: &str) {
     h.get_by_label(label).click();
-    h.run();
+    // A click can start the scan, whose spinner repaints until it ends.
+    let _ = h.run_ok();
 }
 
 /// Next, then the scan of the made-up game.
@@ -142,9 +143,10 @@ fn the_first_step_shows_the_language_the_games_and_their_folders() {
     // The language is the system's; nothing is saved.
     h.get_by_role_and_label(Role::ComboBox, "Language");
     assert_eq!(h.state().prefs.language, None);
-    assert_eq!(h.state().prefs.games, ["ets2"]);
+    assert_eq!(h.state().prefs.played(), ["ets2"]);
     assert!(shows(&h, &format!("Game found: {}", game.display())));
-    assert!(shows(&h, "Mod folder not found"));
+    // Both games show a mod folder row, none found yet.
+    assert_eq!(h.query_all_by_label("Mod folder not found").count(), 2);
     // The mod folder is chosen, and remembered.
     h.state_mut().dialogs = Box::new(ScriptedDialogs {
         folders: [mods.clone()].into(),
@@ -154,10 +156,15 @@ fn the_first_step_shows_the_language_the_games_and_their_folders() {
     assert_eq!(h.state().prefs.mod_folders["ets2"], mods);
     assert!(shows(&h, &format!("Mod folder found: {}", mods.display())));
     // A game that is not found asks for its folder, which Preferences shares.
-    h.get_by_label("American Truck Simulator").click();
-    h.run();
-    assert_eq!(h.state().prefs.games, ["ets2", "ats"]);
-    assert!(shows(&h, "Not found"));
+    assert!(shows(&h, "ATS") && shows(&h, "Not found"));
+    // The ETS2 folder is refused for ATS: nothing is stored for it.
+    h.state_mut().dialogs = Box::new(ScriptedDialogs {
+        folders: [game.clone()].into(),
+        ..Default::default()
+    });
+    choose(&mut h, 2);
+    assert!(shows(&h, "This is a Euro Truck Simulator 2 folder."));
+    assert!(!h.state().prefs.game_folders.contains_key("ats"));
     let ats = dir.path().join("ats");
     std::fs::create_dir(&ats).unwrap();
     write_game(&ats, "ats", "1.55.0.1", &[]);
@@ -167,14 +174,54 @@ fn the_first_step_shows_the_language_the_games_and_their_folders() {
     });
     choose(&mut h, 2);
     assert_eq!(h.state().prefs.game_folders["ats"], ats);
+    assert_eq!(h.state().prefs.played(), ["ets2", "ats"]);
     // No version is shown.
     assert!(!shows(&h, "1.61.1.9"));
-    // At least one game to go on.
-    h.get_by_label("American Truck Simulator").click();
-    h.get_by_label("Euro Truck Simulator 2").click();
-    h.run();
-    assert!(h.state().prefs.games.is_empty());
-    assert!(h.get_by_label("Next").accesskit_node().is_disabled());
+}
+
+#[test]
+fn no_game_found_does_not_block_next() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = app(dir.path(), None);
+    assert!(h.state().prefs.played().is_empty());
+    assert!(!h.get_by_label("Next").accesskit_node().is_disabled());
+    click(&mut h, "Next");
+    // No game was set: no error about a missing game, the samples are offered.
+    assert!(!shows(
+        &h,
+        "Euro Truck Simulator 2 was not found, so its vehicles cannot be made."
+    ));
+    assert!(shows(&h, "Install the sample vehicles"));
+}
+
+#[test]
+fn a_saved_ets2_folder_that_is_gone_is_reported() {
+    let dir = tempfile::tempdir().unwrap();
+    let gone = dir.path().join("gone");
+    let mut h = app(dir.path(), Some(&gone));
+    assert_eq!(h.state().prefs.played(), ["ets2"]);
+    click(&mut h, "Next");
+    assert!(shows(
+        &h,
+        "Euro Truck Simulator 2 was not found, so its vehicles cannot be made."
+    ));
+    assert!(shows(&h, "Install the sample vehicles"));
+}
+
+#[test]
+fn the_other_games_folder_is_refused_for_ets2() {
+    let dir = tempfile::tempdir().unwrap();
+    let ats = dir.path().join("ats");
+    std::fs::create_dir(&ats).unwrap();
+    write_game(&ats, "ats", "1.55.0.1", &[]);
+    let mut h = app(dir.path(), None);
+    h.state_mut().dialogs = Box::new(ScriptedDialogs {
+        folders: [ats].into(),
+        ..Default::default()
+    });
+    choose(&mut h, 0);
+    assert!(shows(&h, "This is an American Truck Simulator folder."));
+    assert!(h.state().prefs.played().is_empty());
 }
 
 #[test]
@@ -202,7 +249,7 @@ fn back_goes_to_the_first_step_with_the_choices_kept() {
     click(&mut h, "Back");
     assert!(shows(&h, "Welcome to TruckPaint"));
     assert!(shows(&h, &format!("Game found: {}", game.display())));
-    assert_eq!(h.state().prefs.games, ["ets2"]);
+    assert_eq!(h.state().prefs.played(), ["ets2"]);
 }
 
 #[test]
@@ -340,11 +387,17 @@ fn without_the_game_the_samples_are_offered() {
 #[test]
 fn ats_is_not_generated_yet() {
     let dir = tempfile::tempdir().unwrap();
+    let ats = dir.path().join("ats");
+    std::fs::create_dir(&ats).unwrap();
+    write_game(&ats, "ats", "1.55.0.1", &[]);
     let mut h = app(dir.path(), None);
-    h.get_by_label("American Truck Simulator").click();
-    h.get_by_label("Euro Truck Simulator 2").click();
-    h.run();
-    assert_eq!(h.state().prefs.games, ["ats"]);
+    h.state_mut().dialogs = Box::new(ScriptedDialogs {
+        folders: [ats].into(),
+        ..Default::default()
+    });
+    // ETS2's installation and mod rows come first, then ATS's installation row.
+    choose(&mut h, 2);
+    assert_eq!(h.state().prefs.played(), ["ats"]);
     click(&mut h, "Next");
     assert!(shows(
         &h,
