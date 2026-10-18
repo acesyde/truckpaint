@@ -1134,9 +1134,10 @@ pub fn run(options: &Options) -> Result<Batch, String> {
             }
         }
     };
-    // Half the cores: concurrent builds must leave the desktop memory and CPU.
+    // Half the cores, at most 8: concurrent builds must leave the desktop memory and CPU.
+    const MAX_WORKERS: usize = 8;
     let cores = std::thread::available_parallelism().map_or(1, |n| n.get());
-    let workers = (cores / 2).clamp(1, vehicles.len().max(1));
+    let workers = (cores / 2).min(MAX_WORKERS).clamp(1, vehicles.len().max(1));
     let next = AtomicUsize::new(0);
     let done = Mutex::new(Vec::new());
     std::thread::scope(|scope| {
