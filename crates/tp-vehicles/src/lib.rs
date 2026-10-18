@@ -8,6 +8,7 @@ use std::io::{Cursor, Read};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+pub mod catalog;
 pub mod sample;
 
 /// Highest package format this version understands.

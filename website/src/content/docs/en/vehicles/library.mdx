@@ -10,11 +10,12 @@ import Ui from '~/components/Ui.astro';
 
 TruckPaint paints vehicles it knows through **vehicle packages**. A package (a `.tpv` file) describes one truck or trailer: the templates of its textures, and the game data a mod needs, such as the vehicle's path in the game, the internal names of its cabins and the ids of its accessories. Every package has a version, so a vehicle can follow the game's updates.
 
-Your vehicles come from four places:
+Your vehicles come from five places:
 
 - **official ETS2 truck and trailer packages** generated from the installed game and installed manually: see [Official vehicles](../official-vehicles/);
 - the **sample vehicles** that come with TruckPaint, a truck and a trailer drawn for it, to try the app without game files;
 - **custom vehicles** you make yourself from template files: see [Custom vehicles](../custom-vehicles/);
+- the **Marketplace**, the public catalog of packages, inside the Vehicle Library: see [Install from the Marketplace](#install-from-the-marketplace);
 - `.tpv` files someone shared with you.
 
 ## Open the Vehicle Library
@@ -23,7 +24,7 @@ Choose <Ui id="menu-vehicle" /> › <Ui id="cmd-vehicle-library" />. It works fr
 
 <Shot name="vehicles/library" alt="The Vehicle Library dialog, with the list of installed vehicles on the left and the details of the chosen vehicle on the right" />
 
-The dialog has two tabs: <Ui id="vehicles-tab-installed" args={{ count: 2 }} />, with every installed vehicle, and a second tab with only your custom vehicles. Each tab shows how many vehicles it holds. Above the list, search by name or brand, and filter by game and by kind.
+The dialog has three tabs: <Ui id="vehicles-tab-installed" args={{ count: 2 }} />, with every installed vehicle, a second tab with only your custom vehicles, and <Ui id="vehicles-tab-marketplace" />, the vehicles you can download. Each tab shows how many vehicles it holds. Above the list, search by name or brand, and filter by game and by kind.
 
 Each row shows the vehicle's name, brand, kind and game, its newest installed version, and a status:
 
@@ -42,6 +43,29 @@ Under <Ui id="vehicles-installed-versions" />, every installed version of the ve
 Click <Ui id="vehicles-install" /> and choose one or more `.tpv` files. You can also drop `.tpv` files on the home screen or on an open project. A confirmation names each vehicle and version installed. Installing a version that is already there replaces it.
 
 With no vehicle installed, the library explains what packages are and offers <Ui id="vehicles-install-sample" />.
+
+## Install from the Marketplace
+
+The <Ui id="vehicles-tab-marketplace" /> tab lists the vehicles of the public catalog. TruckPaint downloads the catalog when you open the tab, and again when you click <Ui id="market-refresh" />. It contacts the catalog at no other time and sends nothing about you.
+
+<Shot name="vehicles/marketplace" alt="The Marketplace tab of the Vehicle Library: the legal notice, the catalog’s vehicles with their size and status, and the details of the chosen vehicle" />
+
+Above the list, a notice reminds you that vehicles taken from the games belong to SCS Software and the vehicle makers, and that packages are for personal modding only, never for sale.
+
+Search and filter the list as in the other tabs. Each row shows the version offered, its download size, and a status:
+
+- <Ui id="market-status-install" />: the vehicle isn't installed;
+- <Ui id="vehicles-status-update" />: an older version is installed;
+- <Ui id="market-status-installed" />: the newest version is installed;
+- <Ui id="market-status-too-new" />: this version of TruckPaint can't read it.
+
+Click a vehicle to see its license, authors, what changed, and its older versions, then <Ui id="market-install-version" args={{ version: '1.2.0' }} /> or <Ui id="market-update-to" args={{ version: '1.2.0' }} />. To install several at once, check them and click <Ui id="market-install-checked" args={{ count: 3 }} />. You can cancel between two downloads; vehicles already downloaded stay installed.
+
+Every download is checked against the catalog before it is installed, then checked like any package. A damaged or changed file is refused, and nothing is installed.
+
+**Offline,** the tab shows the last catalog downloaded, with the time it was updated, and installing is disabled until the catalog can be reached again.
+
+**Another catalog:** <Ui id="prefs-catalog-url" /> in <Ui id="cmd-preferences" /> points the Marketplace at another catalog, to test one before publishing it. Leave it empty for the official catalog. To publish a package, see [the package format](../package-format/#publishing-in-the-marketplace).
 
 ## See what an update changes
 

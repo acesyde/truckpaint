@@ -31,7 +31,7 @@ Non-goals:
 
 ## Impact
 
-- **Depends on `marketplace`** (roadmap #5, not yet scaffolded): its catalog (list, filters, sizes) and its installer. This change is proposed now to fix the flow and is built after `marketplace`. It also uses `new-design`'s look.
+- **Depends on `marketplace`**: reuses its catalog client (`tp-app/src/marketplace.rs`: download, offline cache, size and SHA-256 checks, sequential install with Cancel) and its list model (`ui/marketplace_tab.rs`: `rows`, statuses, sizes), without the Vehicle Library dialog. The catalog's sample packages make "Install the sample vehicles" and the online list consistent. It also uses `new-design`'s look.
 - **tp-app:**
   - `prefs.rs`: `first_run_done`, `game`, `mod_folder` (optional fields; files without them load as today, and an existing user with recent projects or installed vehicles is treated as having done the first launch);
   - `ui/home.rs` and a new `ui/first_run.rs`: the three steps;

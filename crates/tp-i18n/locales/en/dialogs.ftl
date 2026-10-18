@@ -424,3 +424,35 @@ prefs-mcp-on = On, waiting for a client
 prefs-mcp-connected = On, a client is connected
 prefs-mcp-port-in-use = Port { $port } is in use by another program. Turn the server off, choose another port, and turn it on again.
 prefs-mcp-failed = The server could not start: { $error }
+
+## Marketplace
+
+vehicles-tab-marketplace = Marketplace
+vehicles-tab-marketplace-count = Marketplace · { $count }
+market-legal-notice = Vehicles taken from the games belong to SCS Software and the vehicle makers. TruckPaint and the Marketplace are unofficial and not endorsed by SCS Software. Packages are for personal modding only and must never be sold.
+market-loading = Loading the catalog…
+market-offline = Offline, last updated { $when }
+market-refresh = Refresh
+market-retry = Retry
+market-unreachable = The catalog can't be reached: { $reason }
+market-invalid = The catalog is damaged: { $reason }
+market-newer-app = This catalog needs a newer version of TruckPaint.
+market-damaged = the download is damaged or was changed
+market-install-failed = { $name } could not be installed: { $reason }
+market-installing = Installing { $done } of { $total }…
+market-status-install = Install
+market-status-installed = Installed
+market-status-too-new = Needs a newer TruckPaint
+market-size-mb = { $size } MB
+market-install-checked = Install Checked ({ $count })
+market-install-version = Install { $version }
+market-update-to = Update to { $version }
+market-license = License
+market-authors = Authors
+market-changelog = What changed
+market-older-versions = Older versions
+prefs-marketplace = Marketplace
+prefs-catalog-url = Catalog address
+prefs-catalog-url-refused = Use an address starting with https:// (or file:// to test a local catalog). The previous address is kept.
+prefs-catalog-url-env = { $variable } is set: the Marketplace uses { $url }.
+prefs-catalog-url-hint = Leave empty to use the official catalog. TruckPaint contacts it only when you open the Marketplace, refresh it or install a vehicle.

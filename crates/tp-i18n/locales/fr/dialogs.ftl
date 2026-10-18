@@ -434,3 +434,35 @@ prefs-mcp-on = Activé, en attente d’un client
 prefs-mcp-connected = Activé, un client est connecté
 prefs-mcp-port-in-use = Le port { $port } est utilisé par un autre programme. Désactivez le serveur, choisissez un autre port, puis réactivez-le.
 prefs-mcp-failed = Le serveur n’a pas pu démarrer : { $error }
+
+## Marketplace
+
+vehicles-tab-marketplace = Marketplace
+vehicles-tab-marketplace-count = Marketplace · { $count }
+market-legal-notice = Les véhicules issus des jeux appartiennent à SCS Software et aux constructeurs. TruckPaint et la Marketplace sont non officiels et ne sont pas approuvés par SCS Software. Les paquets sont réservés au modding personnel et ne doivent jamais être vendus.
+market-loading = Chargement du catalogue…
+market-offline = Hors ligne, mis à jour { $when }
+market-refresh = Actualiser
+market-retry = Réessayer
+market-unreachable = Le catalogue est inaccessible : { $reason }
+market-invalid = Le catalogue est endommagé : { $reason }
+market-newer-app = Ce catalogue nécessite une version plus récente de TruckPaint.
+market-damaged = le téléchargement est endommagé ou a été modifié
+market-install-failed = { $name } n’a pas pu être installé : { $reason }
+market-installing = Installation { $done } sur { $total }…
+market-status-install = Installer
+market-status-installed = Installé
+market-status-too-new = Nécessite un TruckPaint plus récent
+market-size-mb = { $size } Mo
+market-install-checked = Installer la sélection ({ $count })
+market-install-version = Installer la { $version }
+market-update-to = Mettre à jour vers la { $version }
+market-license = Licence
+market-authors = Auteurs
+market-changelog = Nouveautés
+market-older-versions = Versions précédentes
+prefs-marketplace = Marketplace
+prefs-catalog-url = Adresse du catalogue
+prefs-catalog-url-refused = Utilisez une adresse commençant par https:// (ou file:// pour tester un catalogue local). L’adresse précédente est conservée.
+prefs-catalog-url-env = { $variable } est défini : la Marketplace utilise { $url }.
+prefs-catalog-url-hint = Laissez vide pour utiliser le catalogue officiel. TruckPaint ne le contacte que quand vous ouvrez la Marketplace, l’actualisez ou installez un véhicule.

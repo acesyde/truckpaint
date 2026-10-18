@@ -6,10 +6,9 @@ Defines the public catalog of vehicle packages: the `catalog.json` file, the rul
 ### Requirement: Catalog file
 The catalog SHALL be one JSON file, `catalog.json`, with:
 - `schema`: the catalog format version (1);
-- `generated`: the time it was built, in UTC;
 - `packages`: one entry per published version of a vehicle.
 
-Each entry SHALL have `id`, `version`, `name`, `brand`, `kind` (`truck` or `trailer`), `game` (`ets2` or `ats`), `size` (bytes), `sha256` (lowercase hex of the `.tpv`), `url` (HTTPS address of the `.tpv`), `license`, and `min_app` (the oldest TruckPaint that can install it). It MAY have `game_versions` (the range from the package), `preview` (an HTTPS image address), `authors`, `changelog` and `notice` (a short rights statement shown with the vehicle).
+Each entry SHALL have `id`, `version`, `name`, `brand`, `kind` (`truck` or `trailer`), `game` (`ets2` or `ats`), `size` (bytes), `sha256` (lowercase hex of the `.tpv`), `url` (HTTPS address of the `.tpv`), `license`, and `min_app` (the oldest TruckPaint that can install it, from the package format). It MAY have `game_versions` (the range from the package), `preview` (an HTTPS image address), `authors`, `changelog` and `notice` (a short rights statement shown with the vehicle).
 
 A reader SHALL ignore unknown fields. A catalog whose `schema` it does not know SHALL be refused with a message saying the app must be updated.
 
@@ -36,7 +35,7 @@ Each `.tpv` SHALL be kept in the catalog repository and downloadable from a stab
 - **THEN** the repository's check fails, and the app, if it ever downloads it, refuses to install it
 
 ### Requirement: Repository checks
-Every pull request on the catalog repository SHALL be checked: each `.tpv` is a valid package, ids and versions are unique and well formed, versions only go up, `license` is present, and the generated `catalog.json` matches what the packages say. On every merge to the main branch, `catalog.json` SHALL be regenerated and published; it SHALL NOT be committed to the repository, so it always matches the packages on the main branch.
+Every pull request on the catalog repository SHALL be checked: each `.tpv` is a valid package, ids and versions are unique and well formed, versions only go up, `license` is present, and no version listed in the published catalog was changed or removed. On every merge to the main branch, `catalog.json` SHALL be regenerated and published; it SHALL NOT be committed to the repository, so it always matches the packages on the main branch.
 
 #### Scenario: Invalid package in a pull request
 - **WHEN** a pull request adds a `.tpv` that `tpv check` refuses
