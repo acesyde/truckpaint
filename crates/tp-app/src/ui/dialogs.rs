@@ -545,8 +545,15 @@ fn preferences(
                 });
             ctx.data_mut(|d| d.insert_temp(body_id, out.content_size.y));
         } else {
+            // Unmeasured first frame: keep the reveal for the frame that may scroll.
+            let mut unmeasured = false;
+            let reveal = if body == 0.0 {
+                &mut unmeasured
+            } else {
+                reveal_mcp
+            };
             let top = ui.cursor().top();
-            preferences_body(ctx, ui, prefs, title_bar, mcp, reveal_mcp, games);
+            preferences_body(ctx, ui, prefs, title_bar, mcp, reveal, games);
             let used = ui.cursor().top() - top;
             ctx.data_mut(|d| d.insert_temp(body_id, used));
         }
