@@ -15,7 +15,7 @@ mise exec -- cargo run --release -p tp-pack --bin tpv -- extract "/chemin/vers/E
 
 Ajouter `--vehicle man.tgx_2020` ou `--vehicle daf.2021` limite le lot.
 Chaque lot a son propre sous-dossier de `dist/`, avec les paquets validés
-et `report.json` ; les intermédiaires et journaux restent sous `target/`.
+et `report.json` ; les intermédiaires ne sont gardés sous `target/` que si un véhicule échoue.
 La validation technique et la vérification en jeu sont distinctes. Un lot
 incomplet continue les autres véhicules et retourne un code d’échec.
 Les références manquantes sont détaillées dans `missing_dependencies` du

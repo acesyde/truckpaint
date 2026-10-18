@@ -1,6 +1,6 @@
 ## Context
 
-`tp_pack::extract::run(&Options)` does everything for the `tpv extract` command: it mounts the archives, finds the vehicles, converts models with ConverterPIX, builds each package and writes a folder and a report, using half the cores. It refuses anything but ETS2 and gets the package version from its caller. `native-game-reader` replaces ConverterPIX and the model cache with a reader in `tp-pack`; this change assumes that reader as a library. Installing goes through `VehicleLibrary::install_bytes` (`tp-app/src/vehicles.rs`); background work in the app uses an `mpsc` channel and a thread (`custom_vehicles.rs`, `export.rs`). `mod_export.rs` already finds the mod folder per OS. See proposal.md for motivation and the specs for the behavior.
+`tp_pack::extract::run(&Options)` does everything for the `tpv extract` command: it mounts the archives, finds the vehicles, converts models with ConverterPIX, builds each package and writes a folder and a report, using half the cores. It refuses anything but ETS2 and gets the package version from its caller. `native-game-reader` replaced ConverterPIX and the model cache with the `tp-scs` crate, used by `tp-pack`; this change builds on it. Installing goes through `VehicleLibrary::install_bytes` (`tp-app/src/vehicles.rs`); background work in the app uses an `mpsc` channel and a thread (`custom_vehicles.rs`, `export.rs`). `mod_export.rs` already finds the mod folder per OS. See proposal.md for motivation and the specs for the behavior.
 
 ## Goals / Non-Goals
 
