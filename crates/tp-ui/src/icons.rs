@@ -122,7 +122,3 @@ pub const MCP_CONNECTED: &str = ph::PLUGS_CONNECTED;
 /// A status bar toggle that is on / off (the knob's side tells them apart).
 pub const TOGGLE_ON: &str = ph::TOGGLE_RIGHT;
 pub const TOGGLE_OFF: &str = ph::TOGGLE_LEFT;
-/// The Marketplace: a package to download, the catalog unreachable, a notice.
-pub const DOWNLOAD: &str = ph::DOWNLOAD_SIMPLE;
-pub const OFFLINE: &str = ph::CLOUD_SLASH;
-pub const INFO: &str = ph::INFO;

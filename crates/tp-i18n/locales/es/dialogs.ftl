@@ -431,35 +431,3 @@ prefs-mcp-on = Activado, esperando un cliente
 prefs-mcp-connected = Activado, hay un cliente conectado
 prefs-mcp-port-in-use = Otro programa usa el puerto { $port }. Desactiva el servidor, elige otro puerto y vuelve a activarlo.
 prefs-mcp-failed = No se pudo iniciar el servidor: { $error }
-
-## Marketplace
-
-vehicles-tab-marketplace = Marketplace
-vehicles-tab-marketplace-count = Marketplace · { $count }
-market-legal-notice = Los vehículos tomados de los juegos pertenecen a SCS Software y a los fabricantes. TruckPaint y el Marketplace no son oficiales ni están respaldados por SCS Software. Los paquetes son solo para modding personal y nunca deben venderse.
-market-loading = Cargando el catálogo…
-market-offline = Sin conexión, actualizado { $when }
-market-refresh = Actualizar
-market-retry = Reintentar
-market-unreachable = No se puede acceder al catálogo: { $reason }
-market-invalid = El catálogo está dañado: { $reason }
-market-newer-app = Este catálogo necesita una versión más reciente de TruckPaint.
-market-damaged = la descarga está dañada o ha sido modificada
-market-install-failed = No se pudo instalar { $name }: { $reason }
-market-installing = Instalando { $done } de { $total }…
-market-status-install = Instalar
-market-status-installed = Instalado
-market-status-too-new = Necesita un TruckPaint más reciente
-market-size-mb = { $size } MB
-market-install-checked = Instalar los marcados ({ $count })
-market-install-version = Instalar la { $version }
-market-update-to = Actualizar a la { $version }
-market-license = Licencia
-market-authors = Autores
-market-changelog = Novedades
-market-older-versions = Versiones anteriores
-prefs-marketplace = Marketplace
-prefs-catalog-url = Dirección del catálogo
-prefs-catalog-url-refused = Usa una dirección que empiece por https:// (o file:// para probar un catálogo local). Se mantiene la dirección anterior.
-prefs-catalog-url-env = { $variable } está definida: el Marketplace usa { $url }.
-prefs-catalog-url-hint = Déjala vacía para usar el catálogo oficial. TruckPaint solo lo contacta cuando abres el Marketplace, lo actualizas o instalas un vehículo.

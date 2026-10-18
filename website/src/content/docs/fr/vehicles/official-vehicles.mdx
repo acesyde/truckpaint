@@ -1,13 +1,13 @@
 ---
 title: Véhicules officiels
-description: Installer les camions et remorques officiels ETS2 depuis la Marketplace, ou générer leurs paquets depuis le jeu installé.
+description: Générer les paquets des camions et remorques officiels ETS2 depuis le jeu installé.
 sidebar:
   order: 2
 ---
 import Shot from '~/components/Shot.astro';
 import Ui from '~/components/Ui.astro';
 
-Les camions et remorques officiels ETS2 sont dans la [Marketplace](../library/#installer-depuis-la-marketplace) : installez-les depuis la bibliothèque de véhicules, sans fichiers du jeu. Vous pouvez aussi générer vous-même leurs paquets `.tpv` depuis le jeu installé, comme décrit plus bas, et les installer à la main. <Ui id="home-new-project" /> et <Ui id="cmd-add-vehicle" /> affichent uniquement les véhicules installés. Chaque paquet contient ses gabarits et les données du jeu : après génération, l’installation, la création d’un projet et l’export d’un mod ne nécessitent ni le jeu ni ConverterPIX.
+Les camions et remorques officiels ETS2 existent sous forme de paquets `.tpv` que vous générez vous-même depuis le jeu installé, comme décrit plus bas, et que vous installez à la main. <Ui id="home-new-project" /> et <Ui id="cmd-add-vehicle" /> affichent uniquement les véhicules installés. Chaque paquet contient ses gabarits et les données du jeu : après génération, l’installation, la création d’un projet et l’export d’un mod ne nécessitent ni le jeu ni ConverterPIX.
 
 ## Générer les paquets
 
@@ -38,11 +38,11 @@ Les coordonnées UV finies hors de [0, 1] sont conservées, sans répétition, �
 
 `dimension_diagnostics` liste tous les accessoires dont les dimensions de découpe sont absentes ou contradictoires, avec les tailles candidates, masques et définitions/archives qui les référencent. Quand le jeu déclare plusieurs tailles pour un même accessoire, la plus grande est retenue (`disposition: "resolved_largest"`) : les UV de livrée s’adaptent à toute taille. Pour la même raison, une taille inférieure à 64 pixels sur un côté est agrandie (`disposition: "raised_to_minimum"`). Un accessoire que le jeu ne couvre qu’avec des masques de remplissage partagés n’a pas de texture séparée et reste sur la texture principale (`disposition: "main_texture"`), comme dans les livrées du jeu qui ne le redéfinissent pas. L’extracteur n’invente jamais de taille.
 
-Les paquets générés portent une licence (« Personal modding only, not for sale. Game content belongs to SCS Software. »), citent SCS Software parmi leurs auteurs et renvoient au dépôt de la Marketplace. Pour publier un lot dans la Marketplace, voir [Publishing in the Marketplace](../package-format/#publishing-in-the-marketplace).
+Les paquets générés portent une licence (« Personal modding only, not for sale. Game content belongs to SCS Software. »), et citent SCS Software parmi leurs auteurs.
 
 ## Installer et peindre
 
-1. Ouvrez la [bibliothèque de véhicules](../library/) : installez le véhicule depuis l’onglet <Ui id="vehicles-tab-marketplace" />, ou utilisez <Ui id="vehicles-install" /> pour choisir un `.tpv` que vous avez généré.
+1. Ouvrez la [bibliothèque de véhicules](../library/) : utilisez <Ui id="vehicles-install" /> pour choisir un `.tpv` que vous avez généré.
 2. Dans <Ui id="home-new-project" />, cochez ce véhicule installé, choisissez cabines et accessoires, puis utilisez <Ui id="new-project-create" />.
 3. Peignez et enregistrez le projet, puis suivez [Export d’un mod](../../export/mod/).
 
@@ -52,4 +52,4 @@ Conservez les paquets pour les réinstaller. Le jeu et le convertisseur servent 
 
 ## Anciens paquets
 
-Le catalogue Carsmaniac et le parcours par pack de gabarits, utilisés avant la Marketplace, sont retirés. Les nouveaux paquets conservent `official.ets2.<véhicule>`, dont `official.ets2.daf.2021`. Retirez manuellement les anciens paquets de test avant leurs remplaçants. Les placements ne sont pas migrés. Installer le même identifiant et la même version remplace cette version installée ; une autre version est conservée à côté. Les fichiers de projet existants ne sont pas réécrits automatiquement.
+Le catalogue Carsmaniac et le parcours par pack de gabarits sont retirés. Les nouveaux paquets conservent `official.ets2.<véhicule>`, dont `official.ets2.daf.2021`. Retirez manuellement les anciens paquets de test avant leurs remplaçants. Les placements ne sont pas migrés. Installer le même identifiant et la même version remplace cette version installée ; une autre version est conservée à côté. Les fichiers de projet existants ne sont pas réécrits automatiquement.

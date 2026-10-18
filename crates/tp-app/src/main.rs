@@ -17,8 +17,7 @@ fn main() -> ExitCode {
 
     let store = dirs.as_ref().map(|d| PrefsStore::new(&d.config));
     // The preferences say how the window opens (its title bar).
-    let mut state = AppState::new(store);
-    state.marketplace.cache = dirs.as_ref().map(AppDirs::catalog);
+    let state = AppState::new(store);
     let mode = state.title_bar_mode();
     tracing::info!(?mode, "title bar");
     let options = eframe::NativeOptions {
