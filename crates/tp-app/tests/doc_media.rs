@@ -404,6 +404,20 @@ fn modal(h: &mut H, modal: tp_app::state::Modal) {
     settle_dialog(h);
 }
 
+/// ETS2 played, and a chosen mod folder per game so the detected ones of the
+/// machine rendering the media never show.
+fn played_games(prefs: &mut Prefs) {
+    prefs.games = vec!["ets2".into()];
+    for (game, name) in [
+        ("ets2", "Euro Truck Simulator 2"),
+        ("ats", "American Truck Simulator"),
+    ] {
+        prefs
+            .mod_folders
+            .insert(game.into(), format!("~/Documents/{name}/mod").into());
+    }
+}
+
 /// The sample truck with both main textures and the sample trailer.
 fn load_sample(h: &H, id: &str, version: &str) -> tp_vehicles::Package {
     h.state()
@@ -747,6 +761,7 @@ fn my_game_shots(language: Language) {
             .prefs
             .game_folders
             .insert("ets2".into(), folder);
+        played_games(&mut h.state_mut().prefs);
         h.state_mut().open_preferences();
         settle_dialog(&mut h);
         shot(&mut h, language, "vehicles/game-folders");
@@ -1094,6 +1109,7 @@ fn section_ai_assistant() {
             .unwrap()
             .port();
         h.state_mut().prefs.mcp_enabled = true;
+        played_games(&mut h.state_mut().prefs);
         h.state_mut().reveal_mcp_preferences = true;
         modal(&mut h, Modal::Preferences);
         shot(&mut h, language, "ai-assistant/preferences");
