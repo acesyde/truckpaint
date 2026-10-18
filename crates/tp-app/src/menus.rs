@@ -185,7 +185,12 @@ pub fn menus() -> Vec<Menu> {
         ),
         menu(
             "menu-help",
-            vec![Item(KeyboardShortcuts), Separator, Item(About)],
+            vec![
+                Item(KeyboardShortcuts),
+                Item(RunFirstLaunch),
+                Separator,
+                Item(About),
+            ],
         ),
     ]
 }

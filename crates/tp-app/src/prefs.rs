@@ -80,6 +80,13 @@ pub struct Prefs {
     /// The installation folder of each game, by game id (`ets2`, `ats`)
     /// (Reset to defaults keeps them).
     pub game_folders: BTreeMap<String, PathBuf>,
+    /// The first launch was finished or skipped.
+    pub first_run_done: bool,
+    /// The games the player plays (`ets2`, `ats`), the first being New
+    /// Project's initial game (Reset to defaults keeps them).
+    pub games: Vec<String>,
+    /// The mod folder the player chose for each game (Reset to defaults keeps them).
+    pub mod_folders: BTreeMap<String, PathBuf>,
 }
 
 /// Ports the MCP server may use (no privileged port).
@@ -100,6 +107,9 @@ impl Default for Prefs {
             mcp_enabled: false,
             mcp_port: tp_mcp::DEFAULT_PORT,
             game_folders: BTreeMap::new(),
+            first_run_done: false,
+            games: Vec::new(),
+            mod_folders: BTreeMap::new(),
         }
     }
 }
@@ -122,6 +132,33 @@ impl Prefs {
             text_scale: self.text_scale,
         }
         .clamped()
+    }
+
+    /// Whether the first launch is due: not done yet, and not someone who
+    /// already has recent projects or installed vehicles.
+    pub fn first_run_due(&self, vehicles_installed: bool) -> bool {
+        !self.first_run_done && self.recent.is_empty() && !vehicles_installed
+    }
+
+    /// Whether the player plays `game` (`ets2`, `ats`).
+    pub fn plays(&self, game: &str) -> bool {
+        self.games.iter().any(|g| g == game)
+    }
+
+    /// Sets whether the player plays `game`; the last game stays checked.
+    /// Returns whether it was applied.
+    pub fn set_plays(&mut self, game: &str, on: bool) -> bool {
+        if on {
+            if !self.plays(game) {
+                self.games.push(game.to_owned());
+            }
+            true
+        } else if self.games.len() == 1 && self.plays(game) {
+            false
+        } else {
+            self.games.retain(|g| g != game);
+            true
+        }
     }
 
     /// Moves `rgba` to the front of the recent colors (no duplicates, capped).
@@ -459,6 +496,47 @@ mod tests {
         // Reset to defaults keeps them.
         prefs.reset_scaling();
         assert_eq!(prefs.game_folders.len(), 1);
+    }
+
+    #[test]
+    fn first_launch_fields_round_trip_and_default() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = PrefsStore::new(dir.path());
+        fs::write(store.path(), "(version: 1, ui_scale: 1.25)").unwrap();
+        let loaded = store.load();
+        assert!(loaded.issue.is_none() && loaded.backup.is_none());
+        assert!(!loaded.prefs.first_run_done);
+        assert!(loaded.prefs.games.is_empty() && loaded.prefs.mod_folders.is_empty());
+        let mut prefs = loaded.prefs;
+        prefs.first_run_done = true;
+        prefs.games = vec!["ats".into(), "ets2".into()];
+        prefs.mod_folders.insert("ets2".into(), "/mods".into());
+        store.save(&prefs).unwrap();
+        assert_eq!(store.load().prefs, prefs);
+        // Reset to defaults keeps them.
+        prefs.reset_scaling();
+        assert!(prefs.first_run_done && prefs.games.len() == 2);
+    }
+
+    #[test]
+    fn existing_users_skip_the_first_launch() {
+        let mut prefs = Prefs::default();
+        assert!(prefs.first_run_due(false));
+        assert!(!prefs.first_run_due(true));
+        prefs.push_recent("ACE", Path::new("/tmp/ace.truckpaint"));
+        assert!(!prefs.first_run_due(false));
+        prefs.recent.clear();
+        prefs.first_run_done = true;
+        assert!(!prefs.first_run_due(false));
+    }
+
+    #[test]
+    fn the_last_game_stays_checked() {
+        let mut prefs = Prefs::default();
+        assert!(prefs.set_plays("ets2", true) && prefs.set_plays("ats", true));
+        assert!(prefs.set_plays("ets2", false));
+        assert!(!prefs.set_plays("ats", false));
+        assert_eq!(prefs.games, ["ats"]);
     }
 
     #[test]

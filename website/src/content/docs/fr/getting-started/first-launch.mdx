@@ -1,6 +1,6 @@
 ---
 title: Premier lancement
-description: Repérez-vous sur l’écran d’accueil, choisissez votre langue et réglez TruckPaint à votre goût.
+description: Réglez TruckPaint au premier lancement, repérez-vous sur l’écran d’accueil, choisissez votre langue et ajustez l’application à votre goût.
 sidebar:
   order: 2
 ---
@@ -8,11 +8,44 @@ import Shot from '~/components/Shot.astro';
 import Clip from '~/components/Clip.astro';
 import Ui from '~/components/Ui.astro';
 
-Quand aucun projet n’est ouvert, TruckPaint affiche son écran d’accueil. C’est là que vous commencez une nouvelle livrée, en ouvrez une que vous avez enregistrée, ou reprenez un travail récent.
+La première fois que vous ouvrez TruckPaint, il demande ce dont il a besoin en trois courtes étapes, puis vous amène dans votre premier projet. Ensuite, quand aucun projet n’est ouvert, il affiche son écran d’accueil.
+
+## Le premier lancement
+
+Vous pouvez partir à tout moment avec **<Ui id="first-run-skip" />** (ou Échap) : TruckPaint garde ce que vous avez déjà choisi et affiche l’écran d’accueil. Il ne redemande plus.
+
+### Étape 1 : langue et jeu
+
+<Shot name="getting-started/first-launch" alt="La première étape du premier lancement : la langue, les jeux auxquels vous jouez, et pour ETS2 le dossier du jeu trouvé et le dossier des mods" />
+
+- Sous <Ui id="first-run-language" />, TruckPaint commence avec la langue de votre système. Choisissez-en une autre pour changer aussitôt et la conserver.
+- Sous <Ui id="first-run-games" />, cochez le ou les jeux auxquels vous jouez, au moins un.
+- Pour chaque jeu, TruckPaint cherche l’installation dans vos bibliothèques Steam et affiche <Ui id="first-run-game-found" /> avec son chemin, ou <Ui id="first-run-game-not-found" />. Cliquez sur <Ui id="first-run-choose-folder" /> pour choisir le dossier vous-même. Un jeu introuvable ne vous bloque pas.
+- Pour chaque jeu, il affiche aussi le dossier des mods, celui que <Ui id="cmd-export-mod" /> utilise. Choisissez-en un autre si vos mods sont ailleurs.
+
+Cliquez sur <Ui id="first-run-next" />.
+
+### Étape 2 : véhicules à peindre
+
+<Shot name="getting-started/first-launch-vehicles" alt="La deuxième étape du premier lancement : les camions et remorques du jeu, dont deux sont cochés" />
+
+TruckPaint lit votre jeu, sans le modifier, et liste les camions et remorques que vous possédez. Cherchez par marque ou modèle, filtrez avec <Ui id="vehicles-kind-all" />, <Ui id="vehicles-kind-trucks" /> et <Ui id="vehicles-kind-trailers" />, cochez ceux que vous voulez peindre, ou utilisez <Ui id="game-select-all" />.
+
+Cliquez sur <Ui id="first-run-generate" />. TruckPaint crée les véhicules cochés sur votre ordinateur, l’un après l’autre, avec une barre de progression et <Ui id="button-cancel" />. Une annulation garde les véhicules déjà créés, et un véhicule en échec est nommé sans arrêter les autres. Sans rien de coché, le bouton indique <Ui id="first-run-continue" /> et vous créerez des véhicules plus tard, dans l’onglet <Ui id="vehicles-tab-game" /> de la bibliothèque de véhicules (voir [Véhicules officiels](../../vehicles/official-vehicles/)).
+
+Si le jeu est introuvable, ou s’il s’agit d’American Truck Simulator (pas encore pris en charge), l’étape propose <Ui id="vehicles-install-sample" />. Vous pourrez ajouter un autre véhicule plus tard avec <Ui id="custom-open" />.
+
+### Étape 3 : votre premier projet
+
+TruckPaint ouvre Nouveau projet sur le jeu que vous avez choisi en premier, avec vos nouveaux véhicules dans la liste. Poursuivez avec [Créer votre premier projet](../first-project/).
+
+### Le relancer
+
+Choisissez <Ui id="menu-help" /> › <Ui id="cmd-run-first-launch" /> pour reparcourir les étapes, avec vos choix actuels déjà sélectionnés. Depuis un projet, TruckPaint le ferme d’abord et demande s’il faut l’enregistrer. Tout ce que vous avez choisi se change aussi dans les préférences, sous <Ui id="prefs-games" />.
 
 ## L’écran d’accueil
 
-L’écran d’accueil contient :
+L’écran d’accueil est l’endroit où vous commencez une nouvelle livrée, en ouvrez une que vous avez enregistrée, ou reprenez un travail récent. Il contient :
 
 - **<Ui id="home-new-project" />**, le bouton principal, qui commence un nouveau projet (Ctrl+N, ⌘ sous macOS) ;
 - **<Ui id="cmd-open-project" />**, qui ouvre un fichier `.truckpaint` que vous avez enregistré (Ctrl+O) ;

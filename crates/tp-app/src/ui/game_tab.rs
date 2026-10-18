@@ -165,7 +165,7 @@ fn repaint(ctx: &egui::Context) -> impl Fn() + Send + 'static {
 
 /// Icon, text and color of a vehicle's state: its row in the run if there is one,
 /// else its package against the game.
-fn state_look(
+pub(super) fn state_look(
     id: &str,
     run: Option<&crate::game::Run>,
     generation: &Generation,

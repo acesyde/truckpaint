@@ -385,6 +385,31 @@ fn exporting_into_the_game() {
 }
 
 #[test]
+fn exporting_into_the_mod_folder_chosen_in_preferences() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut h = open(&dir);
+    let chosen = dir.path().join("MyMods");
+    std::fs::create_dir_all(&chosen).unwrap();
+    h.state_mut().dialogs = Box::new(ScriptedDialogs {
+        folders: [chosen.clone()].into(),
+        ..Default::default()
+    });
+    h.state_mut().open_preferences();
+    h.run();
+    // ETS2's rows come first: its installation folder, then its mod folder.
+    h.get_all_by_label("Choose…").nth(1).unwrap().click();
+    h.run();
+    assert_eq!(h.state().prefs.mod_folders["ets2"], chosen);
+    h.state_mut().modal = None;
+    h.run();
+    open_dialog(&mut h);
+    assert_eq!(
+        dialog(&h).unwrap().destination,
+        chosen.join("ACE Logistics.scs")
+    );
+}
+
+#[test]
 fn no_game_folder() {
     let dir = tempfile::tempdir().unwrap();
     let mut h = open(&dir);
