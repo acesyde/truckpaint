@@ -2,9 +2,10 @@
 /**
  * A screenshot of the app in the page's language: `media/<lang>/<name>.webp`,
  * rendered by `mise run doc:media`. The build fails when it is missing.
+ * Clicking it opens a full-screen preview (the script below).
  */
 import sharp from 'sharp';
-import { mediaFile, pageLanguage } from '~/lib/media';
+import { closeLabel, mediaFile, pageLanguage } from '~/lib/media';
 
 interface Props {
 	/** Path under the language folder, without extension (`workshop/workshop`). */
@@ -12,8 +13,47 @@ interface Props {
 	alt: string;
 }
 const { name, alt } = Astro.props;
-const { path, url } = mediaFile(pageLanguage(Astro), `${name}.webp`, Astro.url.pathname);
+const language = pageLanguage(Astro);
+const { path, url } = mediaFile(language, `${name}.webp`, Astro.url.pathname);
 const { width, height } = await sharp(path).metadata();
 ---
 
-<img class="tp-media" src={url} alt={alt} width={width} height={height} loading="lazy" decoding="async" />
+<button class="tp-zoom" type="button" data-close-label={closeLabel(language)}>
+	<img class="tp-media" src={url} alt={alt} width={width} height={height} loading="lazy" decoding="async" />
+</button>
+
+<script>
+	let dialog: HTMLDialogElement | undefined;
+
+	function preview(): HTMLDialogElement {
+		if (dialog) return dialog;
+		dialog = document.createElement('dialog');
+		dialog.className = 'tp-preview';
+		dialog.innerHTML = '<img alt="" /><button type="button" class="tp-preview-close"></button>';
+		// A click anywhere (image, backdrop or button) closes it.
+		dialog.addEventListener('click', () => dialog?.close());
+		dialog.addEventListener('close', () => document.documentElement.classList.remove('tp-preview-open'));
+		document.body.append(dialog);
+		return dialog;
+	}
+
+	document.addEventListener('click', (event) => {
+		const button = (event.target as Element).closest<HTMLButtonElement>('button.tp-zoom');
+		const image = button?.querySelector('img');
+		if (!button || !image) return;
+		const target = preview();
+		if (typeof target.showModal !== 'function') return;
+		const zoomed = target.querySelector('img')!;
+		zoomed.src = image.currentSrc || image.src;
+		zoomed.alt = image.alt;
+		zoomed.width = image.width;
+		zoomed.height = image.height;
+		const close = target.querySelector('button')!;
+		const label = button.dataset.closeLabel ?? 'Close';
+		close.setAttribute('aria-label', label);
+		close.textContent = '×';
+		close.title = label;
+		document.documentElement.classList.add('tp-preview-open');
+		target.showModal();
+	});
+</script>
