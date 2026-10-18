@@ -22,8 +22,8 @@
 
 ## 5. Documentation
 
-- [ ] 5.1 Pages that send players to a Preferences section name the tab: `ai-assistant/setup`, `vehicles/official-vehicles`, `workshop/tools`, `getting-started/first-launch`, `getting-started/installation`, in en then fr, es, de. Verify: `mise run doc:build` passes, and no page under `website/src/content/docs/` says "section" for Games or AI assistant in Preferences.
-- [ ] 5.2 Point the `vehicles/game-folders` and `ai-assistant/preferences` scenarios in `doc_media.rs` at their tabs. Run `mise run doc:media vehicles` and `mise run doc:media ai-assistant`, look at the images, and commit them. Verify: each image shows its tab whole, with no machine-specific path.
+- [x] 5.1 Pages that send players to a Preferences section name the tab: `ai-assistant/setup`, `vehicles/official-vehicles`, `workshop/tools`, `getting-started/first-launch`, `getting-started/installation`, in en then fr, es, de. Verify: `mise run doc:build` passes, and no page under `website/src/content/docs/` says "section" for Games or AI assistant in Preferences.
+- [x] 5.2 Point the `vehicles/game-folders` and `ai-assistant/preferences` scenarios in `doc_media.rs` at their tabs. Run `mise run doc:media vehicles` and `mise run doc:media ai-assistant`, look at the images, and commit them. Verify: each image shows its tab whole, with no machine-specific path.
 
 ## 6. Wrap up
 
