@@ -20,15 +20,18 @@ fn main() -> ExitCode {
     let state = AppState::new(store);
     let mode = state.title_bar_mode();
     tracing::info!(?mode, "title bar");
+    let mut viewport = egui::ViewportBuilder::default()
+        .with_title(APP_NAME)
+        .with_app_id("truckpaint")
+        .with_inner_size([1440.0, 900.0])
+        .with_min_inner_size([960.0, 600.0]);
+    // The icon is the same whatever the title bar; without it (an unreadable
+    // picture, already in the log) the system's generic icon stays.
+    if let Some(icon) = tp_app::icon::app_icon() {
+        viewport = viewport.with_icon(icon);
+    }
     let options = eframe::NativeOptions {
-        viewport: tp_app::title_bar::initial_viewport(
-            egui::ViewportBuilder::default()
-                .with_title(APP_NAME)
-                .with_app_id("truckpaint")
-                .with_inner_size([1440.0, 900.0])
-                .with_min_inner_size([960.0, 600.0]),
-            mode,
-        ),
+        viewport: tp_app::title_bar::initial_viewport(viewport, mode),
         persist_window: true,
         persistence_path: dirs.as_ref().map(|d| d.config.join("window.ron")),
         // Text glyphs and image edges are drawn as raw triangles (egui only
