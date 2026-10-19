@@ -7,6 +7,7 @@ use egui::ViewportCommand;
 use tp_core::Project;
 
 use crate::file_dialogs::{suggested_file_name, with_extension};
+use crate::open_job::{BOX_DELAY, OpenJob};
 use crate::prefs::now_unix;
 use crate::recovery::{self, RecoveryMeta, RecoveryStore};
 use crate::saver::{Done, JobKind, Saver};
@@ -28,7 +29,7 @@ pub enum PendingAction {
     RunFirstLaunch,
 }
 
-fn file_name(path: &Path) -> String {
+pub(crate) fn file_name(path: &Path) -> String {
     path.file_name().map_or_else(
         || path.display().to_string(),
         |n| n.to_string_lossy().into_owned(),
@@ -232,22 +233,51 @@ impl AppState {
         }
     }
 
-    /// Opens a project file, replacing the open project.
+    /// Starts opening a project file, replacing the open project once the
+    /// file is read (see [`Self::poll_opening`]). Ignored while another file
+    /// is being read.
     pub fn open_file(&mut self, ctx: &egui::Context, path: &Path) {
-        if self
-            .workspace()
-            .and_then(|ws| ws.path.as_deref())
-            .is_some_and(|open| same_file(open, path))
+        if self.opening.is_some()
+            || self
+                .workspace()
+                .and_then(|ws| ws.path.as_deref())
+                .is_some_and(|open| same_file(open, path))
         {
             return;
         }
-        let opened = match tp_file::read(path) {
+        let wake = ctx.clone();
+        self.opening = Some(OpenJob::start(
+            path.to_path_buf(),
+            ctx.input(|i| i.time),
+            move || wake.request_repaint(),
+        ));
+        // The box shows once the delay has passed, even with nothing else
+        // to repaint.
+        ctx.request_repaint_after(std::time::Duration::from_secs_f64(BOX_DELAY));
+    }
+
+    /// Whether a project file is being read.
+    pub fn is_opening(&self) -> bool {
+        self.opening.is_some()
+    }
+
+    /// Shows the project being read once it is (called every frame); a file
+    /// that cannot be opened leaves the open project as it is.
+    pub fn poll_opening(&mut self, ctx: &egui::Context) {
+        let Some(result) = self.opening.as_ref().and_then(OpenJob::poll) else {
+            return;
+        };
+        let Some(job) = self.opening.take() else {
+            return;
+        };
+        let path = job.path;
+        let opened = match result {
             Ok(opened) => opened,
             Err(err) => {
                 tracing::warn!(path = %path.display(), %err, "cannot open project");
                 self.message(
                     tr("file-open-failed-title"),
-                    file_error(&err, &file_name(path)),
+                    file_error(&err, &file_name(&path)),
                 );
                 return;
             }
@@ -258,10 +288,10 @@ impl AppState {
         self.open_document(
             ctx,
             project,
-            Some(path.to_path_buf()),
+            Some(path.clone()),
             !opened.migrated && !filled,
         );
-        self.prefs.push_recent(&name, path);
+        self.prefs.push_recent(&name, &path);
         self.refresh_recent_availability();
     }
 
@@ -430,7 +460,6 @@ pub fn file_error(err: &tp_file::Error, file: &str) -> String {
         tp_file::Error::NotAProject => tr!("file-not-a-project", file = file),
         tp_file::Error::Damaged(_) => tr!("file-damaged", file = file),
         tp_file::Error::NewerVersion { .. } => tr!("file-newer-version", file = file),
-        tp_file::Error::Unsupported { .. } => tr!("file-dev-format", file = file),
         tp_file::Error::Io(e) => tr!("file-io", file = file, reason = e.to_string()),
     }
 }

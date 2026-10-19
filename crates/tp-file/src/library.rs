@@ -38,9 +38,8 @@ pub fn to_bytes(library: &Project) -> Result<Vec<u8>, Error> {
 
 /// Reads a library from its bytes.
 pub fn from_bytes(bytes: &[u8]) -> Result<Project, Error> {
-    let (mut zip, text) = crate::open_zip(bytes, MIMETYPE, DOCUMENT)?;
-    let header = crate::header(&text)?;
-    let (document, _) = crate::migrate(header.format, &text)?;
+    let (mut zip, format, text) = crate::open_zip(bytes, MIMETYPE, DOCUMENT)?;
+    let (document, _) = crate::migrate(format, &text)?;
     current::into_document(&document, |entry| crate::entry_bytes(&mut zip, entry))
         .map_err(Error::Damaged)
 }

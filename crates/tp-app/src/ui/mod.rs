@@ -12,6 +12,7 @@ pub mod library_dialog;
 pub mod menu_bar;
 pub mod mod_export_dialog;
 pub mod new_project;
+pub mod opening_box;
 pub mod origin;
 pub mod palette;
 pub mod title_bar;

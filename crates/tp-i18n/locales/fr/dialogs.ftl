@@ -15,6 +15,7 @@ file-restore-failed-title = Impossible de restaurer le projet
 file-recovered-copy = La copie récupérée
 file-not-a-project = { $file } n’est pas un projet TruckPaint.
 file-damaged = { $file } est endommagé et ne peut pas être ouvert.
+opening-project = Ouverture de { $name }…
 file-newer-version = { $file } a été créé avec une version plus récente de TruckPaint.
 file-io = Impossible de lire ou d’écrire { $file } ({ $reason }).
 
@@ -96,7 +97,6 @@ export-background-color = Couleur d’arrière-plan
 prefs-language = Langue
 prefs-system-title-bar = Utiliser la barre de titre du système
 prefs-system-title-bar-hint = Le cadre et la barre de titre de la fenêtre sont ceux du système, avec les menus sur une ligne en dessous. Utile si la fenêtre ne peut pas être déplacée ou redimensionnée.
-file-dev-format = { $file } utilise un format de développement que cette version ne peut pas ouvrir.
 
 ## Vehicle packages
 

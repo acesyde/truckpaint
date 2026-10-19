@@ -29,6 +29,14 @@ fn settle(h: &mut H) {
     for _ in 0..4 {
         h.step();
     }
+    // A project file is read in the background.
+    for _ in 0..400 {
+        if !h.state().is_opening() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        h.step();
+    }
 }
 
 fn harness_in(recovery: Option<&Path>) -> H {
@@ -377,8 +385,10 @@ fn newer_format() {
     let o = zip::write::SimpleFileOptions::default();
     zip.start_file("mimetype", o).unwrap();
     zip.write_all(b"application/x-truckpaint").unwrap();
+    zip.start_file("format", o).unwrap();
+    zip.write_all(b"99").unwrap();
     zip.start_file("project.ron", o).unwrap();
-    zip.write_all(b"(format: 99, name: \"x\")").unwrap();
+    zip.write_all(b"(name: \"x\")").unwrap();
     zip.finish().unwrap();
     let mut h = harness_in(None);
     dialogs(&mut h, &[], &[path]);
@@ -409,6 +419,95 @@ fn open_from_the_home_screen_and_recent_entries() {
     h.get_by_label("ACE Logistics").click();
     settle(&mut h);
     assert_eq!(ws(&h).path.as_deref(), Some(path.as_path()));
+}
+
+#[test]
+fn an_unreadable_file_leaves_the_open_project_alone() {
+    let dir = tempfile::tempdir().unwrap();
+    let bad = dir.path().join("bad.truckpaint");
+    std::fs::write(&bad, b"not a project").unwrap();
+    let mut h = open();
+    add_rect(&mut h, 300.0);
+    let ctx = h.ctx.clone();
+    h.state_mut().open_file(&ctx, &bad);
+    settle(&mut h);
+    assert_eq!(
+        message_text(&h).as_deref(),
+        Some("bad.truckpaint is not a TruckPaint project.")
+    );
+    // Still the project that was open, with its unsaved rectangle.
+    assert_eq!(ws(&h).project.surface().objects.len(), 1);
+    assert_eq!(status(&h), SaveState::Unsaved);
+}
+
+#[test]
+fn a_second_open_while_reading_starts_nothing() {
+    let dir = tempfile::tempdir().unwrap();
+    let (first, second) = (
+        dir.path().join("a.truckpaint"),
+        dir.path().join("b.truckpaint"),
+    );
+    rich_file(&first);
+    rich_file(&second);
+    let mut h = harness_in(None);
+    let ctx = h.ctx.clone();
+    h.state_mut().open_file(&ctx, &first);
+    assert!(h.state().is_opening());
+    h.state_mut().open_file(&ctx, &second);
+    settle(&mut h);
+    assert_eq!(ws(&h).path.as_deref(), Some(first.as_path()));
+}
+
+/// A quick open shows no box; one that is still reading after a moment
+/// shows "Opening <file>…" and the window keeps answering. The slow file is
+/// a named pipe, which blocks the reader until the test writes to it.
+#[cfg(unix)]
+#[test]
+fn the_box_shows_only_for_a_slow_open() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("ace.truckpaint");
+    rich_file(&path);
+
+    // Frames of a hundredth of a second: the time a quick read takes.
+    let mut h = common::builder()
+        .with_size(common::SIZE)
+        .with_step_dt(0.01)
+        .build_ui_state(
+            |ui, state: &mut AppState| state.show(ui),
+            AppState::with_prefs(tp_app::prefs::Prefs::default(), None),
+        );
+    let ctx = h.ctx.clone();
+    h.state_mut().open_file(&ctx, &path);
+    h.step();
+    assert!(h.query_by_label_contains("Opening").is_none());
+    settle(&mut h);
+    assert_eq!(ws(&h).project.name, "ACE Logistics");
+
+    let slow = dir.path().join("slow.truckpaint");
+    assert!(
+        std::process::Command::new("mkfifo")
+            .arg(&slow)
+            .status()
+            .unwrap()
+            .success()
+    );
+    let mut h = harness_in(None);
+    let ctx = h.ctx.clone();
+    h.state_mut().open_file(&ctx, &slow);
+    for _ in 0..8 {
+        h.step();
+    }
+    assert!(h.state().is_opening());
+    assert!(
+        h.query_by_label_contains("Opening slow.truckpaint")
+            .is_some()
+    );
+    let (bytes, pipe) = (std::fs::read(&path).unwrap(), slow.clone());
+    let writer = std::thread::spawn(move || std::fs::write(pipe, bytes).unwrap());
+    settle(&mut h);
+    writer.join().unwrap();
+    assert!(h.query_by_label_contains("Opening").is_none());
+    assert_eq!(ws(&h).project.name, "ACE Logistics");
 }
 
 // ------------------------------------------------------- unsaved changes

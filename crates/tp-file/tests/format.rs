@@ -437,7 +437,6 @@ fn assert_same_document(a: &Project, b: &Project) {
 fn document_conversion_round_trip_keeps_ids() {
     let p = rich_project();
     let file = tp_file::current::from_project(&p);
-    assert_eq!(file.format, FORMAT_VERSION);
     let bytes: std::collections::HashMap<String, Vec<u8>> = p
         .assets
         .values()
@@ -590,12 +589,14 @@ fn writing_records_the_current_version() {
     let bytes = tp_file::to_bytes(&rich_project()).unwrap();
     let mut zip = zip::ZipArchive::new(std::io::Cursor::new(bytes)).unwrap();
     assert_eq!(zip.by_index(0).unwrap().name(), "mimetype");
+    // Its own entry, so that reading it does not parse the document.
+    assert_eq!(zip.by_index(1).unwrap().name(), "format");
+    let mut format = String::new();
+    std::io::Read::read_to_string(&mut zip.by_name("format").unwrap(), &mut format).unwrap();
+    assert_eq!(format, FORMAT_VERSION.to_string());
     let mut text = String::new();
     std::io::Read::read_to_string(&mut zip.by_name("project.ron").unwrap(), &mut text).unwrap();
-    assert!(
-        text.contains(&format!("format: {FORMAT_VERSION}")),
-        "{text}"
-    );
+    assert!(!text.contains("format:"), "{text}");
 }
 
 #[cfg(unix)]
@@ -613,12 +614,20 @@ fn failed_write_keeps_the_previous_file() {
     assert_eq!(std::fs::read(&path).unwrap(), before);
 }
 
-/// ZIP bytes with the given document text and no assets.
+/// ZIP bytes with the given document text, the current format version and
+/// no assets.
 fn zip_with(document: &str) -> Vec<u8> {
+    zip_with_format(&FORMAT_VERSION.to_string(), document)
+}
+
+/// Same, recording `format` as the version.
+fn zip_with_format(format: &str, document: &str) -> Vec<u8> {
     let mut zip = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
     let o = zip::write::SimpleFileOptions::default();
     zip.start_file("mimetype", o).unwrap();
     zip.write_all(b"application/x-truckpaint").unwrap();
+    zip.start_file("format", o).unwrap();
+    zip.write_all(format.as_bytes()).unwrap();
     zip.start_file("project.ron", o).unwrap();
     zip.write_all(document.as_bytes()).unwrap();
     zip.finish().unwrap().into_inner()
@@ -631,8 +640,10 @@ fn a_zip_bomb_is_refused_before_unpacking() {
     let o = zip::write::SimpleFileOptions::default();
     zip.start_file("mimetype", o).unwrap();
     zip.write_all(b"application/x-truckpaint").unwrap();
+    zip.start_file("format", o).unwrap();
+    zip.write_all(b"1").unwrap();
     zip.start_file("project.ron", o).unwrap();
-    zip.write_all(b"(format: 1)").unwrap();
+    zip.write_all(b"()").unwrap();
     zip.start_file("assets/1.png", o).unwrap();
     let zeros = vec![0u8; 1 << 20];
     for _ in 0..100 {
@@ -647,10 +658,10 @@ fn a_zip_bomb_is_refused_before_unpacking() {
 }
 
 #[test]
-fn newer_version_is_detected_from_the_header_alone() {
+fn newer_version_is_detected_from_the_version_alone() {
     // A future document whose body does not match today's structures.
-    let doc = r#"(format: 7, name: "x", surfaces: {"main": [1, 2, 3]}, new_thing: Some(true))"#;
-    let err = tp_file::from_bytes(&zip_with(doc)).unwrap_err();
+    let doc = r#"(name: "x", surfaces: {"main": [1, 2, 3]}, new_thing: Some(true))"#;
+    let err = tp_file::from_bytes(&zip_with_format("7", doc)).unwrap_err();
     assert!(
         matches!(
             err,
@@ -682,7 +693,7 @@ fn not_a_project_and_damaged_files() {
         "a.truckpaint is damaged and cannot be opened."
     );
     assert!(matches!(
-        tp_file::from_bytes(&zip_with("(format: 1, name: ")),
+        tp_file::from_bytes(&zip_with("(name: ")),
         Err(Error::Damaged(_))
     ));
 }
@@ -760,8 +771,8 @@ fn every_stroke_option_round_trips() {
 }
 
 #[test]
-fn newer_and_development_formats() {
-    let err = tp_file::from_bytes(&zip_with("(format: 4, name: \"x\")")).unwrap_err();
+fn newer_and_missing_versions() {
+    let err = tp_file::from_bytes(&zip_with_format("4", "(name: \"x\")")).unwrap_err();
     assert!(
         matches!(
             err,
@@ -772,15 +783,24 @@ fn newer_and_development_formats() {
         ),
         "{err:?}"
     );
-    for dev in [2, 3] {
-        let doc = format!("(format: {dev}, name: \"x\")");
-        let err = tp_file::from_bytes(&zip_with(&doc)).unwrap_err();
-        assert!(
-            matches!(err, Error::Unsupported { found } if found == dev),
-            "{err:?}"
-        );
-        assert!(err.message("a.truckpaint").contains("development format"));
+    // No recorded version (the files of unreleased builds), or one that is
+    // not a version: damaged.
+    for format in ["0", "x", ""] {
+        let err = tp_file::from_bytes(&zip_with_format(format, "(name: \"x\")")).unwrap_err();
+        assert!(matches!(err, Error::Damaged(_)), "{format:?}: {err:?}");
     }
+    let mut zip = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+    let o = zip::write::SimpleFileOptions::default();
+    zip.start_file("mimetype", o).unwrap();
+    zip.write_all(b"application/x-truckpaint").unwrap();
+    zip.start_file("project.ron", o).unwrap();
+    zip.write_all(b"(name: \"x\")").unwrap();
+    let err = tp_file::from_bytes(&zip.finish().unwrap().into_inner()).unwrap_err();
+    assert!(matches!(err, Error::Damaged(_)), "{err:?}");
+    assert_eq!(
+        err.message("a.truckpaint"),
+        "a.truckpaint is damaged and cannot be opened."
+    );
 }
 
 #[test]
@@ -848,7 +868,7 @@ fn gradients_round_trip() {
 
 #[test]
 fn gradient_with_one_stop_is_damaged() {
-    let doc = r#"(format: 1, name: "x", resolution: 2048, active_surface: 0,
+    let doc = r#"(name: "x", resolution: 2048, active_surface: 0,
         surfaces: [(name: "Main texture", size: (2048.0, 2048.0), objects: [
             (id: 1, name: "Box", kind: Rectangle(corner_radius: 0.0), center: (100.0, 100.0),
              size: (50.0, 50.0), rotation: 0.0,
@@ -860,40 +880,6 @@ fn gradient_with_one_stop_is_damaged() {
                     kind: "truck", game: "ets2")])"#;
     let err = tp_file::from_bytes(&zip_with(doc)).unwrap_err();
     assert!(matches!(err, Error::Damaged(_)), "{err:?}");
-}
-
-/// Files of development builds that recorded variants: a single vehicle
-/// and variant, then fleets with variants.
-#[test]
-fn variant_files_of_development_builds_are_refused() {
-    for name in ["dev-single-vehicle", "dev-variants"] {
-        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join(format!("tests/fixtures/{name}.truckpaint"));
-        let err = tp_file::read(&path).unwrap_err();
-        assert!(
-            matches!(err, Error::Unsupported { found: 1 }),
-            "{name}: {err:?}"
-        );
-        assert!(err.message("a.truckpaint").contains("development format"));
-    }
-}
-
-/// A file saved before textures had a width and a height: its surfaces
-/// have a single size.
-#[test]
-fn single_size_files_are_a_development_format() {
-    let path =
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/dev-single-size.truckpaint");
-    let err = tp_file::read(&path).unwrap_err();
-    assert!(matches!(err, Error::Unsupported { found: 1 }), "{err:?}");
-    assert!(err.message("a.truckpaint").contains("development format"));
-    // The current document with one surface's size written as a single
-    // number.
-    let text = ron::ser::to_string(&tp_file::current::from_project(&plain_project())).unwrap();
-    let single = text.replacen("size:(2048.0,2048.0)", "size:2048.0", 1);
-    assert_ne!(single, text);
-    let err = tp_file::from_bytes(&zip_with(&single)).unwrap_err();
-    assert!(matches!(err, Error::Unsupported { found: 1 }), "{err:?}");
 }
 
 #[test]
@@ -910,13 +896,18 @@ fn rectangular_surface_round_trips() {
     );
 }
 
+/// Files of unreleased builds (no vehicle, a single size per surface) are
+/// refused like any file that does not match the format.
 #[test]
-fn blank_texture_files_are_a_development_format() {
-    let doc = r#"(format: 1, name: "x", resolution: 2048, active_surface: 0,
+fn files_that_do_not_match_the_format_are_damaged() {
+    let blank = r#"(name: "x", resolution: 2048, active_surface: 0,
         surfaces: [(name: "Main texture", size: (2048.0, 2048.0))])"#;
-    let err = tp_file::from_bytes(&zip_with(doc)).unwrap_err();
-    assert!(matches!(err, Error::Unsupported { found: 1 }), "{err:?}");
-    assert!(err.message("a.truckpaint").contains("development format"));
+    let single = r#"(name: "x", resolution: 2048, active_surface: 0,
+        surfaces: [(name: "Main texture", size: 2048.0)])"#;
+    for doc in [blank, single] {
+        let err = tp_file::from_bytes(&zip_with(doc)).unwrap_err();
+        assert!(matches!(err, Error::Damaged(_)), "{err:?}");
+    }
 }
 
 #[test]
@@ -1388,4 +1379,30 @@ fn summary_reads_the_document_without_changing_the_file() {
     std::fs::write(&path, &bytes[..bytes.len() / 2]).unwrap();
     assert!(matches!(tp_file::summary(&path), Err(Error::Damaged(_))));
     assert!(tp_file::summary(&dir.path().join("missing.truckpaint")).is_err());
+}
+
+/// Reading a document of several megabytes stays linear in its size: no
+/// step may parse the whole text with the fields it does not need ignored
+/// (`ron` looks for ".." in the rest of the text at every number of such a
+/// parse, which took minutes for a file like this one).
+#[test]
+fn a_large_project_opens_quickly() {
+    let mut p = plain_project();
+    for k in 0..30 {
+        let nodes = (0..1_000)
+            .map(|i| Node::corner(Point::new(f64::from(i) * 1.37, f64::from(k) * 91.3 + 0.5)))
+            .collect();
+        p.add(Object::from_path(
+            ObjectId(0),
+            PathData::new(vec![Subpath::new(nodes, false)]),
+        ));
+    }
+    let bytes = tp_file::to_bytes(&p).unwrap();
+    let mut zip = zip::ZipArchive::new(std::io::Cursor::new(&bytes)).unwrap();
+    let document = zip.by_name("project.ron").unwrap().size();
+    assert!(document > 2_000_000, "only {document} bytes");
+    let start = std::time::Instant::now();
+    let opened = tp_file::from_bytes(&bytes).unwrap();
+    assert_eq!(opened.project.surfaces[0].objects.len(), 30);
+    assert!(start.elapsed().as_secs_f32() < 3.0, "{:?}", start.elapsed());
 }

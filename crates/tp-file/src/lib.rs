@@ -1,6 +1,8 @@
 //! The `.truckpaint` project file: a ZIP archive holding
 //! - `mimetype`: `application/x-truckpaint` (identifies the file),
-//! - `project.ron`: the document, starting with its `format` version,
+//! - `format`: the format version, as text (read before the document, which
+//!   is not parsed to find it),
+//! - `project.ron`: the document,
 //! - `assets/<id>.<ext>`: imported files, byte for byte.
 //!
 //! Every format version keeps a frozen module (`v1`, …). Reading parses a
@@ -14,7 +16,6 @@ pub mod v1;
 use std::io::{Cursor, Read, Write};
 use std::path::Path;
 
-use serde::Deserialize;
 use tp_core::Project;
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipArchive, ZipWriter};
@@ -25,6 +26,7 @@ pub const FORMAT_VERSION: u32 = 1;
 pub const EXTENSION: &str = "truckpaint";
 const MIMETYPE: &str = "application/x-truckpaint";
 const DOCUMENT: &str = "project.ron";
+const FORMAT_ENTRY: &str = "format";
 
 /// The current format's module.
 pub use v1 as current;
@@ -38,10 +40,6 @@ pub enum Error {
     NotAProject,
     /// A project, but incomplete or inconsistent.
     Damaged(String),
-    /// Written by an unreleased development build.
-    Unsupported {
-        found: u32,
-    },
     /// Written by a newer TruckPaint.
     NewerVersion {
         found: u32,
@@ -56,9 +54,6 @@ impl Error {
         match self {
             Self::NotAProject => format!("{file} is not a TruckPaint project."),
             Self::Damaged(_) => format!("{file} is damaged and cannot be opened."),
-            Self::Unsupported { .. } => {
-                format!("{file} uses a development format that this version cannot open.")
-            }
             Self::NewerVersion { .. } => {
                 format!("{file} was created with a newer version of TruckPaint.")
             }
@@ -72,7 +67,6 @@ impl std::fmt::Display for Error {
         match self {
             Self::NotAProject => write!(f, "not a TruckPaint project"),
             Self::Damaged(why) => write!(f, "damaged project: {why}"),
-            Self::Unsupported { found } => write!(f, "development format {found}"),
             Self::NewerVersion { found, supported } => {
                 write!(f, "format {found} is newer than {supported}")
             }
@@ -97,78 +91,6 @@ pub struct Opened {
     pub migrated: bool,
 }
 
-/// Only the version, read before anything else so it is known even when
-/// the rest of the document does not match the current structures.
-#[derive(Deserialize)]
-struct Header {
-    format: u32,
-}
-
-/// What development builds wrote in format 1 before it was released:
-/// projects without a vehicle (blank textures), a single `vehicle`,
-/// vehicles with `variants`, or surfaces with a single (square) `size`
-/// instead of a width and a height. Read before the full document, which
-/// they don't match.
-fn is_development_v1(text: &str) -> bool {
-    /// True when the field is present, whatever its value.
-    fn present<'de, D: serde::Deserializer<'de>>(d: D) -> Result<bool, D::Error> {
-        serde::de::IgnoredAny::deserialize(d).map(|_| true)
-    }
-    /// True when the field is a single number.
-    fn number<'de, D: serde::Deserializer<'de>>(d: D) -> Result<bool, D::Error> {
-        struct IsNumber;
-        impl<'de> serde::de::Visitor<'de> for IsNumber {
-            type Value = bool;
-            fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                f.write_str("a size")
-            }
-            fn visit_f64<E>(self, _: f64) -> Result<bool, E> {
-                Ok(true)
-            }
-            fn visit_i64<E>(self, _: i64) -> Result<bool, E> {
-                Ok(true)
-            }
-            fn visit_u64<E>(self, _: u64) -> Result<bool, E> {
-                Ok(true)
-            }
-            fn visit_seq<A: serde::de::SeqAccess<'de>>(self, mut seq: A) -> Result<bool, A::Error> {
-                while seq.next_element::<serde::de::IgnoredAny>()?.is_some() {}
-                Ok(false)
-            }
-        }
-        d.deserialize_any(IsNumber)
-    }
-    #[derive(Deserialize)]
-    struct Vehicle {
-        #[serde(default, deserialize_with = "present")]
-        variants: bool,
-    }
-    #[derive(Deserialize)]
-    struct Surface {
-        #[serde(default, deserialize_with = "number")]
-        size: bool,
-    }
-    #[derive(Deserialize)]
-    struct Markers {
-        #[serde(default)]
-        vehicles: Vec<Vehicle>,
-        #[serde(default, deserialize_with = "present")]
-        vehicle: bool,
-        #[serde(default)]
-        surfaces: Vec<Surface>,
-    }
-    match ron_options().from_str::<Markers>(text) {
-        Ok(m) => {
-            m.vehicles.is_empty()
-                || m.vehicle
-                || m.vehicles.iter().any(|v| v.variants)
-                || m.surfaces.iter().any(|s| s.size)
-        }
-        // Not even the markers parse: the full parse reports the damage.
-        Err(_) => false,
-    }
-}
-
 fn ron_options() -> ron::Options {
     ron::Options::default()
 }
@@ -186,6 +108,8 @@ fn zip_bytes(project: &Project, mimetype: &str, document: &str) -> Result<Vec<u8
     let deflated = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
     zip.start_file("mimetype", stored).map_err(zip_err)?;
     zip.write_all(mimetype.as_bytes())?;
+    zip.start_file(FORMAT_ENTRY, stored).map_err(zip_err)?;
+    zip.write_all(FORMAT_VERSION.to_string().as_bytes())?;
 
     let file = current::from_project(project);
     let text = ron_options()
@@ -209,14 +133,8 @@ fn zip_bytes(project: &Project, mimetype: &str, document: &str) -> Result<Vec<u8
 
 /// Reads a project from `.truckpaint` bytes.
 pub fn from_bytes(bytes: &[u8]) -> Result<Opened, Error> {
-    let (mut zip, text) = open_zip(bytes, MIMETYPE, DOCUMENT)?;
-    let header = header(&text)?;
-    if header.format == 1 && is_development_v1(&text) {
-        return Err(Error::Unsupported {
-            found: header.format,
-        });
-    }
-    let (document, migrated) = migrate(header.format, &text)?;
+    let (mut zip, format, text) = open_zip(bytes, MIMETYPE, DOCUMENT)?;
+    let (document, migrated) = migrate(format, &text)?;
     let project = current::into_project(&document, |entry| entry_bytes(&mut zip, entry))
         .map_err(Error::Damaged)?;
     Ok(Opened { project, migrated })
@@ -224,12 +142,14 @@ pub fn from_bytes(bytes: &[u8]) -> Result<Opened, Error> {
 
 type Zip<'a> = ZipArchive<Cursor<&'a [u8]>>;
 
-/// The archive and its document, once `mimetype` is checked.
+/// The archive, its format version and its document, once `mimetype` and
+/// the version are checked (a version this build cannot read is refused
+/// before the document is unpacked).
 fn open_zip<'a>(
     bytes: &'a [u8],
     mimetype: &str,
     document: &str,
-) -> Result<(Zip<'a>, String), Error> {
+) -> Result<(Zip<'a>, u32, String), Error> {
     let mut zip = ZipArchive::new(Cursor::new(bytes)).map_err(|e| {
         // A ZIP that cannot be read (e.g. truncated) is a damaged project;
         // anything else is not a project at all.
@@ -260,16 +180,23 @@ fn open_zip<'a>(
             "unpacks to {total} bytes, more than {limit}"
         )));
     }
+    let format = entry_bytes(&mut zip, FORMAT_ENTRY)
+        .and_then(|b| String::from_utf8(b).ok()?.trim().parse::<u32>().ok())
+        .ok_or_else(|| Error::Damaged("missing format version".into()))?;
+    match format {
+        0 => return Err(Error::Damaged("invalid format version 0".into())),
+        f if f > FORMAT_VERSION => {
+            return Err(Error::NewerVersion {
+                found: f,
+                supported: FORMAT_VERSION,
+            });
+        }
+        _ => {}
+    }
     let text =
         entry_bytes(&mut zip, document).ok_or_else(|| Error::Damaged("missing document".into()))?;
     let text = String::from_utf8(text).map_err(|e| Error::Damaged(e.to_string()))?;
-    Ok((zip, text))
-}
-
-fn header(text: &str) -> Result<Header, Error> {
-    ron_options()
-        .from_str(text)
-        .map_err(|e| Error::Damaged(e.to_string()))
+    Ok((zip, format, text))
 }
 
 /// An entry's bytes, never more than its declared size (the total of which
@@ -290,13 +217,8 @@ fn migrate(format: u32, text: &str) -> Result<(current::FileProject, bool), Erro
         // The next format adds its module and converts from the older ones
         // here, step by step (`vN → vN+1`).
         1 => Ok((ron_options().from_str(text).map_err(parse_err)?, false)),
-        // Formats of unreleased development builds.
-        2 | 3 => Err(Error::Unsupported { found: format }),
-        0 => Err(Error::Damaged("invalid format version 0".into())),
-        found => Err(Error::NewerVersion {
-            found,
-            supported: FORMAT_VERSION,
-        }),
+        // `open_zip` already refused the others.
+        found => Err(Error::Damaged(format!("unknown format version {found}"))),
     }
 }
 
@@ -309,14 +231,8 @@ pub fn read(path: &Path) -> Result<Opened, Error> {
 /// only: no image is decoded and the file is not changed.
 pub fn summary(path: &Path) -> Result<Summary, Error> {
     let bytes = std::fs::read(path)?;
-    let (_, text) = open_zip(&bytes, MIMETYPE, DOCUMENT)?;
-    let header = header(&text)?;
-    if header.format == 1 && is_development_v1(&text) {
-        return Err(Error::Unsupported {
-            found: header.format,
-        });
-    }
-    let (document, _) = migrate(header.format, &text)?;
+    let (_, format, text) = open_zip(&bytes, MIMETYPE, DOCUMENT)?;
+    let (document, _) = migrate(format, &text)?;
     Ok(Summary::of_file(&document))
 }
 

@@ -22,7 +22,6 @@ use tp_core::{
 /// The document (`project.ron`). Asset bytes live in separate ZIP entries.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct FileProject {
-    pub format: u32,
     pub name: String,
     /// Texture side in pixels (2048, 4096 or 8192).
     pub resolution: u32,
@@ -908,7 +907,6 @@ fn object_to_file(o: &Object) -> FileObject {
 /// The document of `project` (asset bytes are written separately).
 pub fn from_project(project: &Project) -> FileProject {
     let mut file = FileProject {
-        format: 1,
         name: project.name.clone(),
         resolution: project.resolution.side(),
         active_surface: project.active_surface,
