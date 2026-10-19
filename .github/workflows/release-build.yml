@@ -1,10 +1,14 @@
 name: Release build
 
 # Builds the downloads of a release or pre-release and publishes it. Called by
-# release.yml and prerelease.yml, which decide whether the tag may release.
-# The release is a draft until all three downloads are attached, so a failed
-# build never leaves a public release with a missing download, and running the
-# workflow again for the same tag completes it.
+# release.yml and prerelease.yml, which check the request first.
+#
+# The release is a draft until all three downloads are attached and attested,
+# so a failed build never leaves a public release with a missing download. With
+# immutable releases, files can only be added to a draft: once published, the
+# tag and the files are locked. `publish` unticked leaves the draft to review.
+# Running the workflow again for the same tag, before it is published,
+# completes it.
 
 on:
   workflow_call:
@@ -15,6 +19,10 @@ on:
         required: true
       prerelease:
         description: Publish as a pre-release (never the Latest release)
+        type: boolean
+        required: true
+      publish:
+        description: Publish the release when it is built (false leaves a draft)
         type: boolean
         required: true
 
@@ -48,7 +56,11 @@ jobs:
             os: macos-latest
     runs-on: ${{ matrix.os }}
     steps:
+      # The commit the run started on, so a branch that moves during the build
+      # cannot mix two commits.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
 
       - name: Install Linux system packages
         if: runner.os == 'Linux'
@@ -84,8 +96,12 @@ jobs:
     name: Publish
     needs: package
     runs-on: ubuntu-latest
+    # Only this job writes: the downloads are attested (id-token, attestations)
+    # and attached to the release (contents).
     permissions:
       contents: write
+      id-token: write
+      attestations: write
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
@@ -94,6 +110,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.sha }}
           # Every tag: the notes start at the last stable one.
           fetch-depth: 0
 
@@ -115,25 +132,47 @@ jobs:
         id: notes
         run: bash scripts/release-notes-start.sh "$TAG"
 
-      # A draft is created, or the release made by hand for this tag is reused.
+      # A draft for the built commit. A release with this tag can only be a
+      # draft here (the request is refused when the tag exists, and a published
+      # release has its tag): it is reused and pointed at this commit. GitHub
+      # creates the tag when the release is published.
       - name: Draft
         env:
           START: ${{ steps.notes.outputs.start }}
         run: |
-          if gh release view "$TAG" > /dev/null 2>&1; then
-            echo "Release $TAG exists: reusing it."
-          else
-            args=(--draft --verify-tag --title "$TAG" --generate-notes)
+          set +e
+          found=$(gh release view "$TAG" --json isDraft --jq .isDraft 2>&1)
+          code=$?
+          set -e
+          if [ "$code" -eq 0 ]; then
+            if [ "$found" != true ]; then
+              echo "::error::The release $TAG is already published: files cannot be added to it."
+              exit 1
+            fi
+            echo "The draft $TAG exists: reusing it for $GITHUB_SHA."
+            gh release edit "$TAG" --target "$GITHUB_SHA"
+          elif grep -q "release not found" <<< "$found"; then
+            args=(--draft --target "$GITHUB_SHA" --title "$TAG" --generate-notes)
             [ -z "$START" ] || args+=(--notes-start-tag "$START")
-            [ "$PRERELEASE" != true ] || args+=(--prerelease)
+            if [ "$PRERELEASE" = true ]; then args+=(--prerelease); else args+=(--latest); fi
             gh release create "$TAG" "${args[@]}"
+          else
+            echo "::error::Could not look for the release $TAG: $found"
+            exit 1
           fi
 
       - name: Upload
         run: gh release upload "$TAG" dist/truckpaint-* dist/SHA256SUMS --clobber
 
-      # Last step: nothing is public before all the files are attached.
+      # The files that were just uploaded: the three archives and SHA256SUMS.
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: dist/*
+
+      # Last step: nothing is public before all the files are attached and
+      # attested, and nothing is published when `publish` is unticked.
       - name: Publish
+        if: inputs.publish
         run: |
           if [ "$PRERELEASE" = true ]; then
             gh release edit "$TAG" --draft=false --prerelease=true --latest=false
@@ -143,3 +182,15 @@ jobs:
           url=$(gh release view "$TAG" --json url --jq .url)
           echo "Published $url"
           echo "Published $url" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Draft ready
+        if: ${{ !inputs.publish }}
+        run: |
+          url=$(gh release view "$TAG" --json url --jq .url)
+          {
+            echo "The draft $TAG is ready, with the three downloads and SHA256SUMS: $url"
+            echo
+            echo "Nothing is public and the tag does not exist yet. Look at it, then publish it"
+            echo "in GitHub, or run this workflow again for the same tag with publish ticked."
+            echo "A published release is permanent."
+          } | tee -a "$GITHUB_STEP_SUMMARY"

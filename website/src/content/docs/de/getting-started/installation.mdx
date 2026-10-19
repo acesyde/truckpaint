@@ -28,7 +28,7 @@ Es gibt noch kein `.app`-Bundle und kein Symbol.
 
 ### Der erste Start
 
-Die Programme sind nicht signiert, daher warnt Sie Ihr System beim ersten Mal möglicherweise. Das ist zu erwarten.
+Die Programme sind nicht signiert, daher warnt Sie Ihr System beim ersten Mal möglicherweise. Das ist zu erwarten. Wo eine Datei erstellt wurde, lesen Sie unter [Download prüfen](#download-prüfen) nach. Diese Warnungen verschwinden dadurch nicht.
 
 - **Windows:** SmartScreen zeigt eventuell „Der Computer wurde durch Windows geschützt“. Klicken Sie auf **Weitere Informationen** und dann auf **Trotzdem ausführen**.
 - **macOS:** Gatekeeper blockiert den ersten Start. Die zuverlässige Lösung ist, die Quarantäne-Markierung zu entfernen. Führen Sie in einem Terminal Folgendes mit dem Pfad des entpackten Ordners aus und starten Sie dann das Programm:
@@ -57,6 +57,20 @@ sha256sum <file>        # Linux
 shasum -a 256 <file>    # macOS
 Get-FileHash <file>     # Windows, in PowerShell
 ```
+
+Sie können auch prüfen, wo eine Datei erstellt wurde. Das ist optional. Dafür brauchen Sie die [GitHub CLI](https://cli.github.com) (`gh`) und eine Internetverbindung. Jedes Release enthält für jeden Download und für `SHA256SUMS` eine Attestierung. Führen Sie dies neben der heruntergeladenen Datei aus, mit deren eigenem Namen:
+
+```sh
+gh attestation verify truckpaint-v<version>-macos-arm64.zip -R acesyde/truckpaint
+```
+
+Wenn die Prüfung erfolgreich ist, wurde die Datei vom eigenen Release-Workflow von TruckPaint aus einem bestimmten Commit erstellt und danach nicht verändert. Schlägt sie fehl, führen Sie die Datei nicht aus und melden Sie es auf der [Issues-Seite](https://github.com/acesyde/truckpaint/issues).
+
+:::note
+Eine Attestierung ist keine Codesignatur. Sie zeigt, wo die Datei erstellt wurde. Sie bedeutet nicht, dass Windows oder macOS ihr vertrauen. Die Programme sind weiterhin nicht von Windows oder Apple signiert, daher sehen Sie die Warnungen unter [Der erste Start](#der-erste-start) weiterhin.
+:::
+
+Ein veröffentlichtes Release ändert sich nie. Seine Dateien können weder ersetzt noch entfernt werden, daher ist die Datei, die Sie heute herunterladen, morgen dieselbe.
 
 ### Vorabversionen
 

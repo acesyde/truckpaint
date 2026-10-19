@@ -107,33 +107,63 @@ Small fixes don't need an OpenSpec change.
 
 ## Releasing
 
-A release is made by pushing a tag. The tag is the only thing you do: GitHub builds the
-downloads and publishes them (see `.github/workflows/release.yml`, `prerelease.yml` and
-`release-build.yml`).
+A release is started from GitHub, with a button. Two workflows do it
+(`.github/workflows/release.yml` and `prerelease.yml`, sharing `release-build.yml`).
+Pushing a tag starts nothing: the tag is created by GitHub when the release is published.
+
+1. Open **Actions**, choose **Release** or **Pre-release**, and click **Run workflow**.
+2. Choose the branch in **Use workflow from**, type the `tag`, and keep **publish** ticked
+   (or untick it, see below).
+3. About ten minutes later the release is published; the run summary has its link.
+
+The same, from a terminal:
 
 ```sh
-git tag v0.2.0            # a release: must be on a commit of main
-git push origin v0.2.0
-
-git tag v0.2.0-beta.1     # a pre-release: any branch, any commit
-git push origin v0.2.0-beta.1
+gh workflow run release.yml --ref main -f tag=v0.2.0
+gh workflow run prerelease.yml --ref feat/gradients -f tag=v0.2.0-beta.1
 ```
 
-- The tag is `v` and a semantic version. A suffix (`-beta.1`, `-hotfix.2`) makes it a
-  pre-release, which is never the Latest release.
-- A release tag on a commit that is not on `main` fails before anything is built. Delete
-  the tag with `git push origin :refs/tags/v0.2.0` and tag a commit of `main`.
-- A tag like `v0.2` is not a version: the workflows don't start and nothing is shown.
+- **Release** only runs from `main`, with a tag like `v0.2.0` (no suffix). It is the
+  Latest release. **Pre-release** runs from any branch, with a suffix like
+  `v0.2.0-beta.1`, and is never the Latest release. Choosing the workflow chooses the
+  kind; a tag with the wrong shape is refused.
+- A wrong request stops in seconds, before any build: a tag that is not a version, the
+  wrong kind of tag for the workflow, Release started from another branch than `main`, or
+  a tag that already exists.
+- The build is the head of the chosen branch at the moment you click. The release is made
+  for that exact commit, and GitHub creates the tag on it at publication.
+- The **Run workflow** button only appears when the workflows are on `main`, and the branch
+  you choose must contain the workflow files: update an older feature branch from `main`
+  first.
 - Each release holds three downloads (Linux x86_64, Windows x86_64, macOS Apple silicon)
-  and a `SHA256SUMS` file. The release stays a draft until all three are built. If a
-  build fails, run the failed workflow again from the Actions page for the same tag.
+  and a `SHA256SUMS` file, and each of them has an attestation. The release stays a draft
+  until all of them are built, attached and attested. If a build fails, run the same
+  workflow again with the same tag: the draft is reused.
+- **Untick `publish` to review first.** Everything is built and attached, but the release
+  stays a draft and the tag does not exist yet. Look at it, then publish it in GitHub, or
+  run the workflow again with `publish` ticked.
+- **Releases are immutable.** Once published, the tag and the files never change, and a
+  tag name is never reused, even if you delete the release. A mistake is fixed with the
+  next version. The title and the notes can still be edited (`gh release edit`, or the
+  pencil on the release page). Turn immutable releases on in the repository settings (the
+  section about releases) before the first release.
+- **Rehearse before the first real release.** Run Pre-release from a branch with `publish`
+  unticked and look at the draft; run it again with `publish` ticked for a version nobody
+  needs (`v0.1.0-beta.2`); then run Release from `main`, first with `publish` unticked.
 - **The app's version is the tag's, not the one in `Cargo.toml`.** The workflow gives it to
   the build in `TRUCKPAINT_VERSION`, and About, the log and the MCP server show it. A
   build you make yourself shows `dev`. Don't change `version` in `Cargo.toml` to release.
+- Check a download with its attestation (it needs the GitHub CLI):
+
+  ```sh
+  gh attestation verify truckpaint-v0.2.0-macos-arm64.zip -R acesyde/truckpaint
+  ```
+
+  It proves which workflow and commit built the file. It is not code signing: the programs
+  are not signed, so Windows SmartScreen and macOS Gatekeeper still ask players to
+  confirm. The documentation says how.
 - Make the download of your own platform with `mise run package` (it writes it to `dist/`;
   set `TRUCKPAINT_VERSION` to name a version). The release uses the same task.
-- The programs are not signed: Windows SmartScreen and macOS Gatekeeper ask players to
-  confirm. The documentation says how.
 
 ## Translations
 

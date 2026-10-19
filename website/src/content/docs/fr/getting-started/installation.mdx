@@ -28,7 +28,7 @@ Il n’y a pas de bundle `.app` ni d’icône pour le moment.
 
 ### Le premier lancement
 
-Les programmes ne sont pas signés : votre système peut donc vous avertir la première fois. C’est normal.
+Les programmes ne sont pas signés : votre système peut donc vous avertir la première fois. C’est normal. Pour savoir où un fichier a été compilé, lisez [Vérifier votre téléchargement](#vérifier-votre-téléchargement). Cela ne fait pas disparaître ces avertissements.
 
 - **Windows :** SmartScreen peut afficher « Windows a protégé votre ordinateur ». Cliquez sur **Informations complémentaires**, puis sur **Exécuter quand même**.
 - **macOS :** Gatekeeper bloque le premier lancement. La solution la plus fiable est de retirer la marque de quarantaine. Dans un terminal, lancez ceci avec le chemin du dossier décompressé, puis démarrez le programme :
@@ -57,6 +57,20 @@ sha256sum <file>        # Linux
 shasum -a 256 <file>    # macOS
 Get-FileHash <file>     # Windows, in PowerShell
 ```
+
+Vous pouvez aussi vérifier où un fichier a été compilé. C’est facultatif. Il faut le [GitHub CLI](https://cli.github.com) (`gh`) et une connexion à internet. Chaque version contient une attestation pour chaque téléchargement et pour `SHA256SUMS`. Lancez ceci à côté du fichier téléchargé, avec son propre nom :
+
+```sh
+gh attestation verify truckpaint-v<version>-macos-arm64.zip -R acesyde/truckpaint
+```
+
+Si la vérification réussit, le fichier a été compilé par le propre workflow de publication de TruckPaint, à partir d’un commit donné, et il n’a pas été modifié depuis. Si elle échoue, n’exécutez pas le fichier et signalez-le sur la [page des tickets](https://github.com/acesyde/truckpaint/issues).
+
+:::note
+Une attestation n’est pas une signature de code. Elle montre où le fichier a été compilé. Elle ne signifie pas que Windows ou macOS lui font confiance. Les programmes ne sont toujours pas signés par Windows ni par Apple : vous voyez donc toujours les avertissements décrits dans [Le premier lancement](#le-premier-lancement).
+:::
+
+Une version publiée ne change jamais. Ses fichiers ne peuvent être ni remplacés ni supprimés : le fichier que vous téléchargez aujourd’hui est donc le même demain.
 
 ### Préversions
 
