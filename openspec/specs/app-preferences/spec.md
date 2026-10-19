@@ -67,11 +67,11 @@ Old template pack folder fields SHALL be ignored when loading preferences and SH
 The application SHALL provide a Preferences dialog (Edit > Preferences, shortcut `⌘,` on macOS and `Ctrl+,` elsewhere) to change UI scale and text size with a live preview, the grid spacing (texture pixels, 4 to 1024) and the interface language, and a "Reset to defaults" action that restores UI scale, text size and grid spacing. The Language setting SHALL list "System default" followed by English, Français, Español and Deutsch, each named in its own language. "System default" follows the operating system's language, and choosing a language applies it immediately. "Reset to defaults" SHALL NOT change the language. On Windows and Linux, the dialog SHALL also offer **Use the system title bar** (see the window-title-bar capability), applied at once; "Reset to defaults" SHALL NOT change it.
 
 The dialog SHALL show its settings on three tabs, with the same segmented control as the Vehicle Library's tabs:
-- **General:** the Interface settings (UI scale, text size, language, and Use the system title bar where offered) and the Canvas setting (grid spacing), under the headings Interface and Canvas;
-- **Games:** one group per game with its game folder and its mod folder, under no heading of its own (see the requirements Game folders, Mod folders in Preferences and Games tab layout);
+- **General:** the Interface settings (language first, then UI scale, text size, and Use the system title bar where offered) and the Canvas setting (grid spacing), under the headings Interface and Canvas, with a rule between the two;
+- **Games:** one card per game with its state, its game folder and its mod folder, under no heading of its own (see the requirements Game folders, Mod folders in Preferences and Games tab layout);
 - **AI assistant:** the AI assistant (MCP) section (see the requirement AI assistant (MCP) setting).
 
-Edit > Preferences (and Preferences on the home screen) SHALL open the dialog on General. A tab chosen by the player SHALL stay chosen until the dialog is closed. The dialog SHALL keep the same width and height whichever tab is shown; a tab's content SHALL scroll inside the dialog only when the window is too small to show it whole. The footer SHALL hold **Done** and, on the General tab only, **Reset to defaults**, so it stays in reach when the settings scroll. A setting changed on one tab SHALL keep its value when the player switches tabs.
+Edit > Preferences (and Preferences on the home screen) SHALL open the dialog on General. A tab chosen by the player SHALL stay chosen until the dialog is closed. The dialog SHALL keep the same width and height whichever tab is shown; a tab's content SHALL scroll inside the dialog only when the window is too small to show it whole. The footer SHALL hold **Done** and, on the General tab only, **Reset to defaults** as a quiet text button on the left (**Done** on the right), so it stays in reach when the settings scroll. On every tab, text SHALL read in levels: the title of a group of settings (Interface, Canvas, what the assistant can do) small, bold and in capitals in the secondary color; the label of a setting at regular size in the primary color; a hint smaller and dimmer than a label. Assistive technologies SHALL get a group title as written, not in capitals. A setting changed on one tab SHALL keep its value when the player switches tabs.
 
 The dialog SHALL NOT offer template pack folder settings or Carsmaniac import controls.
 
@@ -105,6 +105,14 @@ View > Reset Workspace SHALL restore the workspace layout to its defaults: the l
 - **WHEN** an older preferences file contains a deleted template pack path
 - **THEN** Preferences shows no pack-folder warning and other settings remain usable
 
+#### Scenario: Titles, labels and hints differ
+- **WHEN** the user opens the General tab
+- **THEN** INTERFACE and CANVAS are small bold capitals in the secondary color, Language and UI scale are regular size in the primary color, and the note under the sliders is smaller and dimmer, and a screen reader reads the titles as Interface and Canvas
+
+#### Scenario: Language first
+- **WHEN** the user opens the General tab
+- **THEN** Language is the first setting, above UI scale and text size, and a rule separates Interface from Canvas
+
 #### Scenario: Opens on General
 - **WHEN** the user chooses Edit > Preferences
 - **THEN** the dialog shows the General tab with UI scale, text size, language and grid spacing, and Reset to defaults in its footer
@@ -137,11 +145,12 @@ The application SHALL restore the previous window size, position and maximized s
 
 ### Requirement: AI assistant (MCP) setting
 The Preferences dialog SHALL have an **AI assistant (MCP)** section with:
-- a switch that turns the local MCP server on or off (see the mcp-server capability), applied at once, off by default;
+- a switch, announced as a switch, with its title and a one-line subtitle, that turns the local MCP server on or off (see the mcp-server capability), applied at once, off by default;
+- the server's state as a dot and words (off, on and waiting for a client, a client is connected, or "Port <port> is in use"), never by color alone;
+- the server's URL (`http://127.0.0.1:<port>/mcp`) in a read-only field with a **Copy** button inside it, which says **Copied** with a check for a moment after the URL is copied;
 - the port (1024 to 65535, default 7373), editable while the switch is off;
-- the server's URL (`http://127.0.0.1:<port>/mcp`) in a read-only field with a **Copy** button;
-- a line saying that an MCP client (such as Claude Desktop or Claude Code) can connect to this URL to draw on the open project, and that every change it makes can be undone;
-- the server's state: off, on, or "Port <port> is in use".
+- a list of what the assistant can and cannot do, each line with a mark and words: it can read the open project; it can draw on the textures and every change can be undone; it can import an image from a file path it names; it cannot save or export files;
+- a line saying that an MCP client (such as Claude Desktop or Claude Code) can connect to this URL.
 
 The switch and the port SHALL be persisted with the other preferences. A preferences file without them SHALL load with the switch off and the default port. "Reset to defaults" SHALL NOT change them.
 
@@ -157,8 +166,20 @@ The switch and the port SHALL be persisted with the other preferences. A prefere
 - **WHEN** the application starts with a preferences file written before this setting existed
 - **THEN** all its other preferences load, the server is off, and no message about the preferences appears
 
+#### Scenario: What the assistant can do
+- **WHEN** the user opens the AI assistant tab
+- **THEN** a list says the assistant can read the open project, draw on the textures with every change undoable, and import an image from a file path, and cannot save or export files, each line with a mark and words
+
+#### Scenario: Copy says Copied
+- **WHEN** the user clicks Copy next to the address
+- **THEN** the URL is on the clipboard, the button reads Copied for about a second and a half, then Copy again
+
+#### Scenario: The switch is a switch
+- **WHEN** a screen reader reads the control that turns the server on
+- **THEN** it is announced as a switch with its title and its on or off state
+
 ### Requirement: Game folders
-The Games tab of Preferences (completed by the first-run change with the mod folders) SHALL show the installation folder of ETS2 and of ATS, each with: the folder (empty by default), the game's version when the folder is valid, **Choose…**, **Detect** while the folder is empty and **Clear** once it is set; a button that cannot be used SHALL NOT be shown disabled. Detection and validity are those of the vehicle-generation capability. A game is played when its installation folder is set: there is no separate setting. A folder SHALL be accepted for a game only when it holds that game: a folder of the other game SHALL be refused with a message that names it. A folder SHALL be checked when it is chosen and when the dialog opens, and an invalid or missing one SHALL show a message next to its field while other settings stay usable. When a first run has no folder set, the app SHALL detect the folders by itself once, without asking. The folders SHALL be persisted with the other preferences; a preferences file without them SHALL load with both empty. "Reset to defaults" SHALL NOT change them.
+The Games tab of Preferences (completed by the first-run change with the mod folders) SHALL show the installation folder of ETS2 and of ATS, each in the game's card with: the folder (empty by default) in one field with **Choose…** inside it at the right and, once the folder is set, **Clear** inside it; **Detect**, a button at the foot of the card, while the folder is empty; and the game's state beside its name (its version when the folder is valid). A control that cannot be used SHALL NOT be shown disabled. Detection and validity are those of the vehicle-generation capability. A game is played when its installation folder is set: there is no separate setting. A folder SHALL be accepted for a game only when it holds that game: a folder of the other game SHALL be refused with a message that names it. A folder SHALL be checked when it is chosen and when the dialog opens, and an invalid or missing one SHALL show a message next to its field while other settings stay usable. When a first run has no folder set, the app SHALL detect the folders by itself once, without asking. The folders SHALL be persisted with the other preferences; a preferences file without them SHALL load with both empty. "Reset to defaults" SHALL NOT change them.
 
 #### Scenario: Detect
 - **WHEN** the player clicks Detect and ETS2 is in a Steam library
@@ -186,8 +207,8 @@ The Games tab of Preferences (completed by the first-run change with the mod fol
 
 ### Requirement: Mod folders in Preferences
 Every setting made in the first launch SHALL stay changeable afterwards in Preferences. The Games tab of Preferences (whose installation folders come from the in-app-vehicle-generation change) SHALL show, for ETS2 and for ATS, and SHALL NOT have an "I play this game" setting:
-- the installation folder (Choose…, and Detect or Clear as the Game folders requirement says);
-- the **mod folder**, with the detected folder shown when none was chosen, **Choose…**, and **Clear** once one is chosen (Clear goes back to the detected folder). There is no Detect button for the mod folder: the detected folder is already shown and used. Export Mod's save dialog SHALL open in it.
+- the installation folder (Choose…, Clear and Detect as the Game folders requirement says);
+- the **mod folder**, with the detected folder shown when none was chosen, **Choose…** inside its field at the right, and **Clear** inside the field once one is chosen (Clear goes back to the detected folder). There is no Detect button for the mod folder: the detected folder is already shown and used. Export Mod's save dialog SHALL open in it.
 
 New Project's initial game SHALL be the first game whose folder is set (ETS2 then ATS) that has installed vehicles, else the game of the installed vehicles when they are all of one game, else the only game whose folder is set, else ETS2. A change SHALL be saved like the other preferences. "Reset to defaults" SHALL NOT change this section.
 
@@ -212,11 +233,11 @@ New Project's initial game SHALL be the first game whose folder is set (ETS2 the
 - **THEN** it has no "I play this game" checkbox for either game
 
 ### Requirement: Games tab layout
-The Games tab SHALL group its settings by game: each game has a heading with its name, and the game's version beside it when its folder is valid, then two rows labeled **Game folder** and **Mod folder**. The tab SHALL NOT repeat its own name as a heading. A one-sentence note that TruckPaint reads these folders for the player's own use and sends nothing anywhere SHALL come first. Both rows SHALL show a path in a field of the same look under their label; an empty one SHALL read **Not set** in a color that meets the contrast of secondary text and is visibly not a path. The game folder field SHALL accept a typed path as before; the mod folder field SHALL show its path and change through **Choose…**. Every button SHALL have an accessible name that includes the game and which folder it is for, such as "Choose…, Euro Truck Simulator 2 game folder", while its visible text stays the same.
+The Games tab SHALL show one card per game, a bordered surface. A card has the game's name as its heading and, at the right of it, the game's state as a dot and words: **Version 1.61.1.9** when its folder is valid, **Not set** when it is empty, **Folder problem** when it is set but cannot be used, so the state never rests on color alone. Inside the card, two rows labeled **Game folder** and **Mod folder**, each one field showing a path, with **Choose…** inside it at the right and **Clear** inside it once something is chosen; **Detect** is a button at the foot of the card while the game folder is empty. The tab SHALL NOT repeat its own name as a heading. A one-sentence note that TruckPaint reads these folders for the player's own use and sends nothing anywhere SHALL come first. An empty field SHALL read **Not set** in a color that meets the contrast of secondary text and is visibly not a path. The game folder field SHALL accept a typed path as before; the mod folder field SHALL show its path and change through **Choose…**. Every button and every control inside a field SHALL have an accessible name that includes the game and which folder it is for, such as "Choose…, Euro Truck Simulator 2 game folder", while its visible text stays the same.
 
 #### Scenario: Grouped by game
 - **WHEN** the player opens the Games tab
-- **THEN** it shows Euro Truck Simulator 2 with its Game folder and Mod folder rows, then American Truck Simulator with its two rows, and no heading that repeats Games
+- **THEN** it shows a card for Euro Truck Simulator 2 with its Game folder and Mod folder rows, then a card for American Truck Simulator with its two rows, and no heading that repeats Games
 
 #### Scenario: Empty folder
 - **WHEN** no ATS folder is set
@@ -224,7 +245,11 @@ The Games tab SHALL group its settings by game: each game has a heading with its
 
 #### Scenario: No disabled buttons
 - **WHEN** no folder is set for a game, then one is chosen
-- **THEN** first the row shows Detect and Choose…, then Choose… and Clear, and no button is shown disabled
+- **THEN** first the card shows Detect and Choose… with the state Not set, then Choose… and Clear in the field with the state Version, and no control is shown disabled
+
+#### Scenario: State beside the name
+- **WHEN** a game's folder is valid, then is deleted from disk and Preferences is reopened
+- **THEN** its card first shows Version with its number, then Folder problem, each as a dot and words
 
 #### Scenario: Buttons named for a screen reader
 - **WHEN** a screen reader reads the buttons of the Games tab
