@@ -105,6 +105,36 @@ Small fixes don't need an OpenSpec change.
   they can now do, see or avoid, not which files changed.
 - Before you open the pull request, `mise run ci` must pass.
 
+## Releasing
+
+A release is made by pushing a tag. The tag is the only thing you do: GitHub builds the
+downloads and publishes them (see `.github/workflows/release.yml`, `prerelease.yml` and
+`release-build.yml`).
+
+```sh
+git tag v0.2.0            # a release: must be on a commit of main
+git push origin v0.2.0
+
+git tag v0.2.0-beta.1     # a pre-release: any branch, any commit
+git push origin v0.2.0-beta.1
+```
+
+- The tag is `v` and a semantic version. A suffix (`-beta.1`, `-hotfix.2`) makes it a
+  pre-release, which is never the Latest release.
+- A release tag on a commit that is not on `main` fails before anything is built. Delete
+  the tag with `git push origin :refs/tags/v0.2.0` and tag a commit of `main`.
+- A tag like `v0.2` is not a version: the workflows don't start and nothing is shown.
+- Each release holds three downloads (Linux x86_64, Windows x86_64, macOS Apple silicon)
+  and a `SHA256SUMS` file. The release stays a draft until all three are built. If a
+  build fails, run the failed workflow again from the Actions page for the same tag.
+- **The app's version is the tag's, not the one in `Cargo.toml`.** The workflow gives it to
+  the build in `TRUCKPAINT_VERSION`, and About, the log and the MCP server show it. A
+  build you make yourself shows `dev`. Don't change `version` in `Cargo.toml` to release.
+- Make the download of your own platform with `mise run package` (it writes it to `dist/`;
+  set `TRUCKPAINT_VERSION` to name a version). The release uses the same task.
+- The programs are not signed: Windows SmartScreen and macOS Gatekeeper ask players to
+  confirm. The documentation says how.
+
 ## Translations
 
 The app is in English, French, Spanish and German. Every string is in
@@ -201,5 +231,5 @@ See `docs/game-extraction-plan.md` for the design and the validated baselines.
 
 ## License
 
-TruckPaint is under the MIT license. By contributing, you agree that your work is
+TruckPaint is under the MIT license (see [LICENSE](LICENSE)). By contributing, you agree that your work is
 published under the same license.

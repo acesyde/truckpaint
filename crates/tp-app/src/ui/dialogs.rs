@@ -1408,7 +1408,7 @@ fn about(ctx: &egui::Context) -> bool {
             );
         });
         ui.label(
-            RichText::new(tr!("about-version", version = env!("CARGO_PKG_VERSION")))
+            RichText::new(tr!("about-version", version = tp_core::VERSION))
                 .color(color::TEXT_SECONDARY),
         );
         ui.add_space(space::SM);

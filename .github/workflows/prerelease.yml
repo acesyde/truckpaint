@@ -1,0 +1,52 @@
+name: Pre-release
+
+# Pushing a tag vMAJOR.MINOR.PATCH-suffix (v0.2.0-beta.1) publishes a
+# pre-release from any commit, on any branch. It is never the Latest release.
+# A tag without a suffix is a release: see release.yml.
+
+on:
+  push:
+    # Matched against the whole tag name; the suffix is checked in full below.
+    tags: ["v[0-9]+.[0-9]+.[0-9]+-*"]
+
+# A tag is released once at a time; a second run waits instead of cancelling.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  check:
+    name: Check the tag
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.tag.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Check the tag
+        id: tag
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          bash scripts/release-tag.sh "$TAG" | tee tag.out >> "$GITHUB_OUTPUT"
+          if ! grep -qx 'prerelease=true' tag.out; then
+            echo "::error::$TAG is not a pre-release tag."
+            exit 1
+          fi
+
+  prerelease:
+    name: Pre-release
+    needs: check
+    permissions:
+      contents: write
+    uses: ./.github/workflows/release-build.yml
+    with:
+      version: ${{ needs.check.outputs.version }}
+      prerelease: true

@@ -1,16 +1,80 @@
 ---
 title: Installation
-description: Compilez TruckPaint à partir de son code source sous Windows, macOS ou Linux, et lancez-le.
+description: Téléchargez TruckPaint pour Windows, macOS ou Linux, lancez-le et gardez-le à jour, ou compilez-le à partir de son code source.
 sidebar:
   order: 1
 ---
-import Shot from '~/components/Shot.astro';
-import Clip from '~/components/Clip.astro';
 import Ui from '~/components/Ui.astro';
 
-TruckPaint fonctionne sous Windows, macOS et Linux. Il en est au début de son développement : **il n’existe pas encore de téléchargement ni d’installateur prêts à l’emploi.** Ils sont prévus pour une prochaine version. D’ici là, vous compilez l’application vous-même à partir de son code source. Quelques commandes suffisent, et vous ne le faites qu’une fois par mise à jour.
+TruckPaint fonctionne sous Windows, macOS et Linux. Vous le téléchargez depuis GitHub, vous le décompressez et vous le lancez. Il n’y a pas d’installateur.
 
-## Installer les prérequis
+## Télécharger TruckPaint
+
+1. Ouvrez la [page des versions](https://github.com/acesyde/truckpaint/releases). Le lien [dernière version](https://github.com/acesyde/truckpaint/releases/latest) mène directement à la plus récente.
+2. Téléchargez le fichier correspondant à votre système. La version fait partie du nom :
+
+   | Système | Fichier |
+   |---|---|
+   | Windows | `truckpaint-v<version>-windows-x86_64.zip` |
+   | macOS | `truckpaint-v<version>-macos-arm64.zip` |
+   | Linux | `truckpaint-v<version>-linux-x86_64.tar.gz` |
+
+   Le téléchargement macOS ne convient qu’aux Mac Apple silicon (M1 et suivants). Il n’y a pas de téléchargement pour les Mac Intel.
+
+3. Décompressez l’archive. Elle contient un dossier avec le programme (`truckpaint`, ou `truckpaint.exe` sous Windows) et le fichier `LICENSE`.
+4. Placez le dossier où vous voulez et lancez le programme. Vous pouvez aussi lui créer un raccourci.
+
+Il n’y a pas de bundle `.app` ni d’icône pour le moment.
+
+### Le premier lancement
+
+Les programmes ne sont pas signés : votre système peut donc vous avertir la première fois. C’est normal.
+
+- **Windows :** SmartScreen peut afficher « Windows a protégé votre ordinateur ». Cliquez sur **Informations complémentaires**, puis sur **Exécuter quand même**.
+- **macOS :** Gatekeeper bloque le premier lancement. La solution la plus fiable est de retirer la marque de quarantaine. Dans un terminal, lancez ceci avec le chemin du dossier décompressé, puis démarrez le programme :
+
+  ```sh
+  xattr -dr com.apple.quarantine <the unpacked folder>
+  ./truckpaint
+  ```
+
+  Sous un macOS récent, vous pouvez aussi ouvrir Réglages Système, aller dans Confidentialité et sécurité et choisir « Ouvrir quand même ».
+- **Linux :** rien à faire. Décompressez et lancez :
+
+  ```sh
+  tar -xzf truckpaint-v<version>-linux-x86_64.tar.gz
+  ./truckpaint
+  ```
+
+  L’application a besoin, à l’exécution, des bibliothèques de fenêtrage et graphiques indiquées dans [les prérequis plus bas](#installer-les-prérequis). La plupart des systèmes de bureau les ont déjà.
+
+### Vérifier votre téléchargement
+
+Chaque version contient un fichier `SHA256SUMS`. Il liste la somme de contrôle de chaque téléchargement. Calculez le SHA-256 de votre fichier et comparez-le à sa ligne dans ce fichier :
+
+```sh
+sha256sum <file>        # Linux
+shasum -a 256 <file>    # macOS
+Get-FileHash <file>     # Windows, in PowerShell
+```
+
+### Préversions
+
+Une version avec un suffixe, comme `0.2.0-beta.1`, est une version de test. La page des versions l’indique par « Pre-release » (préversion). Utilisez-la pour essayer les nouveautés, et attendez-vous à des problèmes. Le lien « dernière version » ne mène jamais à une préversion.
+
+### Quelle version avez-vous ?
+
+Ouvrez <Ui id="cmd-about-truckpaint" />. Sous macOS, il se trouve dans le menu TruckPaint. Sous Windows et Linux, il se trouve dans le menu <Ui id="menu-help" />. Une version compilée à partir du code source affiche « dev ».
+
+### Passer à une version plus récente
+
+Téléchargez la nouvelle version et remplacez le dossier. Vos préférences, vos véhicules installés et vos projets sont conservés : ils ne se trouvent pas dans le dossier du programme.
+
+## Compiler à partir du code source
+
+Si vous préférez, vous pouvez compiler l’application vous-même. Quelques commandes suffisent.
+
+### Installer les prérequis
 
 Il vous faut [Git](https://git-scm.com) pour récupérer le code source et [mise](https://mise.jdx.dev), qui installe la bonne version de Rust et lance la compilation pour vous. Ajoutez ensuite ce dont votre système a besoin pour compiler une application de bureau :
 
@@ -26,7 +90,7 @@ Il vous faut [Git](https://git-scm.com) pour récupérer le code source et [mise
 
   Les sessions X11 comme Wayland sont prises en charge.
 
-## Compiler TruckPaint
+### Compiler TruckPaint
 
 1. Récupérez le code source :
 
@@ -57,20 +121,18 @@ Il vous faut [Git](https://git-scm.com) pour récupérer le code source et [mise
 
 Vous pouvez copier l’exécutable où vous voulez, ou lui créer un raccourci.
 
-:::tip[Passer à une version plus récente]
-Lancez `git pull` dans le dossier du projet, puis à nouveau `mise install` et `mise run build`. Vos préférences, vos véhicules installés et vos projets sont conservés : ils ne se trouvent pas dans le dossier de compilation.
-:::
+Pour mettre à jour une version compilée, lancez `git pull` dans le dossier du projet, puis à nouveau `mise install` et `mise run build`. Vos données sont conservées ici aussi.
 
 ## Si l’application ne démarre pas
 
 TruckPaint dessine sa fenêtre avec Vulkan, DirectX 12 ou Metal. Avec d’anciens pilotes graphiques ou dans une machine virtuelle, il peut s’arrêter au lancement sur une erreur d’adaptateur graphique. Forcez un autre moteur graphique avec la variable `WGPU_BACKEND` :
 
 ```sh
-WGPU_BACKEND=gl ./target/release/truckpaint      # OpenGL (Linux, Windows)
-WGPU_BACKEND=vulkan ./target/release/truckpaint  # Vulkan
+WGPU_BACKEND=gl ./truckpaint      # OpenGL (Linux, Windows)
+WGPU_BACKEND=vulkan ./truckpaint  # Vulkan
 ```
 
-Sous Windows, dans PowerShell, définissez d’abord la variable : `$env:WGPU_BACKEND="gl"`, puis lancez `.\target\release\truckpaint.exe`.
+Sous Windows, dans PowerShell, définissez d’abord la variable : `$env:WGPU_BACKEND="gl"`, puis lancez `.\truckpaint.exe`. Si vous avez compilé à partir du code source, le programme se trouve dans le dossier `target/release/`.
 
 Sous Windows et Linux, si la fenêtre ne peut pas être déplacée ou redimensionnée correctement, ouvrez <Ui id="home-preferences" /> et cochez <Ui id="prefs-system-title-bar" /> : la fenêtre utilise alors le cadre de votre système, avec les menus sur une ligne en dessous.
 

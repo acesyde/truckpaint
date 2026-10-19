@@ -7,8 +7,10 @@ Simulator**, and export them as a mod that is ready to install.
 
 **Documentation:** <https://truckpaint.ace-dev.me/> (English, French, Spanish, German)
 
-> TruckPaint is in early development. There are no installers yet: to try it, build it
-> from source (see [CONTRIBUTING.md](CONTRIBUTING.md)).
+> TruckPaint is in early development. Download it for Windows, Linux or macOS (Apple
+> silicon) from the [releases page](https://github.com/acesyde/truckpaint/releases/latest).
+> There are no installers yet: unzip the download and run `truckpaint`. To build it
+> from source, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## What you can do
 
@@ -39,7 +41,7 @@ TruckPaint runs on Windows, macOS and Linux, in English, French, Spanish and Ger
 
 ## Credits and licenses
 
-- TruckPaint is under the MIT license.
+- TruckPaint is under the MIT license, see [LICENSE](LICENSE).
 - Official ETS2 trucks and trailers are made inside the app from your own game
   files (My Game tab of the Vehicle Library), for your own use.
 - Fonts: [Geist](https://github.com/vercel/geist-font),

@@ -12,6 +12,7 @@ name = "tpv"
 path = "src/bin/tpv.rs"
 
 [dependencies]
+tp-core.workspace = true
 tp-vehicles.workspace = true
 tp-scs.workspace = true
 serde.workspace = true

@@ -1,16 +1,80 @@
 ---
 title: Installation
-description: Build TruckPaint from its source code on Windows, macOS or Linux, and get it running.
+description: Download TruckPaint for Windows, macOS or Linux, run it, and keep it up to date, or build it from source.
 sidebar:
   order: 1
 ---
-import Shot from '~/components/Shot.astro';
-import Clip from '~/components/Clip.astro';
 import Ui from '~/components/Ui.astro';
 
-TruckPaint runs on Windows, macOS and Linux. It is in early development: **there are no ready-made downloads or installers yet.** They are planned for a coming release. Until then, you build the app yourself from its source code. It takes a few commands, and you only do it once per update.
+TruckPaint runs on Windows, macOS and Linux. You download it from GitHub, unpack it and run it. There is no installer.
 
-## Install the prerequisites
+## Download TruckPaint
+
+1. Open the [releases page](https://github.com/acesyde/truckpaint/releases). The [latest release](https://github.com/acesyde/truckpaint/releases/latest) link goes straight to the newest one.
+2. Download the file for your system. The version is part of the name:
+
+   | System | File |
+   |---|---|
+   | Windows | `truckpaint-v<version>-windows-x86_64.zip` |
+   | macOS | `truckpaint-v<version>-macos-arm64.zip` |
+   | Linux | `truckpaint-v<version>-linux-x86_64.tar.gz` |
+
+   The macOS download is for Apple silicon Macs only (M1 and later). There is no download for Intel Macs.
+
+3. Unpack the archive. It holds one folder with the program (`truckpaint`, or `truckpaint.exe` on Windows) and the `LICENSE`.
+4. Put the folder anywhere you like and run the program. You can also make a shortcut to it.
+
+There is no `.app` bundle and no icon yet.
+
+### The first launch
+
+The programs are not signed, so your system may warn you the first time. This is expected.
+
+- **Windows:** SmartScreen may show "Windows protected your PC". Click **More info**, then **Run anyway**.
+- **macOS:** Gatekeeper blocks the first launch. The dependable fix is to remove the quarantine mark. In a terminal, run this with the path of the unpacked folder, then start the program:
+
+  ```sh
+  xattr -dr com.apple.quarantine <the unpacked folder>
+  ./truckpaint
+  ```
+
+  On recent macOS, you can also open System Settings, go to Privacy & Security and choose "Open Anyway".
+- **Linux:** nothing to do. Unpack and run:
+
+  ```sh
+  tar -xzf truckpaint-v<version>-linux-x86_64.tar.gz
+  ./truckpaint
+  ```
+
+  The app needs the windowing and graphics libraries listed in [the prerequisites below](#install-the-prerequisites) when it runs. Most desktop systems already have them.
+
+### Check your download
+
+Each release has a `SHA256SUMS` file. It lists the checksum of every download. Compute the SHA-256 of your file and compare it with its line in that file:
+
+```sh
+sha256sum <file>        # Linux
+shasum -a 256 <file>    # macOS
+Get-FileHash <file>     # Windows, in PowerShell
+```
+
+### Pre-releases
+
+A version with a suffix, such as `0.2.0-beta.1`, is a test build. The releases page marks it "Pre-release". Use it to try new things, and expect problems. The "latest release" link never points to a pre-release.
+
+### Which version do you have?
+
+Open <Ui id="cmd-about-truckpaint" />. On macOS it is in the TruckPaint menu. On Windows and Linux it is in the <Ui id="menu-help" /> menu. A build made from source shows "dev".
+
+### Update to a newer version
+
+Download the new release and replace the folder. Your preferences, your installed vehicles and your projects are kept: they don't live in the program folder.
+
+## Build it from source instead
+
+If you prefer, you can build the app yourself. It takes a few commands.
+
+### Install the prerequisites
 
 You need [Git](https://git-scm.com) to get the source code and [mise](https://mise.jdx.dev), which installs the right version of Rust and runs the build for you. Then add what your system needs to build a desktop app:
 
@@ -26,7 +90,7 @@ You need [Git](https://git-scm.com) to get the source code and [mise](https://mi
 
   Both X11 and Wayland sessions are supported.
 
-## Build TruckPaint
+### Build TruckPaint
 
 1. Get the source code:
 
@@ -57,20 +121,18 @@ You need [Git](https://git-scm.com) to get the source code and [mise](https://mi
 
 You can copy the executable anywhere you like, or make a shortcut to it.
 
-:::tip[Update to a newer version]
-Run `git pull` in the project folder, then `mise install` and `mise run build` again. Your preferences, your installed vehicles and your projects are kept: they don't live in the build folder.
-:::
+To update a source build, run `git pull` in the project folder, then `mise install` and `mise run build` again. Your data is kept here too.
 
 ## If the app doesn't start
 
 TruckPaint draws its window with Vulkan, DirectX 12 or Metal. With old graphics drivers or in a virtual machine, it can stop at launch with a graphics adapter error. Force another graphics backend with the `WGPU_BACKEND` variable:
 
 ```sh
-WGPU_BACKEND=gl ./target/release/truckpaint      # OpenGL (Linux, Windows)
-WGPU_BACKEND=vulkan ./target/release/truckpaint  # Vulkan
+WGPU_BACKEND=gl ./truckpaint      # OpenGL (Linux, Windows)
+WGPU_BACKEND=vulkan ./truckpaint  # Vulkan
 ```
 
-On Windows, in PowerShell, set the variable first: `$env:WGPU_BACKEND="gl"`, then run `.\target\release\truckpaint.exe`.
+On Windows, in PowerShell, set the variable first: `$env:WGPU_BACKEND="gl"`, then run `.\truckpaint.exe`. If you built from source, the program is in the `target/release/` folder.
 
 On Windows and Linux, if the window can't be moved or resized properly, open <Ui id="home-preferences" /> and check <Ui id="prefs-system-title-bar" />: the window then uses your system's frame, with the menus in a row below it.
 
