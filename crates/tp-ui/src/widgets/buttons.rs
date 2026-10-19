@@ -217,9 +217,11 @@ pub fn dropdown_icon(
 /// A chip that toggles a choice (the cabins of New Project): a pill filled
 /// white with dark text when on, outlined when off, so that the state shows
 /// in grayscale too. Reported as a checkbox named `label`; its response is
-/// marked changed when clicked. A disabled chip keeps its state, dimmed.
-pub fn chip_toggle(ui: &mut Ui, on: bool, label: &str) -> Response {
-    let enabled = ui.is_enabled();
+/// marked changed when clicked. A disabled chip keeps its state, dimmed;
+/// `enabled` rather than a disabled scope, which would stop a wrapped row
+/// from wrapping.
+pub fn chip_toggle(ui: &mut Ui, on: bool, enabled: bool, label: &str) -> Response {
+    let enabled = enabled && ui.is_enabled();
     let font = egui::FontId::proportional(crate::tokens::typography::CONTROL);
     let ink = if on {
         color::TEXT_ON_PRIMARY
@@ -232,7 +234,12 @@ pub fn chip_toggle(ui: &mut Ui, on: bool, label: &str) -> Response {
         galley.size().x + 2.0 * pad.x,
         size::HIT_MIN.max(galley.size().y + 2.0 * pad.y),
     );
-    let (rect, mut response) = ui.allocate_exact_size(size, Sense::click());
+    let sense = if enabled {
+        Sense::click()
+    } else {
+        Sense::hover()
+    };
+    let (rect, mut response) = ui.allocate_exact_size(size, sense);
     if response.clicked() {
         response.mark_changed();
     }

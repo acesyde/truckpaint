@@ -12,7 +12,9 @@ use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::theme::label_strong_style;
 use tp_ui::tokens::{color, radius, space, typography};
-use tp_ui::widgets::{SegmentedControl, paint_focus_ring, primary_button, secondary_button};
+use tp_ui::widgets::{
+    SegmentedControl, paint_focus_ring, primary_button, secondary_button, truncated_label,
+};
 use tp_vehicles::{Game, Kind, Manifest};
 
 use super::dialogs::{field_label, footer, labelled, messages, modal, title};
@@ -832,7 +834,21 @@ fn created(ui: &mut Ui, fleet: &[(&Manifest, &VehicleChoice)]) -> usize {
                     texture = part.name.as_str(),
                     size = size.as_str()
                 );
-                let row = ui.label(RichText::new(&part.name).color(color::TEXT_SECONDARY));
+                let size_width = ui
+                    .painter()
+                    .layout_no_wrap(
+                        size.clone(),
+                        egui::TextStyle::Monospace.resolve(ui.style()),
+                        color::TEXT_SECONDARY,
+                    )
+                    .size()
+                    .x;
+                let name_width = ui.available_width() - size_width - space::SM;
+                let row = truncated_label(
+                    ui,
+                    RichText::new(&part.name).color(color::TEXT_SECONDARY),
+                    name_width,
+                );
                 row.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &text));
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     ui.label(RichText::new(size).monospace().color(color::TEXT_SECONDARY));

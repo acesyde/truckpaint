@@ -69,14 +69,18 @@ impl<'a> SquareCheckbox<'a> {
 impl Widget for SquareCheckbox<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         let font = egui::TextStyle::Body.resolve(ui.style());
-        let galley = ui
-            .painter()
-            .layout_no_wrap(self.label.clone(), font, color::TEXT_PRIMARY);
         let gap = if self.label.is_empty() {
             0.0
         } else {
             space::SM
         };
+        // A long label ends with "…" rather than widening its container.
+        let mut job =
+            egui::text::LayoutJob::simple_singleline(self.label.clone(), font, color::TEXT_PRIMARY);
+        job.wrap = egui::text::TextWrapping::truncate_at_width(
+            (ui.available_width() - CHECK_BOX_SIZE - gap).max(0.0),
+        );
+        let galley = ui.fonts_mut(|f| f.layout_job(job));
         let size = Vec2::new(
             CHECK_BOX_SIZE + gap + galley.size().x,
             ui.spacing()
