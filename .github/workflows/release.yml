@@ -1,17 +1,28 @@
 name: Release
 
-# Pushing a tag vMAJOR.MINOR.PATCH publishes a release (the Latest one). Only a
-# commit that is on `main` may be released. A tag with a suffix is a
-# pre-release: see prerelease.yml.
+# Publishes a release (the Latest one) from main. Run it from the Actions tab
+# (Run workflow, on main), or with `gh workflow run release.yml --ref main -f
+# tag=v0.2.0`. Pre-releases have their own workflow: see prerelease.yml.
+#
+# Nothing starts when a tag is pushed: the tag is created by GitHub when the
+# release is published. Releases are immutable once published, so untick
+# `publish` to leave a draft and look at it first.
 
 on:
-  push:
-    # Matched against the whole tag name, so v0.2.0-beta.1 does not match.
-    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "The tag to release: v and a version, without a suffix (v0.2.0)"
+        type: string
+        required: true
+      publish:
+        description: Publish the release (untick to leave a draft to review first)
+        type: boolean
+        default: true
 
 # A tag is released once at a time; a second run waits instead of cancelling.
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ inputs.tag }}
   cancel-in-progress: false
 
 permissions:
@@ -23,42 +34,57 @@ defaults:
 
 jobs:
   check:
-    name: Check the tag
+    name: Check the request
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.tag.outputs.version }}
+      version: ${{ steps.guard.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # Full history: the commit must be found in `main`.
-          fetch-depth: 0
+          ref: ${{ github.sha }}
 
-      - name: Check the tag
-        id: tag
+      # A valid version without a suffix, started from the branch main.
+      - name: Check the request
+        id: guard
         env:
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ inputs.tag }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          bash scripts/release-tag.sh "$TAG" | tee tag.out >> "$GITHUB_OUTPUT"
-          if ! grep -qx 'prerelease=false' tag.out; then
-            echo "::error::$TAG is a pre-release tag, not a release."
+          if ! bash scripts/release-guard.sh release "$TAG" "$REF_TYPE" "$REF_NAME"; then
+            echo "::error::The request was refused: see the message above."
             exit 1
           fi
 
-      - name: Check the commit is on main
+      # 2 means "no such tag": the tag is free. A published release keeps its
+      # tag name for good, so an existing tag is refused.
+      - name: Check the tag does not exist
         env:
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ inputs.tag }}
         run: |
-          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
-            echo "::error::$TAG is on a commit that is not on main ($GITHUB_SHA). A release comes from main: tag a commit of main, or use a pre-release tag (v1.2.3-beta.1). Delete the tag with: git push origin :refs/tags/$TAG"
-            exit 1
-          fi
+          status=0
+          git ls-remote --exit-code --tags origin "refs/tags/$TAG" > /dev/null || status=$?
+          case "$status" in
+            2) echo "The tag $TAG is free." ;;
+            0)
+              echo "::error::The tag $TAG already exists, so it cannot be released again. A published release is permanent: use the next version."
+              exit 1
+              ;;
+            *)
+              echo "::error::Could not look for the tag $TAG (git exited with $status)."
+              exit 1
+              ;;
+          esac
 
   release:
     name: Release
     needs: check
     permissions:
       contents: write
+      id-token: write
+      attestations: write
     uses: ./.github/workflows/release-build.yml
     with:
       version: ${{ needs.check.outputs.version }}
       prerelease: false
+      publish: ${{ inputs.publish }}

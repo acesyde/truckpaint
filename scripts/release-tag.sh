@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Checks the tag that starts a release and says what it releases.
+# Checks the tag typed to release (in the Release or Pre-release workflow) and
+# says what it releases.
 #
 # Usage: release-tag.sh TAG
 #   TAG: `v` and a semantic version, `vMAJOR.MINOR.PATCH` for a release,

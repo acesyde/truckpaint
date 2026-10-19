@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# Self-test of release-tag.sh and release-notes-start.sh (the second on a
-# throwaway Git repository).
+# Self-test of release-tag.sh, release-guard.sh and release-notes-start.sh (the
+# last on a throwaway Git repository).
 
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
 tag_script="$here/release-tag.sh"
+guard_script="$here/release-guard.sh"
 start_script="$here/release-notes-start.sh"
 
 failures=0
@@ -57,6 +58,55 @@ refuse_tag v1.0.0+build
 refuse_tag 0.2.0
 refuse_tag V0.2.0
 refuse_tag ''
+
+# expect_guard KIND TAG REF_TYPE REF_NAME VERSION PRERELEASE: the request is
+# allowed, and says so on the standard output and in $GITHUB_OUTPUT.
+expect_guard() {
+    local out file name="guard $1 $2 on $3 $4"
+    file="$(mktemp)"
+    out="$(GITHUB_OUTPUT="$file" bash "$guard_script" "$1" "$2" "$3" "$4" 2> /dev/null)" || out="refused"
+    local want
+    want="$(printf 'version=%s\nprerelease=%s' "$5" "$6")"
+    if [ "$out" = "$want" ] && [ "$(cat "$file")" = "$want" ]; then
+        report "$name" yes
+    else
+        report "$name" no "got $out"
+    fi
+    rm -f "$file"
+}
+
+# refuse_guard KIND TAG REF_TYPE REF_NAME MESSAGE: the request is refused with
+# a message that contains MESSAGE, and nothing is printed or written.
+refuse_guard() {
+    local out err file name="refuse $1 $2 on $3 $4"
+    file="$(mktemp)"
+    err="$(mktemp)"
+    if out="$(GITHUB_OUTPUT="$file" bash "$guard_script" "$1" "$2" "$3" "$4" 2> "$err")"; then
+        report "$name" no "accepted: $out"
+    elif [ -n "$out" ] || [ -s "$file" ]; then
+        report "$name" no "left output behind"
+    elif ! grep -qF -- "$5" "$err"; then
+        report "$name" no "message was: $(cat "$err")"
+    else
+        report "$name" yes
+    fi
+    rm -f "$file" "$err"
+}
+
+expect_guard release v0.2.0 branch main 0.2.0 false
+expect_guard prerelease v0.2.0-beta.1 branch main 0.2.0-beta.1 true
+expect_guard prerelease v0.2.0-beta.1 branch feat/gradients 0.2.0-beta.1 true
+expect_guard prerelease v1.0.0-rc.1 branch docs/install 1.0.0-rc.1 true
+refuse_guard release v0.2.0 branch feat/gradients "comes from main"
+refuse_guard release v0.2.0 branch mainline "comes from main"
+refuse_guard release v0.2.0 tag main "comes from main"
+refuse_guard release v0.2.0-beta.1 branch main "Pre-release workflow"
+refuse_guard prerelease v0.2.0 branch feat/gradients "Release workflow"
+refuse_guard prerelease v0.2.0 branch main "Release workflow"
+refuse_guard release v0.2 branch main "not a release tag"
+refuse_guard prerelease v1.0.0- branch main "not a release tag"
+refuse_guard release "" branch main "not a release tag"
+refuse_guard publish v0.2.0 branch main "'release' or 'prerelease'"
 
 repo="$(mktemp -d)"
 trap 'rm -rf "$repo"' EXIT

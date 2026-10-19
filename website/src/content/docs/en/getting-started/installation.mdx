@@ -28,7 +28,7 @@ There is no `.app` bundle and no icon yet.
 
 ### The first launch
 
-The programs are not signed, so your system may warn you the first time. This is expected.
+The programs are not signed, so your system may warn you the first time. This is expected. To see where a file was built, read [Check your download](#check-your-download). It does not remove these warnings.
 
 - **Windows:** SmartScreen may show "Windows protected your PC". Click **More info**, then **Run anyway**.
 - **macOS:** Gatekeeper blocks the first launch. The dependable fix is to remove the quarantine mark. In a terminal, run this with the path of the unpacked folder, then start the program:
@@ -57,6 +57,20 @@ sha256sum <file>        # Linux
 shasum -a 256 <file>    # macOS
 Get-FileHash <file>     # Windows, in PowerShell
 ```
+
+You can also check where a file was built. This is optional. It needs the [GitHub CLI](https://cli.github.com) (`gh`) and an internet connection. Every release has an attestation for each download and for `SHA256SUMS`. Run this next to the file you downloaded, with its own name:
+
+```sh
+gh attestation verify truckpaint-v<version>-macos-arm64.zip -R acesyde/truckpaint
+```
+
+If the check succeeds, the file was built by TruckPaint's own release workflow, from a given commit, and it was not changed afterwards. If it fails, do not run the file, and report it on the [issues page](https://github.com/acesyde/truckpaint/issues).
+
+:::note
+An attestation is not a code signature. It shows where the file was built. It does not mean that Windows or macOS trust it. The programs are still not signed by Windows or Apple, so you still see the warnings in [The first launch](#the-first-launch).
+:::
+
+A published release never changes. Its files cannot be replaced or removed, so the file you download today is the same tomorrow.
 
 ### Pre-releases
 

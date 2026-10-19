@@ -28,7 +28,7 @@ Todavía no hay paquete `.app` ni icono.
 
 ### El primer inicio
 
-Los programas no están firmados, así que su sistema puede avisarle la primera vez. Es lo esperado.
+Los programas no están firmados, así que su sistema puede avisarle la primera vez. Es lo esperado. Para ver dónde se compiló un archivo, lea [Compruebe su descarga](#compruebe-su-descarga). Eso no hace desaparecer estos avisos.
 
 - **Windows:** SmartScreen puede mostrar «Windows protegió su PC». Haga clic en **Más información** y después en **Ejecutar de todas formas**.
 - **macOS:** Gatekeeper bloquea el primer inicio. La solución más fiable es quitar la marca de cuarentena. En un terminal, ejecute esto con la ruta de la carpeta descomprimida y luego inicie el programa:
@@ -57,6 +57,20 @@ sha256sum <file>        # Linux
 shasum -a 256 <file>    # macOS
 Get-FileHash <file>     # Windows, in PowerShell
 ```
+
+También puede comprobar dónde se compiló un archivo. Es opcional. Necesita la [CLI de GitHub](https://cli.github.com) (`gh`) y una conexión a internet. Cada versión tiene una atestación para cada descarga y para `SHA256SUMS`. Ejecute esto junto al archivo descargado, con su propio nombre:
+
+```sh
+gh attestation verify truckpaint-v<version>-macos-arm64.zip -R acesyde/truckpaint
+```
+
+Si la comprobación tiene éxito, el archivo fue compilado por el propio flujo de trabajo de publicación de TruckPaint, a partir de un commit concreto, y no se ha modificado después. Si falla, no ejecute el archivo e infórmelo en la [página de incidencias](https://github.com/acesyde/truckpaint/issues).
+
+:::note
+Una atestación no es una firma de código. Muestra dónde se compiló el archivo. No significa que Windows o macOS confíen en él. Los programas siguen sin estar firmados por Windows ni por Apple, así que seguirá viendo los avisos de [El primer inicio](#el-primer-inicio).
+:::
+
+Una versión publicada nunca cambia. Sus archivos no se pueden reemplazar ni eliminar, así que el archivo que descarga hoy es el mismo mañana.
 
 ### Versiones preliminares
 

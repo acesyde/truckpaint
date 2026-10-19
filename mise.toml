@@ -97,6 +97,10 @@ run = "bash scripts/ci-changes-test.sh"
 description = "Check a release tag and print version= and prerelease=: mise run release:tag -- v0.2.0"
 run = "bash scripts/release-tag.sh"
 
+[tasks."release:guard"]
+description = "Check a request to release and print version= and prerelease=: mise run release:guard -- release v0.2.0 branch main"
+run = "bash scripts/release-guard.sh"
+
 [tasks."release:notes-start"]
 description = "Print start=<last stable tag below TAG> for the release notes: mise run release:notes-start -- v0.2.0"
 run = "bash scripts/release-notes-start.sh"

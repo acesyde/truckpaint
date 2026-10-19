@@ -1,7 +1,7 @@
 # release Specification
 
 ## Purpose
-Defines how pushing a version tag to GitHub publishes a downloadable release of TruckPaint for Windows, Linux and macOS, which tags make a release or a pre-release, and what a failed release leaves behind.
+Defines how running the Release or Pre-release workflow on GitHub publishes a downloadable, immutable and attested release of TruckPaint for Windows, Linux and macOS, which tags make a release or a pre-release, and what a failed release leaves behind.
 
 ## Requirements
 
