@@ -87,7 +87,11 @@ run = "pnpm install --frozen-lockfile && pnpm build"
 
 [tasks."ci:changes"]
 description = "Print code=true|false: whether BASE..HEAD changes more than docs (CI gating)"
-run = "bash scripts/ci-changes.sh {{arg(name='base', default='')}} {{arg(name='head', default='HEAD')}}"
+usage = '''
+arg "[base]" help="Base commit (empty or unknown: everything counts as code)"
+arg "[head]" default="HEAD" help="Commit being checked"
+'''
+run = 'bash scripts/ci-changes.sh "${usage_base:-}" "${usage_head:-HEAD}"'
 
 [tasks."ci:changes:test"]
 description = "Self-test of the ci:changes detection on a throwaway Git repository"
