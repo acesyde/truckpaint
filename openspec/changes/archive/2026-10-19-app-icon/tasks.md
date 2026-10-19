@@ -19,4 +19,4 @@
 
 ## 4. Documentation
 
-- [x] 4.1 Delegate the docs-drift-checker agent and list in the apply summary any stale page (none is expected: no screen changed and the Installation pages do not show the icon) (Found and fixed: the Installation page, in the four languages, said the app had no icon; it now says only that there is no `.app` bundle and that the program file has no icon of its own. Left to the maintainer: a mention of the icon's origin in the README credits.)
+- [x] 4.1 Delegate the docs-drift-checker agent and list in the apply summary any stale page (none is expected: no screen changed and the Installation pages do not show the icon) (Found and fixed: the Installation page, in the four languages, said the app had no icon; that sentence was removed, as it told players nothing useful. Left to the maintainer: a mention of the icon's origin in the README credits.)
