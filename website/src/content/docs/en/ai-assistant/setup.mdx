@@ -12,10 +12,10 @@ TruckPaint can let an AI assistant draw on the open project, through a local [MC
 ## Turn on the server
 
 1. Open <Ui id="cmd-preferences" />: <Ui id="menu-edit" /> › <Ui id="cmd-preferences" /> on Windows and Linux, <Ui id="menu-app" /> › <Ui id="app-menu-settings" /> on macOS.
-2. Open the <Ui id="prefs-tab-ai" /> tab, and turn on <Ui id="prefs-mcp-enable" />.
+2. Open the <Ui id="prefs-tab-ai" /> tab, and turn on the <Ui id="prefs-mcp-enable" /> switch. Under it, TruckPaint shows if the server is on and waiting, and a list of what the assistant can and cannot do.
 3. Click <Ui id="prefs-mcp-copy" /> next to the <Ui id="prefs-mcp-url" />: `http://127.0.0.1:7373/mcp`.
 
-<Shot name="ai-assistant/preferences" alt="The Preferences dialog on the AI Assistant tab: the server turned on, its port and its address with the Copy button" />
+<Shot name="ai-assistant/preferences" alt="The Preferences dialog on the AI Assistant tab: the switch turned on, the server state, its address with the Copy button, its port, and the list of what the assistant can and cannot do" />
 
 The server is off by default, and stays on across restarts once you turn it on. It runs only while TruckPaint is open.
 
@@ -51,7 +51,7 @@ The assistant reads the project, looks at each texture's template, draws shapes,
 
 It **can** read the project (vehicles, textures, palette, styles and symbols), list and inspect objects, see a texture's template and artwork, add shapes, paths, texts and images, change, arrange, combine and delete objects, add swatches, apply styles and place symbols.
 
-It **can't** save, export or open files, open or close a project, or change your preferences. Saving and exporting stay with you: its changes mark the project as unsaved, like yours.
+It **can't** save or export files, open or close a project, or change your preferences. It can import an image from a file path it names, which is why it can place your logo. Saving and exporting stay with you: its changes mark the project as unsaved, like yours.
 
 Every change it makes is one undo step labeled "AI: …", so <Ui id="cmd-undo" /> takes it back. Your work comes first: a call that arrives while you drag, draw or type waits until you finish. While you edit a symbol, it can only read.
 

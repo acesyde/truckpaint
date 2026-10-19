@@ -9,6 +9,7 @@ use std::net::TcpStream;
 use std::time::Duration;
 
 use base64::Engine;
+use egui::accesskit::Role;
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
 use serde_json::{Value, json};
@@ -1024,17 +1025,36 @@ fn turning_the_server_on() {
     h.state_mut().preferences_tab = tp_app::state::PrefsTab::Ai;
     h.run();
     assert!(h.query_by_label("Off").is_some());
-    h.get_by_label("Let an AI assistant draw on the open project")
+    // The control is announced as a switch, not as a checkbox.
+    h.get_by_role_and_label(Role::Switch, "Let an AI assistant draw on the open project")
         .click();
     h.run();
     assert!(h.state().prefs.mcp_enabled);
     assert!(h.state().mcp.is_running());
     assert!(h.query_by_label("On, waiting for a client").is_some());
-    h.get_by_label("Copy").click();
+    // Copy then Copied: the button stays flush with the right of the field
+    // and the field itself is as wide, so nothing shakes.
+    let right = h.get_by_label("Copy, Address").rect().max.x;
+    let field = h.get_by_role_and_label(Role::TextInput, "Address").rect();
+    h.get_by_label("Copy, Address").click();
     h.step();
     assert_eq!(copied(&h), [format!("http://127.0.0.1:{port}/mcp")]);
+    // The button says so for a moment.
+    h.run_steps(2);
+    assert!(h.query_by_label("Copied, Address").is_some());
+    assert!(h.query_by_label("Copy, Address").is_none());
+    assert_eq!(h.get_by_label("Copied, Address").rect().max.x, right);
+    let wider = h.get_by_role_and_label(Role::TextInput, "Address").rect();
+    assert_eq!(wider.min, field.min);
+    assert!(wider.width() < field.width(), "the longer word takes room");
+    // A while later it says Copy again.
+    h.ctx
+        .data_mut(|d| d.insert_temp(egui::Id::new("prefs_mcp_copied"), -10.0_f64));
+    h.run_steps(2);
+    assert!(h.query_by_label("Copy, Address").is_some());
     // The port can't change while the server is on.
-    h.get_by_label("Let an AI assistant draw on the open project")
+    // The control is announced as a switch, not as a checkbox.
+    h.get_by_role_and_label(Role::Switch, "Let an AI assistant draw on the open project")
         .click();
     h.run();
     assert!(!h.state().mcp.is_running());

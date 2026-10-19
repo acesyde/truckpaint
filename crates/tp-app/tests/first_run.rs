@@ -79,10 +79,17 @@ fn shows(h: &H, label: &str) -> bool {
     h.query_by_label(label).is_some()
 }
 
-/// Clicks the `n`th Choose Folder… (each game: its installation, then its mod folder).
-fn choose(h: &mut H, n: usize) {
-    h.get_all_by_label("Choose Folder…").nth(n).unwrap().click();
+/// Clicks the Choose… of a folder field, named by its game and folder.
+fn choose(h: &mut H, name: &str) {
+    h.get_by_label(&format!("Choose…, {name}")).click();
     h.run();
+}
+
+/// What a folder field shows ("Euro Truck Simulator 2 game folder").
+fn field(h: &H, name: &str) -> String {
+    h.get_by_role_and_label(Role::TextInput, name)
+        .value()
+        .unwrap_or_default()
 }
 
 fn click(h: &mut H, label: &str) {
@@ -144,25 +151,33 @@ fn the_first_step_shows_the_language_the_games_and_their_folders() {
     h.get_by_role_and_label(Role::ComboBox, "Language");
     assert_eq!(h.state().prefs.language, None);
     assert_eq!(h.state().prefs.played(), ["ets2"]);
-    assert!(shows(&h, &format!("Game found: {}", game.display())));
-    // Both games show a mod folder row, none found yet.
-    assert_eq!(h.query_all_by_label("Mod folder not found").count(), 2);
+    assert!(shows(&h, "Game found"));
+    assert_eq!(
+        field(&h, "Euro Truck Simulator 2 game folder"),
+        game.display().to_string()
+    );
+    // Both games show a mod folder field, none found yet.
+    assert_eq!(field(&h, "Euro Truck Simulator 2 mod folder"), "");
+    assert_eq!(field(&h, "American Truck Simulator mod folder"), "");
     // The mod folder is chosen, and remembered.
     h.state_mut().dialogs = Box::new(ScriptedDialogs {
         folders: [mods.clone()].into(),
         ..Default::default()
     });
-    choose(&mut h, 1);
+    choose(&mut h, "Euro Truck Simulator 2 mod folder");
     assert_eq!(h.state().prefs.mod_folders["ets2"], mods);
-    assert!(shows(&h, &format!("Mod folder found: {}", mods.display())));
+    assert_eq!(
+        field(&h, "Euro Truck Simulator 2 mod folder"),
+        mods.display().to_string()
+    );
     // A game that is not found asks for its folder, which Preferences shares.
-    assert!(shows(&h, "ATS") && shows(&h, "Not found"));
+    assert!(shows(&h, "American Truck Simulator") && shows(&h, "Not found"));
     // The ETS2 folder is refused for ATS: nothing is stored for it.
     h.state_mut().dialogs = Box::new(ScriptedDialogs {
         folders: [game.clone()].into(),
         ..Default::default()
     });
-    choose(&mut h, 2);
+    choose(&mut h, "American Truck Simulator game folder");
     assert!(shows(&h, "This is a Euro Truck Simulator 2 folder."));
     assert!(!h.state().prefs.game_folders.contains_key("ats"));
     let ats = dir.path().join("ats");
@@ -172,7 +187,7 @@ fn the_first_step_shows_the_language_the_games_and_their_folders() {
         folders: [ats.clone()].into(),
         ..Default::default()
     });
-    choose(&mut h, 2);
+    choose(&mut h, "American Truck Simulator game folder");
     assert_eq!(h.state().prefs.game_folders["ats"], ats);
     assert_eq!(h.state().prefs.played(), ["ets2", "ats"]);
     // No version is shown.
@@ -219,7 +234,7 @@ fn the_other_games_folder_is_refused_for_ets2() {
         folders: [ats].into(),
         ..Default::default()
     });
-    choose(&mut h, 0);
+    choose(&mut h, "Euro Truck Simulator 2 game folder");
     assert!(shows(&h, "This is an American Truck Simulator folder."));
     assert!(h.state().prefs.played().is_empty());
 }
@@ -248,7 +263,7 @@ fn back_goes_to_the_first_step_with_the_choices_kept() {
     to_vehicles(&mut h);
     click(&mut h, "Back");
     assert!(shows(&h, "Welcome to TruckPaint"));
-    assert!(shows(&h, &format!("Game found: {}", game.display())));
+    assert!(shows(&h, "Game found"));
     assert_eq!(h.state().prefs.played(), ["ets2"]);
 }
 
@@ -395,8 +410,7 @@ fn ats_is_not_generated_yet() {
         folders: [ats].into(),
         ..Default::default()
     });
-    // ETS2's installation and mod rows come first, then ATS's installation row.
-    choose(&mut h, 2);
+    choose(&mut h, "American Truck Simulator game folder");
     assert_eq!(h.state().prefs.played(), ["ats"]);
     click(&mut h, "Next");
     assert!(shows(
@@ -422,7 +436,7 @@ fn run_again_shows_the_current_settings_and_ends_on_the_home_screen() {
     h.run_steps(3);
     h.run();
     assert!(shows(&h, "Welcome to TruckPaint"));
-    assert!(shows(&h, &format!("Game found: {}", game.display())));
+    assert!(shows(&h, "Game found"));
     // Skip changes nothing and shows the home screen.
     let before = h.state().prefs.clone();
     click(&mut h, "Skip");

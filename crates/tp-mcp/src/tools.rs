@@ -450,6 +450,19 @@ mod tests {
     use super::*;
     use crate::call::ColorRef;
 
+    /// Preferences tells the player the assistant cannot save, export or open
+    /// a project: that list must change with the tools.
+    #[test]
+    fn no_tool_saves_exports_or_opens_a_project() {
+        let tools = list();
+        for t in tools.as_array().unwrap() {
+            let name = t["name"].as_str().unwrap();
+            for word in ["save", "export", "open"] {
+                assert!(!name.contains(word), "{name}");
+            }
+        }
+    }
+
     #[test]
     fn every_tool_has_a_schema_and_a_description() {
         let tools = list();

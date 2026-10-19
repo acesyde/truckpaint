@@ -3,15 +3,17 @@
 //! footer).
 
 use egui::{
-    Align, CornerRadius, Frame, Key, Layout, Margin, RichText, Stroke, TextEdit, Ui, WidgetInfo,
-    WidgetType,
+    Align, Button, CornerRadius, Frame, Key, Layout, Margin, RichText, Sense, Stroke, TextEdit, Ui,
+    WidgetInfo, WidgetType,
 };
 
 use tp_i18n::tr;
 use tp_ui::icons;
 use tp_ui::theme::{TEXT_SCALE_RANGE, UI_SCALE_RANGE, label_strong_style, title_style};
 use tp_ui::tokens::{color, radius, space};
-use tp_ui::widgets::{SegmentedControl, primary_button, secondary_button};
+use tp_ui::widgets::{
+    SWITCH_SIZE, SegmentedControl, paint_switch, primary_button, secondary_button,
+};
 
 use crate::commands::{CommandId, ShortcutFormatter};
 use crate::state::{AppState, Modal, PrefsTab};
@@ -78,6 +80,8 @@ pub(crate) enum TextKind {
     Mono,
     /// Several lines: Enter starts a new line.
     Multiline,
+    /// Single line without its own frame, for a field that draws one around it.
+    Inline,
 }
 
 /// What a [`committed_text`] field did this frame.
@@ -121,6 +125,7 @@ pub(crate) fn committed_text(
             .margin(Margin::symmetric(10, 0))
             .vertical_align(Align::Center)
             .min_size(egui::vec2(0.0, FIELD_HEIGHT)),
+        TextKind::Inline => inline_edit(TextEdit::singleline(&mut buffer)),
     };
     let mut edit = edit.id(id).desired_width(width).hint_text(hint);
     if kind == TextKind::Mono {
@@ -149,6 +154,14 @@ pub(crate) fn committed_text(
         ui.data_mut(|d| d.remove::<String>(id));
     }
     out
+}
+
+/// A single-line edit that sits in a [`PathField`]'s frame.
+fn inline_edit(edit: TextEdit<'_>) -> TextEdit<'_> {
+    edit.frame(Frame::NONE)
+        .margin(Margin::symmetric(8, 0))
+        .vertical_align(Align::Center)
+        .min_size(egui::vec2(0.0, FIELD_HEIGHT - 8.0))
 }
 
 /// `columns` side by side, each `ratio` of the width (the gaps aside).
@@ -479,41 +492,58 @@ fn message(ctx: &egui::Context, title: &str, text: &str) -> bool {
         })
 }
 
-/// A scale in percent: a thin slider by steps of 5 % and its value, which
-/// can be dragged or typed. Returns the slider's response and whether the
-/// value was changed through the value.
+/// A scale in percent: its label and value (dragged or typed) on one line,
+/// a thin slider by steps of 5 % under them. Returns the slider's response
+/// and whether the value was changed through the value.
 fn scale_slider(
     ui: &mut Ui,
     pct: &mut f32,
     range: std::ops::RangeInclusive<f32>,
     name: &str,
-    width: f32,
 ) -> (egui::Response, bool) {
-    // The value beside its slider.
-    ui.horizontal(|ui| {
-        let r = ui.add(
-            tp_ui::widgets::ThinSlider::new(pct, range.clone(), name)
-                .width(width)
+    ui.vertical(|ui| {
+        ui.spacing_mut().item_spacing.y = space::SM;
+        let typed = ui
+            .horizontal(|ui| {
+                ui.label(name);
+                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                    ui.add(
+                        egui::DragValue::new(pct)
+                            .range(range.clone())
+                            .speed(1.0)
+                            .suffix("%")
+                            .custom_formatter(|v, _| tp_i18n::format_number(v, 0)),
+                    )
+                    .changed()
+                })
+                .inner
+            })
+            .inner;
+        let slider = ui.add(
+            tp_ui::widgets::ThinSlider::new(pct, range, name)
+                .width(ui.available_width())
                 .step(5.0),
         );
-        let value = ui.add(
-            egui::DragValue::new(pct)
-                .range(range)
-                .speed(1.0)
-                .suffix("%")
-                .custom_formatter(|v, _| tp_i18n::format_number(v, 0)),
-        );
-        (r, value.changed())
+        (slider, typed)
     })
     .inner
 }
 
-/// What the Games section of Preferences works with.
-struct GamesEnv<'a> {
-    state: &'a mut crate::game::GameState,
-    dialogs: &'a mut dyn crate::file_dialogs::FileDialogs,
+/// What the game cards work with (Preferences' Games tab and the first launch).
+pub(crate) struct GamesEnv<'a> {
+    pub state: &'a mut crate::game::GameState,
+    pub dialogs: &'a mut dyn crate::file_dialogs::FileDialogs,
     /// Where Export Mod looks for each game's mod folder.
-    mod_folders: &'a crate::mod_export::Folders,
+    pub mod_folders: &'a crate::mod_export::Folders,
+}
+
+/// The words of a game card's state.
+#[derive(Clone, Copy)]
+pub(crate) enum CardWords {
+    /// Preferences: the game's version, or Not set.
+    Preferences,
+    /// The first launch: Game found or Not found, never a version.
+    FirstLaunch,
 }
 
 /// The height (points) of the settings area of Preferences: the Games tab,
@@ -585,9 +615,18 @@ fn preferences(
         let mut close = false;
         footer(ui, |ui| {
             close |= ui.add(primary_button(&tr("button-done"))).clicked();
-            // In the footer, so it stays in reach when the settings scroll.
-            if *tab == PrefsTab::General && ui.add(secondary_button(&tr("prefs-reset"))).clicked() {
-                prefs.reset_scaling();
+            // In the footer, so it stays in reach when the settings scroll;
+            // a quiet text button at the far left.
+            if *tab == PrefsTab::General {
+                ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+                    let reset =
+                        Button::new(RichText::new(tr("prefs-reset")).color(color::TEXT_SECONDARY))
+                            .frame(false)
+                            .min_size(egui::vec2(0.0, 30.0));
+                    if ui.add(reset).clicked() {
+                        prefs.reset_scaling();
+                    }
+                });
             }
         });
         close
@@ -595,37 +634,34 @@ fn preferences(
     response.inner || response.should_close()
 }
 
-/// The General tab: the interface and the canvas.
-fn general_tab(ctx: &egui::Context, ui: &mut Ui, prefs: &mut crate::prefs::Prefs, title_bar: bool) {
-    section(ui, &tr("prefs-interface"));
-    // The room left beside the slider fits its value ("100%").
-    let slider_width = ui.available_width() - 72.0;
-    labelled(ui, &tr("prefs-ui-scale"), |ui| {
-        let mut ui_pct = (prefs.ui_scale * 100.0).round();
-        let range = (UI_SCALE_RANGE.start() * 100.0)..=(UI_SCALE_RANGE.end() * 100.0);
-        let name = tr("prefs-ui-scale");
-        let (r, typed) = scale_slider(ui, &mut ui_pct, range, &name, slider_width);
-        // Apply on release while dragging, so the slider does not move
-        // under the pointer as the interface rescales.
-        if r.changed() && !r.dragged() || r.drag_stopped() || typed {
-            prefs.ui_scale = ui_pct / 100.0;
-        }
-    });
-    labelled(ui, &tr("prefs-text-size"), |ui| {
-        let mut text_pct = (prefs.text_scale * 100.0).round();
-        let range = (TEXT_SCALE_RANGE.start() * 100.0)..=(TEXT_SCALE_RANGE.end() * 100.0);
-        let name = tr("prefs-text-size");
-        let (r, typed) = scale_slider(ui, &mut text_pct, range, &name, slider_width);
-        if r.changed() || typed {
-            prefs.text_scale = text_pct / 100.0;
-        }
-    });
-    ui.label(
-        RichText::new(tr("prefs-scale-hint"))
-            .small()
+/// The title of a group of settings: small, bold, in capitals and the
+/// secondary color, so it reads above the labels of its settings (regular
+/// size, primary color). Assistive technologies get the text as written.
+pub(crate) fn section_title(ui: &mut Ui, text: &str) {
+    let title = ui.label(
+        RichText::new(text.to_uppercase())
+            .text_style(label_strong_style())
+            .size(11.0)
             .color(color::TEXT_SECONDARY),
     );
-    labelled(ui, &tr("prefs-language"), |ui| {
+    title.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, text));
+}
+
+/// A hairline between two groups of settings.
+fn rule(ui: &mut Ui) {
+    ui.add_space(space::SM);
+    let rect = ui.available_rect_before_wrap();
+    ui.painter()
+        .hline(rect.x_range(), rect.top(), Stroke::new(1.0, color::BORDER));
+    ui.add_space(space::MD);
+}
+
+/// The General tab: the interface (language first) and the canvas.
+fn general_tab(ctx: &egui::Context, ui: &mut Ui, prefs: &mut crate::prefs::Prefs, title_bar: bool) {
+    section_title(ui, &tr("prefs-interface"));
+    ui.vertical(|ui| {
+        ui.spacing_mut().item_spacing.y = space::SM;
+        ui.label(tr("prefs-language"));
         let current = prefs.language();
         let name = |l: Option<tp_i18n::Language>| {
             l.map_or_else(|| tr("language-system"), |l| l.native_name().to_owned())
@@ -633,7 +669,7 @@ fn general_tab(ctx: &egui::Context, ui: &mut Ui, prefs: &mut crate::prefs::Prefs
         let mut picked = current;
         let combo = egui::ComboBox::from_id_salt("prefs_language")
             .icon(tp_ui::widgets::dropdown_icon)
-            .width(220.0)
+            .width(ui.available_width())
             .selected_text(name(current))
             .show_ui(ui, |ui| {
                 let choices =
@@ -650,6 +686,26 @@ fn general_tab(ctx: &egui::Context, ui: &mut Ui, prefs: &mut crate::prefs::Prefs
             ctx.request_repaint();
         }
     });
+    let mut ui_pct = (prefs.ui_scale * 100.0).round();
+    let range = (UI_SCALE_RANGE.start() * 100.0)..=(UI_SCALE_RANGE.end() * 100.0);
+    let (r, typed) = scale_slider(ui, &mut ui_pct, range, &tr("prefs-ui-scale"));
+    // Apply on release while dragging, so the slider does not move under the
+    // pointer as the interface rescales.
+    if r.changed() && !r.dragged() || r.drag_stopped() || typed {
+        prefs.ui_scale = ui_pct / 100.0;
+    }
+    let mut text_pct = (prefs.text_scale * 100.0).round();
+    let range = (TEXT_SCALE_RANGE.start() * 100.0)..=(TEXT_SCALE_RANGE.end() * 100.0);
+    let (r, typed) = scale_slider(ui, &mut text_pct, range, &tr("prefs-text-size"));
+    if r.changed() || typed {
+        prefs.text_scale = text_pct / 100.0;
+    }
+    // A hint is smaller and dimmer than a label.
+    ui.label(
+        RichText::new(tr("prefs-scale-hint"))
+            .small()
+            .color(color::TEXT_MUTED),
+    );
     if title_bar {
         // Its hint on hover keeps the dialog within the smallest window
         // at large UI scales.
@@ -659,41 +715,298 @@ fn general_tab(ctx: &egui::Context, ui: &mut Ui, prefs: &mut crate::prefs::Prefs
         ))
         .on_hover_text(tr("prefs-system-title-bar-hint"));
     }
-    ui.add_space(space::SM);
-    section(ui, &tr("prefs-canvas"));
-    labelled(ui, &tr("prefs-grid-spacing"), |ui| {
-        let range = crate::prefs::GRID_SPACING_RANGE;
-        let r = ui.add(
-            egui::DragValue::new(&mut prefs.view_aids.grid_spacing)
-                .range(range)
-                .speed(1.0)
-                .max_decimals(0)
-                .suffix(" px"),
-        );
-        r.widget_info(|| {
-            WidgetInfo::labeled(WidgetType::DragValue, true, tr("prefs-grid-spacing"))
+    rule(ui);
+    section_title(ui, &tr("prefs-canvas"));
+    ui.horizontal(|ui| {
+        ui.label(tr("prefs-grid-spacing"));
+        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            let range = crate::prefs::GRID_SPACING_RANGE;
+            let r = ui.add(
+                egui::DragValue::new(&mut prefs.view_aids.grid_spacing)
+                    .range(range)
+                    .speed(1.0)
+                    .max_decimals(0)
+                    .suffix(" px"),
+            );
+            r.widget_info(|| {
+                WidgetInfo::labeled(WidgetType::DragValue, true, tr("prefs-grid-spacing"))
+            });
         });
     });
 }
 
-/// A button whose accessible name says which folder it is for ("Choose…,
-/// Euro Truck Simulator 2 game folder"); its visible text is `text`.
-fn folder_button(ui: &mut Ui, text: &str, target: &str) -> egui::Response {
-    let response = ui.add(secondary_button(text));
-    let name = tr!("prefs-button-for", action = text, target = target);
-    response.widget_info(|| WidgetInfo::labeled(WidgetType::Button, true, name.clone()));
+/// Gives `response` an accessible name made of the action and what it is for
+/// ("Choose…, Euro Truck Simulator 2 game folder"); its visible text stays
+/// the action. No name is made when `target` is empty.
+fn name_for(response: &egui::Response, action: &str, target: &str) {
+    if !target.is_empty() {
+        let name = tr!("prefs-button-for", action = action, target = target);
+        response.widget_info(|| WidgetInfo::labeled(WidgetType::Button, true, name.clone()));
+    }
+}
+
+/// Draws a button whose outline is stronger than a plain control's and, when
+/// `transparent`, whose idle fill is the surface under it. The theme still
+/// gives it the hover and pressed fills and outlines.
+fn outlined(
+    ui: &mut Ui,
+    transparent: bool,
+    button: impl FnOnce(&mut Ui) -> egui::Response,
+) -> egui::Response {
+    ui.scope(|ui| {
+        let widgets = &mut ui.style_mut().visuals.widgets;
+        widgets.inactive.bg_stroke = Stroke::new(1.0, color::BORDER_STRONG);
+        widgets.hovered.bg_stroke = Stroke::new(1.0, color::TEXT_SECONDARY);
+        if transparent {
+            widgets.inactive.weak_bg_fill = egui::Color32::TRANSPARENT;
+        }
+        button(ui).on_hover_cursor(egui::CursorIcon::PointingHand)
+    })
+    .inner
+}
+
+/// A button inside a field: an outline and a fill of its own, an icon and
+/// the action's words; it reacts to the pointer like the other controls.
+fn inline_button(ui: &mut Ui, icon: &str, text: &str, target: &str) -> egui::Response {
+    let response = outlined(ui, false, |ui| {
+        ui.add(
+            Button::new((
+                icons::rich(icon).color(color::TEXT_PRIMARY),
+                RichText::new(text).color(color::TEXT_PRIMARY),
+            ))
+            .corner_radius(CornerRadius::same(radius::SM))
+            .min_size(egui::vec2(0.0, FIELD_HEIGHT - 12.0)),
+        )
+    });
+    name_for(&response, text, target);
     response
 }
 
-/// The Games tab of Preferences: what is read, then one group per game with
-/// its version beside its name, its game folder and its mod folder.
+/// The width [`inline_button`] takes: its icon and its words, the space
+/// between them and the button's padding.
+fn inline_button_width(ui: &Ui, icon: &str, text: &str) -> f32 {
+    let galley = |text: egui::WidgetText| {
+        text.into_galley(
+            ui,
+            Some(egui::TextWrapMode::Extend),
+            f32::INFINITY,
+            egui::TextStyle::Button,
+        )
+        .size()
+        .x
+    };
+    galley(icons::rich(icon).into())
+        + galley(RichText::new(text).into())
+        + ui.spacing().icon_spacing
+        + 2.0 * ui.spacing().button_padding.x
+}
+
+/// An outlined button for an action of a card (Detect), with an icon.
+fn outline_button(ui: &mut Ui, icon: &str, text: &str, target: &str) -> egui::Response {
+    let response = outlined(ui, true, |ui| {
+        ui.add(
+            Button::new((
+                icons::rich(icon).color(color::TEXT_PRIMARY),
+                RichText::new(text).color(color::TEXT_PRIMARY),
+            ))
+            .corner_radius(CornerRadius::same(radius::MD))
+            .min_size(egui::vec2(0.0, 32.0)),
+        )
+    });
+    name_for(&response, text, target);
+    response
+}
+
+/// The cross that clears a field, named "Clear, target".
+fn clear_button(ui: &mut Ui, target: &str) -> egui::Response {
+    let clear = ui.add(
+        Button::new(icons::rich(icons::CLOSE).color(color::TEXT_SECONDARY))
+            .frame(false)
+            .min_size(egui::Vec2::splat(FIELD_HEIGHT - 6.0)),
+    );
+    name_for(&clear, &tr("prefs-game-clear"), target);
+    clear
+}
+
+/// What a [`PathField`] did this frame.
+#[derive(Default)]
+struct PathOut {
+    /// A path typed and committed.
+    committed: Option<String>,
+    /// The action button was clicked.
+    action: bool,
+    /// The clear button was clicked.
+    clear: bool,
+}
+
+/// A path in one field, with its buttons inside it at the right: an action
+/// (Choose…, Copy) and, once there is something to clear, a clear button.
+/// The frame shows the focus of the text inside it.
+struct PathField<'a> {
+    id: egui::Id,
+    /// What assistive technologies call the field and its buttons' target
+    /// (the buttons are named "action, target"); empty keeps their text.
+    target: &'a str,
+    shown: &'a str,
+    hint: &'a str,
+    /// Typing a path is allowed (the text is committed on Enter or leaving).
+    editable: bool,
+    mono: bool,
+    tint: egui::Color32,
+    /// The action button: its icon and its words.
+    icon: &'a str,
+    action: &'a str,
+    can_clear: bool,
+}
+
+impl PathField<'_> {
+    fn show(self, ui: &mut Ui) -> PathOut {
+        // Its own id scope: two fields in one parent must not share the ids
+        // of their buttons.
+        let id = self.id;
+        ui.push_id(id, |ui| self.show_in(ui)).inner
+    }
+
+    fn show_in(self, ui: &mut Ui) -> PathOut {
+        let mut out = PathOut::default();
+        let mut prepared = Frame::new()
+            .fill(color::FIELD)
+            .stroke(Stroke::new(1.0, color::BORDER))
+            .corner_radius(CornerRadius::same(radius::MD))
+            .inner_margin(Margin::symmetric(4, 2))
+            .begin(ui);
+        let mut focused = false;
+        // The widgets are made in the order they are read and tabbed through:
+        // the path first, then Clear, then the action; the path gets what the
+        // buttons leave.
+        let inner = &mut prepared.content_ui;
+        let width = inner.available_width();
+        // What the buttons need, worked out from their icon and words, so the
+        // path gets the rest in this very frame (no frame before to wait for).
+        let buttons = inline_button_width(inner, self.icon, self.action)
+            + if self.can_clear {
+                FIELD_HEIGHT - 6.0 + space::XS
+            } else {
+                0.0
+            };
+        let path_width = (width - buttons - space::XS).max(60.0);
+        inner.set_min_width(width);
+        inner.allocate_ui_with_layout(
+            egui::vec2(width, FIELD_HEIGHT - 4.0),
+            Layout::left_to_right(Align::Center),
+            |ui| {
+                ui.spacing_mut().item_spacing.x = space::XS;
+                if self.editable {
+                    let field = committed_text(
+                        ui,
+                        self.id,
+                        self.target,
+                        self.shown,
+                        TextKind::Inline,
+                        self.hint,
+                        Some(path_width),
+                    );
+                    focused = field.response.has_focus();
+                    out.committed = field.committed;
+                } else {
+                    let mut text = self.shown;
+                    let mut edit = inline_edit(TextEdit::singleline(&mut text))
+                        .id_salt(self.id)
+                        .desired_width(path_width)
+                        .text_color(self.tint)
+                        .hint_text(self.hint);
+                    if self.mono {
+                        edit = edit.font(egui::TextStyle::Monospace);
+                    }
+                    let field = ui.add(edit);
+                    field.widget_info(|| {
+                        WidgetInfo::labeled(WidgetType::TextEdit, true, self.target)
+                    });
+                    focused = field.has_focus();
+                }
+                if self.can_clear {
+                    out.clear = clear_button(ui, self.target)
+                        .on_hover_text(tr("prefs-game-clear"))
+                        .clicked();
+                }
+                out.action = inline_button(ui, self.icon, self.action, self.target).clicked();
+            },
+        );
+        // The focus ring is drawn over the frame, outside it, so the field and
+        // what is around it do not move when it appears.
+        let response = prepared.end(ui);
+        if focused {
+            ui.painter().rect_stroke(
+                response.rect,
+                CornerRadius::same(radius::MD),
+                Stroke::new(2.0, color::FOCUS),
+                egui::StrokeKind::Outside,
+            );
+        }
+        out
+    }
+}
+
+/// How a game's folder stands, as a dot or a mark and words.
+enum Standing {
+    Ready,
+    Unset,
+    Problem,
+}
+
+/// A state as a mark and words, never by color alone: a filled dot, a
+/// hollow dot, or the warning sign. Made for a right-to-left row (the state
+/// at the right of a heading): the words first, so the mark reads first.
+fn state_chip(ui: &mut Ui, standing: Standing, text: &str) {
+    ui.label(RichText::new(text).color(color::TEXT_SECONDARY));
+    if matches!(standing, Standing::Problem) {
+        ui.label(icons::rich(icons::WARNING).color(color::WARNING));
+    } else {
+        let (rect, _) = ui.allocate_exact_size(egui::vec2(10.0, 10.0), Sense::hover());
+        if matches!(standing, Standing::Ready) {
+            ui.painter()
+                .circle_filled(rect.center(), 4.0, color::SUCCESS);
+        } else {
+            ui.painter()
+                .circle_stroke(rect.center(), 3.5, Stroke::new(1.5, color::TEXT_SECONDARY));
+        }
+    }
+}
+
+/// A bordered surface that groups the settings of one thing.
+fn card<R>(ui: &mut Ui, body: impl FnOnce(&mut Ui) -> R) -> R {
+    Frame::new()
+        .fill(color::RAISED)
+        .stroke(Stroke::new(1.0, color::BORDER))
+        .corner_radius(CornerRadius::same(radius::CARD))
+        .inner_margin(Margin::same(14))
+        .show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.spacing_mut().item_spacing.y = space::MD;
+            body(ui)
+        })
+        .inner
+}
+
+/// Applies a folder typed, chosen, detected or cleared for `game`: an empty
+/// path clears it, like Clear.
+fn apply_game_folder(
+    games: &mut crate::game::GameState,
+    prefs: &mut crate::prefs::Prefs,
+    game: tp_vehicles::Game,
+    set: Option<std::path::PathBuf>,
+) {
+    match set {
+        Some(path) if path.as_os_str().is_empty() => {
+            games.clear_folder(&mut prefs.game_folders, game);
+        }
+        Some(path) => games.set_folder(&mut prefs.game_folders, game, &path),
+        None => {}
+    }
+}
+
+/// The Games tab of Preferences: what is read, then one card per game.
 fn games_section(ui: &mut Ui, prefs: &mut crate::prefs::Prefs, env: &mut GamesEnv) {
-    use crate::game::FolderStatus;
-    let GamesEnv {
-        state: games,
-        dialogs,
-        mod_folders,
-    } = env;
     ui.add(
         egui::Label::new(
             RichText::new(tr("prefs-games-hint"))
@@ -702,83 +1015,111 @@ fn games_section(ui: &mut Ui, prefs: &mut crate::prefs::Prefs, env: &mut GamesEn
         )
         .wrap(),
     );
+    game_cards(ui, prefs, env, CardWords::Preferences);
+}
+
+/// One card per game with its state beside its name, its game folder and its
+/// mod folder.
+pub(crate) fn game_cards(
+    ui: &mut Ui,
+    prefs: &mut crate::prefs::Prefs,
+    env: &mut GamesEnv,
+    words: CardWords,
+) {
+    use crate::game::FolderStatus;
+    let GamesEnv {
+        state: games,
+        dialogs,
+        mod_folders,
+    } = env;
     for game in tp_vehicles::Game::ALL {
         let name = super::vehicle_dialogs::game_name(game);
-        ui.add_space(space::MD);
-        ui.horizontal(|ui| {
-            ui.spacing_mut().item_spacing.x = space::SM;
-            section(ui, &name);
-            if let Some(FolderStatus::Valid(info)) = games.folders.get(&game) {
-                ui.label(
-                    RichText::new(tr!("prefs-game-version", version = info.version.as_str()))
-                        .color(color::TEXT_SECONDARY),
-                );
-            }
-        });
         let target = tr!("prefs-game-folder-target", game = name.as_str());
-        let folder = prefs.game_folders.get(game.code()).cloned();
-        let shown = folder
-            .as_deref()
-            .map_or_else(String::new, |p| p.display().to_string());
-        let id = egui::Id::new(("prefs_game_folder", game.code()));
-        let mut set = None;
-        labelled(ui, &tr("prefs-game-folder-label"), |ui| {
-            let field = committed_text(
-                ui,
-                id,
-                &target,
-                &shown,
-                TextKind::Single,
-                &tr("prefs-folder-not-set"),
-                None,
-            );
-            if let Some(text) = field.committed.filter(|t| t.trim() != shown) {
-                set = Some(std::path::PathBuf::from(text.trim()));
-            }
+        card(ui, |ui| {
             ui.horizontal(|ui| {
-                ui.spacing_mut().item_spacing.x = space::SM;
-                // Detect while the folder is empty, Clear once it is set.
-                if folder.is_none()
-                    && folder_button(ui, &tr("prefs-game-detect"), &target)
-                        .on_hover_text(tr("prefs-game-detect-hint"))
-                        .clicked()
-                {
-                    match crate::game::detect(game) {
-                        Some((found, _)) => set = Some(found),
-                        None => {
-                            games.refused.insert(game, tr("prefs-game-not-detected"));
+                section(ui, &name);
+                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                    match games.folders.get(&game) {
+                        Some(FolderStatus::Valid(info)) => state_chip(
+                            ui,
+                            Standing::Ready,
+                            &match words {
+                                CardWords::Preferences => {
+                                    tr!("prefs-game-version", version = info.version.as_str())
+                                }
+                                CardWords::FirstLaunch => tr("first-run-game-found"),
+                            },
+                        ),
+                        Some(FolderStatus::Problem(_)) => {
+                            state_chip(ui, Standing::Problem, &tr("prefs-game-state-problem"));
                         }
+                        _ => state_chip(
+                            ui,
+                            Standing::Unset,
+                            &tr(match words {
+                                CardWords::Preferences => "prefs-folder-not-set",
+                                CardWords::FirstLaunch => "first-run-game-not-found",
+                            }),
+                        ),
                     }
+                });
+            });
+            let folder = prefs.game_folders.get(game.code()).cloned();
+            let shown = folder
+                .as_deref()
+                .map_or_else(String::new, |p| p.display().to_string());
+            let mut set = None;
+            labelled(ui, &tr("prefs-game-folder-label"), |ui| {
+                let out = PathField {
+                    id: egui::Id::new(("prefs_game_folder", game.code())),
+                    target: &target,
+                    shown: &shown,
+                    hint: &tr("prefs-folder-not-set"),
+                    editable: true,
+                    mono: false,
+                    tint: color::TEXT_PRIMARY,
+                    icon: icons::OPEN_PROJECT,
+                    action: &tr("prefs-game-choose"),
+                    can_clear: folder.is_some(),
                 }
-                if folder_button(ui, &tr("prefs-game-choose"), &target).clicked() {
+                .show(ui);
+                if let Some(text) = out.committed.filter(|t| t.trim() != shown) {
+                    set = Some(std::path::PathBuf::from(text.trim()));
+                }
+                if out.action {
                     set =
                         dialogs.pick_folder(&tr!("prefs-game-choose-title", game = name.as_str()));
                 }
-                if folder.is_some() && folder_button(ui, &tr("prefs-game-clear"), &target).clicked()
-                {
+                if out.clear {
                     games.clear_folder(&mut prefs.game_folders, game);
                 }
             });
-        });
-        // An empty field clears the folder, like Clear.
-        match set {
-            Some(path) if path.as_os_str().is_empty() => {
-                games.clear_folder(&mut prefs.game_folders, game);
+            mod_folder_row(ui, prefs, game, &name, &mut **dialogs, mod_folders);
+            // Detect, at the foot of the card, while the folder is empty.
+            if folder.is_none()
+                && outline_button(ui, icons::SEARCH, &tr("prefs-game-detect"), &target)
+                    .on_hover_text(tr("prefs-game-detect-hint"))
+                    .clicked()
+            {
+                match crate::game::detect(game) {
+                    Some((found, _)) => set = Some(found),
+                    None => {
+                        games.refused.insert(game, tr("prefs-game-not-detected"));
+                    }
+                }
             }
-            Some(path) => games.set_folder(&mut prefs.game_folders, game, &path),
-            None => {}
-        }
-        if let Some(text) = games.refused.get(&game) {
-            problem(ui, text);
-        } else if let Some(FolderStatus::Problem(p)) = games.folders.get(&game) {
-            problem(ui, &crate::game::problem_text(p));
-        }
-        mod_folder_row(ui, prefs, game, &name, &mut **dialogs, mod_folders);
+            apply_game_folder(games, prefs, game, set);
+            if let Some(text) = games.refused.get(&game) {
+                problem(ui, text);
+            } else if let Some(FolderStatus::Problem(p)) = games.folders.get(&game) {
+                problem(ui, &crate::game::problem_text(p));
+            }
+        });
     }
 }
 
 /// A game's mod folder row: the chosen folder, else the one Export Mod finds,
-/// in a field that shows its path and changes through Choose….
+/// in a field that shows its path and changes through Choose… and Clear.
 fn mod_folder_row(
     ui: &mut Ui,
     prefs: &mut crate::prefs::Prefs,
@@ -800,74 +1141,117 @@ fn mod_folder_row(
         let text = shown
             .as_ref()
             .map_or_else(String::new, |p| p.display().to_string());
-        // The detected folder is dimmer than a chosen one.
-        let tint = if chosen.is_some() {
-            color::TEXT_PRIMARY
-        } else {
-            color::TEXT_SECONDARY
-        };
-        let field = ui.add(
-            TextEdit::singleline(&mut text.as_str())
-                .id_salt(("prefs_mod_folder", code))
-                .margin(Margin::symmetric(10, 0))
-                .vertical_align(Align::Center)
-                .min_size(egui::vec2(0.0, FIELD_HEIGHT))
-                .desired_width(f32::INFINITY)
-                .text_color(tint)
-                .hint_text(tr("prefs-folder-not-set")),
+        let out = PathField {
+            id: egui::Id::new(("prefs_mod_folder", code)),
+            target: &target,
+            shown: &text,
+            hint: &tr("prefs-folder-not-set"),
+            editable: false,
+            mono: false,
+            // The detected folder is dimmer than a chosen one.
+            tint: if chosen.is_some() {
+                color::TEXT_PRIMARY
+            } else {
+                color::TEXT_SECONDARY
+            },
+            icon: icons::OPEN_PROJECT,
+            action: &tr("prefs-game-choose"),
+            can_clear: chosen.is_some(),
+        }
+        .show(ui);
+        if out.action
+            && let Some(path) = dialogs.pick_folder(&tr!("prefs-mod-choose-title", game = name))
+        {
+            prefs.mod_folders.insert(code.to_owned(), path);
+        }
+        if out.clear {
+            prefs.mod_folders.remove(code);
+        }
+    });
+}
+
+/// A card with a switch: its title and a line under it, the switch at the
+/// right. Announced as a switch with its title; Space or a click toggles it.
+fn switch_card(ui: &mut Ui, on: &mut bool, title: &str, subtitle: &str) {
+    card(ui, |ui| {
+        let width = ui.available_width();
+        ui.allocate_ui_with_layout(
+            egui::vec2(width, 40.0),
+            Layout::right_to_left(Align::Center),
+            |ui| {
+                let (rect, mut response) =
+                    ui.allocate_exact_size(egui::vec2(SWITCH_SIZE.x + 20.0, 32.0), Sense::click());
+                if response.clicked() {
+                    *on = !*on;
+                    response.mark_changed();
+                }
+                response
+                    .widget_info(|| WidgetInfo::selected(WidgetType::Checkbox, true, *on, title));
+                ui.ctx().accesskit_node_builder(response.id, |node| {
+                    node.set_role(egui::accesskit::Role::Switch);
+                });
+                let knob = egui::Rect::from_center_size(rect.center(), SWITCH_SIZE);
+                paint_switch(ui, knob, *on, true);
+                if response.has_focus() {
+                    ui.painter().rect_stroke(
+                        knob.expand(3.0),
+                        CornerRadius::same(10),
+                        Stroke::new(2.0, color::FOCUS),
+                        egui::StrokeKind::Outside,
+                    );
+                }
+                ui.with_layout(Layout::top_down(Align::Min), |ui| {
+                    ui.spacing_mut().item_spacing.y = space::XS;
+                    section(ui, title);
+                    ui.add(
+                        egui::Label::new(
+                            RichText::new(subtitle).small().color(color::TEXT_SECONDARY),
+                        )
+                        .wrap(),
+                    );
+                });
+            },
         );
-        field.widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, true, target.clone()));
-        ui.horizontal(|ui| {
-            ui.spacing_mut().item_spacing.x = space::SM;
-            if folder_button(ui, &tr("prefs-game-choose"), &target).clicked()
-                && let Some(path) = dialogs.pick_folder(&tr!("prefs-mod-choose-title", game = name))
-            {
-                prefs.mod_folders.insert(code.to_owned(), path);
-            }
-            if chosen.is_some() && folder_button(ui, &tr("prefs-game-clear"), &target).clicked() {
-                prefs.mod_folders.remove(code);
-            }
+    });
+}
+
+/// One line of what the assistant can or cannot do: a check or a cross and
+/// the words, which assistive technologies read with "Allowed" or
+/// "Not allowed".
+fn ability(ui: &mut Ui, allowed: bool, text: &str) {
+    ui.horizontal_top(|ui| {
+        ui.spacing_mut().item_spacing.x = space::SM;
+        let (icon, tint) = if allowed {
+            (icons::CHECK, color::SUCCESS)
+        } else {
+            (icons::CLOSE, color::ERROR)
+        };
+        ui.label(icons::rich(icon).color(tint));
+        let label = ui.add(egui::Label::new(text).wrap());
+        let prefix = tr(if allowed {
+            "prefs-mcp-allowed"
+        } else {
+            "prefs-mcp-not-allowed"
+        });
+        label.widget_info(|| {
+            WidgetInfo::labeled(WidgetType::Label, true, format!("{prefix}: {text}"))
         });
     });
 }
 
-/// The AI assistant (MCP) section of Preferences: the switch, the port
-/// (editable while the server is off), the address with Copy, what it is
-/// for, and the server's state. Scrolled into view when `reveal` is set.
+/// How long (seconds) the address's button says "Copied".
+const COPIED_FOR: f64 = 1.5;
+
+/// The AI Assistant tab of Preferences: the switch, the server's state, the
+/// address with Copy in its field, the port (editable while the server is
+/// off) and what the assistant can and cannot do.
 fn mcp_section(ui: &mut Ui, prefs: &mut crate::prefs::Prefs, mcp: &crate::mcp::McpView) {
-    section(ui, &tr("prefs-mcp"));
-    ui.add(tp_ui::widgets::SquareCheckbox::new(
+    switch_card(
+        ui,
         &mut prefs.mcp_enabled,
-        tr("prefs-mcp-enable"),
-    ));
-    let url = tp_mcp::url(prefs.mcp_port);
-    labelled(ui, &tr("prefs-mcp-url"), |ui| {
-        ui.horizontal(|ui| {
-            ui.spacing_mut().item_spacing.x = space::SM;
-            let copy = ui.add(secondary_button(&tr("prefs-mcp-copy")));
-            let field = ui.add(
-                TextEdit::singleline(&mut url.as_str())
-                    .id_salt("prefs_mcp_url")
-                    .font(egui::TextStyle::Monospace)
-                    .desired_width(ui.available_width()),
-            );
-            field.widget_info(|| {
-                WidgetInfo::labeled(WidgetType::TextEdit, true, tr("prefs-mcp-url"))
-            });
-            if copy.clicked() {
-                ui.ctx().copy_text(url.clone());
-            }
-        });
-    });
-    labelled(ui, &tr("prefs-mcp-port"), |ui| {
-        let r = ui.add_enabled(
-            !prefs.mcp_enabled,
-            egui::DragValue::new(&mut prefs.mcp_port)
-                .range(crate::prefs::MCP_PORT_RANGE)
-                .speed(1.0),
-        );
-        r.widget_info(|| WidgetInfo::labeled(WidgetType::DragValue, true, tr("prefs-mcp-port")));
-    });
+        &tr("prefs-mcp-enable"),
+        &tr("prefs-mcp-enable-hint"),
+    );
     use tp_mcp::ServerState;
     match &mcp.state {
         ServerState::PortInUse => problem(ui, &tr!("prefs-mcp-port-in-use", port = mcp.port)),
@@ -889,6 +1273,60 @@ fn mcp_section(ui: &mut Ui, prefs: &mut crate::prefs::Prefs, mcp: &crate::mcp::M
             });
         }
     }
+    let url = tp_mcp::url(prefs.mcp_port);
+    // After Copy, the button says "Copied" for a moment.
+    let copied_id = egui::Id::new("prefs_mcp_copied");
+    let now = ui.input(|i| i.time);
+    let since = ui.data(|d| d.get_temp::<f64>(copied_id)).map(|t| now - t);
+    let copied = since.is_some_and(|elapsed| elapsed < COPIED_FOR);
+    if let Some(elapsed) = since.filter(|_| copied) {
+        ui.ctx()
+            .request_repaint_after(std::time::Duration::from_secs_f64(COPIED_FOR - elapsed));
+    }
+    labelled(ui, &tr("prefs-mcp-url"), |ui| {
+        let out = PathField {
+            id: egui::Id::new("prefs_mcp_url"),
+            target: &tr("prefs-mcp-url"),
+            shown: &url,
+            hint: "",
+            editable: false,
+            mono: true,
+            tint: color::TEXT_PRIMARY,
+            icon: if copied { icons::CHECK } else { icons::COPY },
+            action: &tr(if copied {
+                "prefs-mcp-copied"
+            } else {
+                "prefs-mcp-copy"
+            }),
+            can_clear: false,
+        }
+        .show(ui);
+        if out.action {
+            ui.ctx().copy_text(url.clone());
+            ui.data_mut(|d| d.insert_temp(copied_id, now));
+            ui.ctx().request_repaint();
+        }
+    });
+    ui.horizontal(|ui| {
+        ui.label(tr("prefs-mcp-port"));
+        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            let r = ui.add_enabled(
+                !prefs.mcp_enabled,
+                egui::DragValue::new(&mut prefs.mcp_port)
+                    .range(crate::prefs::MCP_PORT_RANGE)
+                    .speed(1.0),
+            );
+            r.widget_info(|| {
+                WidgetInfo::labeled(WidgetType::DragValue, true, tr("prefs-mcp-port"))
+            });
+        });
+    });
+    rule(ui);
+    section_title(ui, &tr("prefs-mcp-can-title"));
+    ability(ui, true, &tr("prefs-mcp-can-read"));
+    ability(ui, true, &tr("prefs-mcp-can-draw"));
+    ability(ui, true, &tr("prefs-mcp-can-import"));
+    ability(ui, false, &tr("prefs-mcp-cannot-save"));
     ui.add(
         egui::Label::new(
             RichText::new(tr("prefs-mcp-hint"))

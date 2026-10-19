@@ -11,13 +11,13 @@ The official trucks and trailers belong to SCS Software, so TruckPaint does not 
 
 ## Set the game folder
 
-Open the preferences and click the <Ui id="prefs-tab-games" /> tab. Each game has its own group, with a game folder and a mod folder. Next to the game's name, its version shows once the folder is valid. An empty folder reads <Ui id="prefs-folder-not-set" />. The buttons depend on what is set:
+Open the preferences and click the <Ui id="prefs-tab-games" /> tab. Each game has its own card, with a game folder and a mod folder. At the right of the game's name, its state shows in words: its version once the folder is valid, <Ui id="prefs-folder-not-set" /> while it is empty, or a folder problem. Each folder is one field, and its buttons sit inside it:
 
-- <Ui id="prefs-game-detect" />, shown while the game folder is empty, looks for the game in your Steam libraries (Windows, Linux including the Flatpak version of Steam, and macOS).
-- <Ui id="prefs-game-choose" /> picks the folder by hand: use it for GOG, Epic or any other place.
-- <Ui id="prefs-game-clear" />, shown once a folder is set, forgets it.
+- <Ui id="prefs-game-choose" />, at the right of the field, picks the folder by hand: use it for GOG, Epic or any other place. You can also type the path of the game folder.
+- The cross, shown once a folder is set, forgets it (<Ui id="prefs-game-clear" />).
+- <Ui id="prefs-game-detect" />, at the foot of the card while the game folder is empty, looks for the game in your Steam libraries (Windows, Linux including the Flatpak version of Steam, and macOS).
 
-A game is one you play when its folder is set: <Ui id="home-new-project" /> starts on the first game that has vehicles installed, or on the only game whose folder is set. TruckPaint refuses the folder of the other game. The <Ui id="prefs-mod-folder-label" /> row shows where <Ui id="cmd-export-mod" /> saves mods for that game, the detected folder when you chose none. It has <Ui id="prefs-game-choose" />, and <Ui id="prefs-game-clear" /> once you chose one, which goes back to the detected folder.
+A game is one you play when its folder is set: <Ui id="home-new-project" /> starts on the first game that has vehicles installed, or on the only game whose folder is set. TruckPaint refuses the folder of the other game. The <Ui id="prefs-mod-folder-label" /> row shows where <Ui id="cmd-export-mod" /> saves mods for that game, the detected folder when you chose none. It has <Ui id="prefs-game-choose" />, and the cross once you chose one, which goes back to the detected folder.
 
 TruckPaint checks the folder, shows the game's version when it is valid, and says why when it is not. On the first launch it looks for the games once by itself.
 

@@ -12,10 +12,10 @@ TruckPaint puede dejar que un asistente de IA dibuje en el proyecto abierto, a t
 ## Activar el servidor
 
 1. Abra <Ui id="cmd-preferences" />: <Ui id="menu-edit" /> › <Ui id="cmd-preferences" /> en Windows y Linux, <Ui id="menu-app" /> › <Ui id="app-menu-settings" /> en macOS.
-2. Abra la pestaña <Ui id="prefs-tab-ai" /> y active <Ui id="prefs-mcp-enable" />.
+2. Abra la pestaña <Ui id="prefs-tab-ai" /> y active el interruptor <Ui id="prefs-mcp-enable" />. Debajo, TruckPaint muestra si el servidor está activado y a la espera, y una lista de lo que el asistente puede y no puede hacer.
 3. Haga clic en <Ui id="prefs-mcp-copy" /> junto a la <Ui id="prefs-mcp-url" />: `http://127.0.0.1:7373/mcp`.
 
-<Shot name="ai-assistant/preferences" alt="El diálogo Preferencias en la pestaña Asistente de IA: el servidor activado, su puerto y su dirección con el botón Copiar" />
+<Shot name="ai-assistant/preferences" alt="El diálogo Preferencias en la pestaña Asistente de IA: el interruptor activado, el estado del servidor, su dirección con el botón Copiar, su puerto, y la lista de lo que el asistente puede y no puede hacer" />
 
 El servidor está desactivado por defecto y, una vez activado, sigue activado tras reiniciar. Solo funciona mientras TruckPaint está abierto.
 
@@ -51,7 +51,7 @@ El asistente lee el proyecto, mira la plantilla de cada textura, dibuja formas, 
 
 **Puede** leer el proyecto (vehículos, texturas, paleta, estilos y símbolos), listar e inspeccionar objetos, ver la plantilla y el diseño de una textura, añadir formas, trazados, textos e imágenes, modificar, organizar, combinar y eliminar objetos, añadir muestras, aplicar estilos y colocar símbolos.
 
-**No puede** guardar, exportar ni abrir archivos, abrir ni cerrar un proyecto, ni cambiar sus preferencias. Guardar y exportar sigue siendo cosa suya: sus cambios marcan el proyecto como no guardado, igual que los de usted.
+**No puede** guardar ni exportar archivos, abrir ni cerrar un proyecto, ni cambiar sus preferencias. Puede importar una imagen desde una ruta de archivo que indique, por lo que puede colocar su logotipo. Guardar y exportar sigue siendo cosa suya: sus cambios marcan el proyecto como no guardado, igual que los de usted.
 
 Cada cambio que hace es un paso de deshacer con la etiqueta «IA: …», de modo que <Ui id="cmd-undo" /> lo revierte. Su trabajo tiene prioridad: una llamada que llega mientras usted arrastra, dibuja o escribe espera hasta que termine. Mientras edita un símbolo, el asistente solo puede leer.
 
