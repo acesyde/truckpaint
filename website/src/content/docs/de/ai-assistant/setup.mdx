@@ -12,10 +12,10 @@ TruckPaint kann einen KI-Assistenten über einen lokalen [MCP](https://modelcont
 ## Den Server einschalten
 
 1. Öffnen Sie <Ui id="cmd-preferences" />: <Ui id="menu-edit" /> › <Ui id="cmd-preferences" /> unter Windows und Linux, <Ui id="menu-app" /> › <Ui id="app-menu-settings" /> unter macOS.
-2. Öffnen Sie den Tab <Ui id="prefs-tab-ai" /> und schalten Sie <Ui id="prefs-mcp-enable" /> ein.
+2. Öffnen Sie den Tab <Ui id="prefs-tab-ai" /> und schalten Sie den Schalter <Ui id="prefs-mcp-enable" /> ein. Darunter zeigt TruckPaint, ob der Server eingeschaltet ist und wartet, sowie eine Liste dessen, was der Assistent tun und nicht tun kann.
 3. Klicken Sie neben der <Ui id="prefs-mcp-url" /> auf <Ui id="prefs-mcp-copy" />: `http://127.0.0.1:7373/mcp`.
 
-<Shot name="ai-assistant/preferences" alt="Der Dialog Einstellungen auf dem Tab KI-Assistent: der eingeschaltete Server, sein Port und seine Adresse mit der Schaltfläche Kopieren" />
+<Shot name="ai-assistant/preferences" alt="Der Dialog Einstellungen auf dem Tab KI-Assistent: der eingeschaltete Schalter, der Serverstatus, seine Adresse mit der Schaltfläche Kopieren, sein Port und die Liste dessen, was der Assistent tun und nicht tun kann" />
 
 Der Server ist standardmäßig aus und bleibt nach dem Einschalten auch über Neustarts hinweg an. Er läuft nur, solange TruckPaint geöffnet ist.
 
@@ -51,7 +51,7 @@ Der Assistent liest das Projekt, sieht sich die Vorlage jeder Textur an, zeichne
 
 Er **kann** das Projekt lesen (Fahrzeuge, Texturen, Palette, Stile und Symbole), Objekte auflisten und untersuchen, die Vorlage und die Grafik einer Textur sehen, Formen, Pfade, Texte und Bilder hinzufügen, Objekte ändern, anordnen, kombinieren und löschen, Farbfelder hinzufügen, Stile anwenden und Symbole platzieren.
 
-Er **kann nicht** speichern, exportieren oder Dateien öffnen, ein Projekt öffnen oder schließen oder Ihre Einstellungen ändern. Speichern und Exportieren bleiben Ihnen vorbehalten: Seine Änderungen markieren das Projekt als nicht gespeichert, wie Ihre eigenen.
+Er **kann nicht** Dateien speichern oder exportieren, ein Projekt öffnen oder schließen oder Ihre Einstellungen ändern. Er kann ein Bild von einem Dateipfad importieren, den er nennt; so kann er Ihr Logo platzieren. Speichern und Exportieren bleiben Ihnen vorbehalten: Seine Änderungen markieren das Projekt als nicht gespeichert, wie Ihre eigenen.
 
 Jede seiner Änderungen ist ein Rückgängig-Schritt mit der Bezeichnung „KI: …“, sodass <Ui id="cmd-undo" /> sie zurücknimmt. Ihre Arbeit hat Vorrang: Ein Aufruf, der eintrifft, während Sie ziehen, zeichnen oder tippen, wartet, bis Sie fertig sind. Während Sie ein Symbol bearbeiten, kann er nur lesen.
 

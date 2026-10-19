@@ -14,9 +14,9 @@ use tp_ui::tokens::{color, space};
 use tp_ui::widgets::{SegmentedControl, SquareCheckbox, primary_button, secondary_button};
 use tp_vehicles::{Game, Kind};
 
-use super::dialogs::{messages, problem};
+use super::dialogs::{CardWords, GamesEnv, game_cards, messages, problem, section_title};
 use super::game_tab::state_look;
-use super::vehicle_dialogs::{VehicleFilter, game_label, game_name, kind_label};
+use super::vehicle_dialogs::{VehicleFilter, kind_label};
 use crate::game::{FolderStatus, ScanState, generation};
 use crate::state::{AppState, Modal, NewProjectDraft};
 
@@ -215,14 +215,6 @@ fn buttons(ui: &mut Ui, back: bool, primary: Option<(&str, bool, &str)>) -> Ask 
     ask
 }
 
-fn heading(ui: &mut Ui, text: &str) {
-    ui.label(
-        RichText::new(text)
-            .text_style(label_strong_style())
-            .color(color::TEXT_PRIMARY),
-    );
-}
-
 /// Step 1: the language, the games played, and their folders.
 fn language_and_game(ui: &mut Ui, state: &mut AppState) -> Ask {
     let AppState {
@@ -242,12 +234,12 @@ fn language_and_game(ui: &mut Ui, state: &mut AppState) -> Ask {
     ui.add_space(space::LG);
 
     // The language is the system's until the player picks another one.
-    heading(ui, &tr("first-run-language"));
+    section_title(ui, &tr("first-run-language"));
     let current = prefs.language().unwrap_or(*system_language);
     let mut picked = current;
     let combo = egui::ComboBox::from_id_salt("first_run_language")
         .icon(tp_ui::widgets::dropdown_icon)
-        .width(220.0)
+        .width(ui.available_width())
         .selected_text(current.native_name())
         .show_ui(ui, |ui| {
             for l in tp_i18n::Language::ALL {
@@ -262,14 +254,12 @@ fn language_and_game(ui: &mut Ui, state: &mut AppState) -> Ask {
     }
     ui.add_space(space::LG);
 
-    heading(ui, &tr("first-run-games"));
+    section_title(ui, &tr("first-run-games"));
     if !game.folders.contains_key(&Game::Ets2) {
         game.refresh_folders(&prefs.game_folders);
     }
+    // A folder not set yet is looked for in Steam, once.
     for g in Game::ALL {
-        ui.add_space(space::MD);
-        heading(ui, game_label(g));
-        // A folder not set yet is looked for in Steam, once.
         if !prefs.game_folders.contains_key(g.code()) {
             let found = game
                 .detected
@@ -280,84 +270,18 @@ fn language_and_game(ui: &mut Ui, state: &mut AppState) -> Ask {
                 game.set_folder(&mut prefs.game_folders, g, &folder);
             }
         }
-        let status = game.folders.get(&g).cloned();
-        let folder = prefs.game_folders.get(g.code()).cloned();
-        let name = game_name(g);
-        let mut set = None;
-        match (&status, &folder) {
-            (Some(FolderStatus::Valid(_)), Some(folder)) => {
-                found_row(ui, &tr("first-run-game-found"), Some(folder), None);
-            }
-            _ => {
-                let why = match &status {
-                    Some(FolderStatus::Problem(p)) => Some(crate::game::problem_text(p)),
-                    _ => None,
-                };
-                if found_row(ui, &tr("first-run-game-not-found"), None, why.as_deref()) {
-                    set =
-                        dialogs.pick_folder(&tr!("prefs-game-choose-title", game = name.as_str()));
-                }
-            }
-        }
-        if let Some(path) = set {
-            game.set_folder(&mut prefs.game_folders, g, &path);
-        }
-        if let Some(text) = game.refused.get(&g) {
-            problem(ui, text);
-        }
-        // The mod folder: the chosen one, else where Export Mod looks.
-        let detected = crate::mod_export::existing_mod_folder(
-            g.code(),
-            mod_folders.documents.as_deref(),
-            mod_folders.data.as_deref(),
-        );
-        let mod_folder = prefs.mod_folders.get(g.code()).cloned().or(detected);
-        let again = match &mod_folder {
-            Some(folder) => found_row(ui, &tr("first-run-mod-found"), Some(folder), None),
-            None => found_row(ui, &tr("first-run-mod-not-found"), None, None),
-        };
-        if again
-            && let Some(path) =
-                dialogs.pick_folder(&tr!("prefs-mod-choose-title", game = name.as_str()))
-        {
-            prefs.mod_folders.insert(g.code().to_owned(), path);
-        }
     }
+    game_cards(
+        ui,
+        prefs,
+        &mut GamesEnv {
+            state: game,
+            dialogs: &mut **dialogs,
+            mod_folders,
+        },
+        CardWords::FirstLaunch,
+    );
     buttons(ui, false, Some((&tr("first-run-next"), true, "")))
-}
-
-/// A row: an icon and what was found with its path, and **Choose Folder…**
-/// (returns whether it was clicked) beside it.
-fn found_row(
-    ui: &mut Ui,
-    text: &str,
-    path: Option<&std::path::PathBuf>,
-    why: Option<&str>,
-) -> bool {
-    let mut clicked = false;
-    ui.horizontal(|ui| {
-        ui.spacing_mut().item_spacing.x = space::SM;
-        let (icon, tint) = if path.is_some() {
-            (icons::CHECK, color::SUCCESS)
-        } else {
-            (icons::FILE_MISSING, color::TEXT_MUTED)
-        };
-        ui.label(icons::rich(icon).color(tint));
-        let line = match path {
-            Some(path) => format!("{text}: {}", path.display()),
-            None => text.to_owned(),
-        };
-        ui.add(egui::Label::new(RichText::new(line).color(color::TEXT_PRIMARY)).wrap());
-        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            clicked = ui
-                .add(secondary_button(&tr("first-run-choose-folder")))
-                .clicked();
-        });
-    });
-    if let Some(why) = why {
-        problem(ui, why);
-    }
-    clicked
 }
 
 /// Step 2: the vehicles of the game, generated on Generate and Continue.

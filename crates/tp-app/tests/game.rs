@@ -6,10 +6,10 @@ use std::path::Path;
 use std::sync::mpsc;
 use std::time::Duration;
 
-use egui::Vec2;
 use egui::accesskit::Role;
+use egui::{Key, Vec2};
 use egui_kittest::Harness;
-use egui_kittest::kittest::Queryable;
+use egui_kittest::kittest::{NodeT, Queryable};
 use tp_app::AppState;
 use tp_app::file_dialogs::ScriptedDialogs;
 use tp_app::prefs::Prefs;
@@ -39,7 +39,7 @@ fn app(dir: &Path, game: Option<&Path>) -> H {
     let mut h = common::builder()
         .with_size(Vec2::new(1440.0, 900.0))
         .build_ui_state(|ui, state: &mut AppState| state.show(ui), state);
-    h.run();
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
     h
 }
 
@@ -49,7 +49,7 @@ fn preferences_from_my_game_opens_the_games_tab() {
     let mut h = app(temp.path(), None);
     open_my_game(&mut h);
     h.get_by_label("Preferences…").click();
-    h.run();
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
     assert!(matches!(h.state().modal, Some(Modal::Preferences)));
     assert_eq!(h.state().preferences_tab, tp_app::state::PrefsTab::Games);
     assert_eq!(count(&h, "I play this game"), 0);
@@ -57,9 +57,9 @@ fn preferences_from_my_game_opens_the_games_tab() {
 
 fn open_my_game(h: &mut H) {
     h.state_mut().modal = Some(Modal::VehicleLibrary(Default::default()));
-    h.run();
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
     h.get_all_by_label("My Game").next().unwrap().click();
-    h.run();
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
 }
 
 /// Frames until `done` holds (workers answer from other threads).
@@ -97,7 +97,7 @@ fn preferences_show_the_first_launch_choices_without_a_play_checkbox() {
         .build_ui_state(|ui, state: &mut AppState| state.show(ui), state);
     h.state_mut()
         .open_preferences(tp_app::state::PrefsTab::Games);
-    h.run();
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
     let field = h.get_by_role_and_label(Role::TextInput, "Euro Truck Simulator 2 mod folder");
     assert_eq!(
         field.value().as_deref(),
@@ -125,40 +125,136 @@ fn the_games_tab_groups_by_game_and_shows_buttons_by_state() {
     });
     h.state_mut()
         .open_preferences(tp_app::state::PrefsTab::Games);
-    h.run();
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
     // One group per game, each with a game folder and a mod folder.
     assert!(shows(&h, "Euro Truck Simulator 2") && shows(&h, "American Truck Simulator"));
     assert_eq!(count(&h, "Game folder"), 2);
     assert_eq!(count(&h, "Mod folder"), 2);
     // Empty: Detect and Choose…, no Clear; the mod folder has no Detect at all.
     let ets2 = "Euro Truck Simulator 2";
-    assert!(shows(&h, &format!("Detect, {ets2} game folder")));
+    assert!(shows(
+        &h,
+        &format!("Detect automatically, {ets2} game folder")
+    ));
     assert!(shows(&h, &format!("Choose…, {ets2} game folder")));
     assert!(!shows(&h, &format!("Clear, {ets2} game folder")));
     assert!(shows(&h, &format!("Choose…, {ets2} mod folder")));
     assert!(!shows(&h, &format!("Clear, {ets2} mod folder")));
-    assert!(!shows(&h, &format!("Detect, {ets2} mod folder")));
+    assert!(!shows(
+        &h,
+        &format!("Detect automatically, {ets2} mod folder")
+    ));
     // The four Choose… are told apart by their names.
     assert_eq!(count(&h, "Choose…"), 0);
     // Set: Choose… and Clear, no Detect.
     h.get_by_label(&format!("Choose…, {ets2} game folder"))
         .click();
-    h.run();
-    assert!(!shows(&h, &format!("Detect, {ets2} game folder")));
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
+    assert!(!shows(
+        &h,
+        &format!("Detect automatically, {ets2} game folder")
+    ));
     assert!(shows(&h, &format!("Clear, {ets2} game folder")));
     // A chosen mod folder gets Clear too.
     h.get_by_label(&format!("Choose…, {ets2} mod folder"))
         .click();
-    h.run();
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
     assert!(shows(&h, &format!("Clear, {ets2} mod folder")));
     h.get_by_label(&format!("Clear, {ets2} mod folder")).click();
-    h.run();
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
     assert!(!shows(&h, &format!("Clear, {ets2} mod folder")));
     // The button of ATS's game folder is ATS's own.
     h.get_by_label("Choose…, American Truck Simulator game folder")
         .click();
-    h.run();
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
     assert_eq!(h.state().prefs.game_folders["ats"], ats);
+}
+
+#[test]
+fn a_game_card_shows_its_state_as_words() {
+    let temp = tempfile::tempdir().unwrap();
+    let game = temp.path().join("ets2");
+    std::fs::create_dir(&game).unwrap();
+    write_game(&game, "eut2", "1.61.1.9", &vehicles());
+    let mut h = app(temp.path(), None);
+    h.state_mut().dialogs = Box::new(ScriptedDialogs {
+        folders: [game.clone()].into(),
+        ..Default::default()
+    });
+    h.state_mut()
+        .open_preferences(tp_app::state::PrefsTab::Games);
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
+    // Both cards start Not set.
+    assert_eq!(count(&h, "Not set"), 2);
+    h.get_by_label("Choose…, Euro Truck Simulator 2 game folder")
+        .click();
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
+    assert!(shows(&h, "Version 1.61.1.9"));
+    assert_eq!(count(&h, "Not set"), 1);
+    // The folder goes away: the card says so in words.
+    std::fs::remove_dir_all(&game).unwrap();
+    h.state_mut()
+        .open_preferences(tp_app::state::PrefsTab::Games);
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
+    assert!(shows(&h, "Folder problem"));
+    assert!(!shows(&h, "Version 1.61.1.9"));
+}
+
+#[test]
+fn focusing_a_folder_field_moves_nothing() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut h = app(temp.path(), None);
+    h.state_mut()
+        .open_preferences(tp_app::state::PrefsTab::Games);
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
+    let game = "Euro Truck Simulator 2 game folder";
+    let mod_name = "Euro Truck Simulator 2 mod folder";
+    let before = (
+        h.get_by_role_and_label(Role::TextInput, game).rect(),
+        h.get_by_role_and_label(Role::TextInput, mod_name).rect(),
+        h.get_by_label("Detect automatically, Euro Truck Simulator 2 game folder")
+            .rect(),
+    );
+    h.get_by_role_and_label(Role::TextInput, game).focus();
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
+    let after = (
+        h.get_by_role_and_label(Role::TextInput, game).rect(),
+        h.get_by_role_and_label(Role::TextInput, mod_name).rect(),
+        h.get_by_label("Detect automatically, Euro Truck Simulator 2 game folder")
+            .rect(),
+    );
+    assert_eq!(before, after);
+}
+
+#[test]
+fn a_game_folder_can_be_typed_and_the_buttons_follow_the_path_in_tab_order() {
+    let temp = tempfile::tempdir().unwrap();
+    let game = temp.path().join("ets2");
+    std::fs::create_dir(&game).unwrap();
+    write_game(&game, "eut2", "1.61.1.9", &vehicles());
+    let mut h = app(temp.path(), None);
+    h.state_mut()
+        .open_preferences(tp_app::state::PrefsTab::Games);
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
+    let field = "Euro Truck Simulator 2 game folder";
+    h.get_by_role_and_label(Role::TextInput, field).focus();
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
+    // Tab leaves the path for the action inside the same field.
+    h.key_press(Key::Tab);
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
+    assert!(
+        h.get_by_label("Choose…, Euro Truck Simulator 2 game folder")
+            .accesskit_node()
+            .is_focused()
+    );
+    // Typing a path and leaving the field commits it.
+    h.get_by_role_and_label(Role::TextInput, field).focus();
+    h.get_by_role_and_label(Role::TextInput, field)
+        .type_text(&game.display().to_string());
+    h.key_press(Key::Enter);
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
+    assert_eq!(h.state().prefs.game_folders["ets2"], game);
+    assert!(shows(&h, "Version 1.61.1.9"));
 }
 
 #[test]
@@ -179,39 +275,39 @@ fn preferences_set_check_refuse_and_clear_the_game_folders() {
     });
     h.state_mut()
         .open_preferences(tp_app::state::PrefsTab::Games);
-    h.run();
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
     assert_eq!(count(&h, "Games"), 1, "the tab only, no heading repeats it");
     h.get_by_label("Choose…, Euro Truck Simulator 2 game folder")
         .click();
-    h.run();
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
     assert_eq!(h.state().prefs.game_folders["ets2"], game);
     assert!(shows(&h, "Version 1.61.1.9"));
     // A folder that holds no game is refused with its reason; the folder stays.
     h.get_by_label("Choose…, Euro Truck Simulator 2 game folder")
         .click();
-    h.run();
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
     assert_eq!(h.state().prefs.game_folders["ets2"], game);
     assert!(shows(&h, "base.scs is missing in this folder."));
     // An ATS folder given as ETS2's.
     h.get_by_label("Choose…, Euro Truck Simulator 2 game folder")
         .click();
-    h.run();
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
     assert!(shows(&h, "This is an American Truck Simulator folder."));
     // Reset to defaults, on the General tab, keeps the folders.
     h.state_mut().preferences_tab = tp_app::state::PrefsTab::General;
-    h.run();
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
     h.get_by_label("Reset to defaults").click();
-    h.run();
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
     assert_eq!(h.state().prefs.game_folders.len(), 1);
     // The saved folder disappears: a message, and Clear still works.
     std::fs::remove_dir_all(&game).unwrap();
     h.state_mut()
         .open_preferences(tp_app::state::PrefsTab::Games);
-    h.run();
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
     assert!(shows(&h, "This folder cannot be found."));
     h.get_by_label("Clear, Euro Truck Simulator 2 game folder")
         .click();
-    h.run();
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
     assert!(h.state().prefs.game_folders.is_empty());
     assert!(!shows(&h, "This folder cannot be found."));
 }
@@ -231,10 +327,10 @@ fn my_game_lists_generates_and_regenerates_after_a_game_update() {
     for name in ["Example Alpha", "Example Box", "Example Flat"] {
         h.get_by_label(name).click();
     }
-    h.run();
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
     h.get_by_label("Generate (3)").click();
     until(&mut h, "the run", |h| h.state().game.run.is_none());
-    h.run();
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
     assert!(shows(&h, "Installed: 3 · Up to date: 0 · Failed: 0"));
     assert_eq!(count(&h, "Generated 1.61.1"), 3);
     assert_eq!(count(&h, "Not generated"), 1);
@@ -245,10 +341,10 @@ fn my_game_lists_generates_and_regenerates_after_a_game_update() {
     h.get_by_label("Refresh").click();
     until(&mut h, "the rescan", |h| count(h, "Game updated") == 3);
     h.get_by_label("Select Updates").click();
-    h.run();
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
     h.get_by_label("Generate (3)").click();
     until(&mut h, "the run", |h| h.state().game.run.is_none());
-    h.run();
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
     assert_eq!(count(&h, "Generated 1.62.0"), 3);
     let alpha = h
         .state()
@@ -268,7 +364,7 @@ fn progress_names_the_vehicle_and_cancel_keeps_the_installed_ones() {
     open_my_game(&mut h);
     until(&mut h, "the scan", |h| count(h, "Not generated") == 4);
     h.get_by_label("Select All").click();
-    h.run();
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
     // The worker waits after each event until the test lets it go.
     let (release, gate) = mpsc::channel::<()>();
     {
@@ -285,11 +381,11 @@ fn progress_names_the_vehicle_and_cancel_keeps_the_installed_ones() {
     assert_eq!(count(&h, "Waiting"), 3);
     // Cancel while it is made: it ends, no other starts.
     h.get_by_label("Cancel").click();
-    h.run();
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
     assert!(shows(&h, "Stopping after Example Alpha…"));
     drop(release);
     until(&mut h, "the end", |h| h.state().game.run.is_none());
-    h.run();
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
     assert!(shows(
         &h,
         "Cancelled. Installed: 1 · Up to date: 0 · Failed: 0"
@@ -312,9 +408,9 @@ fn ats_is_checked_but_not_generated_and_an_unset_game_asks_for_a_folder() {
         .game_folders
         .insert("ats".into(), ats.clone());
     h.get_by_label("ATS").click();
-    h.run();
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
     h.state_mut().game.folders.clear();
-    h.run();
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
     assert!(shows(&h, "American Truck Simulator is not supported yet"));
     assert!(shows(&h, "American Truck Simulator 1.55.0.1"));
     assert!(h.state().game.scanned().is_none());
@@ -326,7 +422,7 @@ fn an_empty_library_offers_my_game() {
     let temp = tempfile::tempdir().unwrap();
     let mut h = app(temp.path(), None);
     h.state_mut().modal = Some(Modal::VehicleLibrary(Default::default()));
-    h.run();
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
     assert!(shows(&h, "No vehicle installed"));
     // The tab and the button.
     assert_eq!(count(&h, "My Game"), 2);

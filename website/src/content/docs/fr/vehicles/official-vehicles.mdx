@@ -11,13 +11,13 @@ Les camions et remorques officiels appartiennent à SCS Software : TruckPaint ne
 
 ## Définir le dossier du jeu
 
-Ouvrez les préférences et cliquez sur l’onglet <Ui id="prefs-tab-games" />. Chaque jeu a son propre groupe, avec un dossier du jeu et un dossier des mods. À côté du nom du jeu, sa version s’affiche quand le dossier est valide. Un dossier vide indique <Ui id="prefs-folder-not-set" />. Les boutons dépendent de ce qui est défini :
+Ouvrez les préférences et cliquez sur l’onglet <Ui id="prefs-tab-games" />. Chaque jeu a sa propre carte, avec un dossier du jeu et un dossier des mods. À droite du nom du jeu, son état s’affiche en toutes lettres : sa version quand le dossier est valide, <Ui id="prefs-folder-not-set" /> tant qu’il est vide, ou un problème de dossier. Chaque dossier est un champ, et ses boutons sont à l’intérieur :
 
-- <Ui id="prefs-game-detect" />, affiché tant que le dossier du jeu est vide, cherche le jeu dans vos bibliothèques Steam (Windows, Linux dont la version Flatpak de Steam, et macOS).
-- <Ui id="prefs-game-choose" /> choisit le dossier à la main : utilisez-le pour GOG, Epic ou tout autre emplacement.
-- <Ui id="prefs-game-clear" />, affiché une fois un dossier défini, l’oublie.
+- <Ui id="prefs-game-choose" />, à droite du champ, choisit le dossier à la main : utilisez-le pour GOG, Epic ou tout autre emplacement. Vous pouvez aussi saisir le chemin du dossier du jeu.
+- La croix, affichée une fois un dossier défini, l’oublie (<Ui id="prefs-game-clear" />).
+- <Ui id="prefs-game-detect" />, en bas de la carte tant que le dossier du jeu est vide, cherche le jeu dans vos bibliothèques Steam (Windows, Linux dont la version Flatpak de Steam, et macOS).
 
-Un jeu est un jeu auquel vous jouez quand son dossier est défini : <Ui id="home-new-project" /> démarre sur le premier jeu dont les véhicules sont installés, ou sur le seul jeu dont le dossier est défini. TruckPaint refuse le dossier de l’autre jeu. La ligne <Ui id="prefs-mod-folder-label" /> montre où <Ui id="cmd-export-mod" /> enregistre les mods de ce jeu (le dossier détecté si vous n’en avez choisi aucun). Elle propose <Ui id="prefs-game-choose" />, et <Ui id="prefs-game-clear" /> une fois un dossier choisi, ce qui revient au dossier détecté.
+Un jeu est un jeu auquel vous jouez quand son dossier est défini : <Ui id="home-new-project" /> démarre sur le premier jeu dont les véhicules sont installés, ou sur le seul jeu dont le dossier est défini. TruckPaint refuse le dossier de l’autre jeu. La ligne <Ui id="prefs-mod-folder-label" /> montre où <Ui id="cmd-export-mod" /> enregistre les mods de ce jeu (le dossier détecté si vous n’en avez choisi aucun). Elle propose <Ui id="prefs-game-choose" />, et la croix une fois un dossier choisi, ce qui revient au dossier détecté.
 
 TruckPaint vérifie le dossier, affiche la version du jeu quand il est valide, et dit pourquoi quand il ne l’est pas. Au premier lancement, il cherche les jeux une fois de lui-même.
 

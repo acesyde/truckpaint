@@ -67,7 +67,7 @@ fn each_tab_shows_its_settings() {
     );
     pick(&mut h, "AI Assistant");
     assert_eq!(h.state().preferences_tab, PrefsTab::Ai);
-    assert!(h.query_by_label("Copy").is_some());
+    assert!(h.query_by_label("Copy, Address").is_some());
     assert!(h.query_by_label("I play this game").is_none());
     pick(&mut h, "General");
     assert_eq!(h.state().preferences_tab, PrefsTab::General);
@@ -139,4 +139,48 @@ fn german_fits_the_games_tab_without_scrolling() {
         let rect = h.get_by_role_and_label(Role::RadioButton, tab).rect();
         assert!(rect.width() > 40.0, "{tab} {rect:?}");
     }
+}
+
+#[test]
+fn language_comes_first_on_general() {
+    let h = open();
+    let language = h
+        .get_by_role_and_label(Role::ComboBox, "Language")
+        .rect()
+        .min
+        .y;
+    let scale = h.get_all_by_label("UI scale").next().unwrap().rect().min.y;
+    let grid = h
+        .get_by_role_and_label(Role::SpinButton, "Grid spacing")
+        .rect()
+        .min
+        .y;
+    assert!(language < scale && scale < grid);
+}
+
+#[test]
+fn the_ai_tab_lists_what_the_assistant_can_and_cannot_do() {
+    let mut h = open();
+    pick(&mut h, "AI Assistant");
+    for name in [
+        "Allowed: Read the open project",
+        "Allowed: Draw on the textures (every change can be undone)",
+        "Allowed: Import an image from a file path it names",
+        "Not allowed: Save or export files",
+    ] {
+        assert!(h.query_by_label(name).is_some(), "{name}");
+    }
+    assert!(
+        h.query_by_role_and_label(Role::Switch, "Let an AI assistant draw on the open project")
+            .is_some()
+    );
+}
+
+#[test]
+fn group_titles_are_drawn_in_capitals_but_named_as_written() {
+    let h = open();
+    // The title is drawn in capitals; a screen reader reads it as written.
+    assert!(h.query_by_label("Interface").is_some());
+    assert!(h.query_by_label("Canvas").is_some());
+    assert!(h.query_by_label("INTERFACE").is_none());
 }

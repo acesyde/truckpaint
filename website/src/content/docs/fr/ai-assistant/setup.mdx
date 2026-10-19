@@ -12,10 +12,10 @@ TruckPaint peut laisser un assistant IA dessiner sur le projet ouvert, grâce à
 ## Activer le serveur
 
 1. Ouvrez <Ui id="cmd-preferences" /> : <Ui id="menu-edit" /> › <Ui id="cmd-preferences" /> sous Windows et Linux, <Ui id="menu-app" /> › <Ui id="app-menu-settings" /> sous macOS.
-2. Ouvrez l’onglet <Ui id="prefs-tab-ai" /> et activez <Ui id="prefs-mcp-enable" />.
+2. Ouvrez l’onglet <Ui id="prefs-tab-ai" /> et activez l’interrupteur <Ui id="prefs-mcp-enable" />. Dessous, TruckPaint indique si le serveur est activé et en attente, ainsi que la liste de ce que l’assistant peut et ne peut pas faire.
 3. Cliquez sur <Ui id="prefs-mcp-copy" /> à côté de l’<Ui id="prefs-mcp-url" /> : `http://127.0.0.1:7373/mcp`.
 
-<Shot name="ai-assistant/preferences" alt="La boîte de dialogue Préférences sur l’onglet Assistant IA : le serveur activé, son port et son adresse avec le bouton Copier" />
+<Shot name="ai-assistant/preferences" alt="La boîte de dialogue Préférences sur l’onglet Assistant IA : l’interrupteur activé, l’état du serveur, son adresse avec le bouton Copier, son port, et la liste de ce que l’assistant peut et ne peut pas faire" />
 
 Le serveur est désactivé par défaut, et reste activé d’un redémarrage à l’autre une fois que vous l’avez activé. Il ne fonctionne que tant que TruckPaint est ouvert.
 
@@ -51,7 +51,7 @@ L’assistant lit le projet, regarde le gabarit de chaque texture, dessine des f
 
 Il **peut** lire le projet (véhicules, textures, palette, styles et symboles), lister et inspecter les objets, voir le gabarit et le motif d’une texture, ajouter des formes, des tracés, des textes et des images, modifier, disposer, combiner et supprimer des objets, ajouter des nuances, appliquer des styles et placer des symboles.
 
-Il **ne peut pas** enregistrer, exporter ni ouvrir de fichiers, ouvrir ou fermer un projet, ni modifier vos préférences. L’enregistrement et l’export restent entre vos mains : ses modifications marquent le projet comme non enregistré, comme les vôtres.
+Il **ne peut pas** enregistrer ni exporter de fichiers, ouvrir ou fermer un projet, ni modifier vos préférences. Il peut importer une image depuis un chemin de fichier qu’il indique, ce qui lui permet de placer votre logo. L’enregistrement et l’export restent entre vos mains : ses modifications marquent le projet comme non enregistré, comme les vôtres.
 
 Chaque modification qu’il fait est une étape d’annulation intitulée « IA : … », que <Ui id="cmd-undo" /> annule. Votre travail passe en premier : une requête qui arrive pendant que vous faites glisser, dessinez ou tapez attend que vous ayez terminé. Pendant que vous modifiez un symbole, il peut seulement lire.
 

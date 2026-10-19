@@ -11,13 +11,13 @@ Los camiones y remolques oficiales pertenecen a SCS Software, así que TruckPain
 
 ## Definir la carpeta del juego
 
-Abra las preferencias y haga clic en la pestaña <Ui id="prefs-tab-games" />. Cada juego tiene su propio grupo, con una carpeta del juego y una carpeta de mods. Junto al nombre del juego se muestra su versión cuando la carpeta es válida. Una carpeta vacía indica <Ui id="prefs-folder-not-set" />. Los botones dependen de lo que esté definido:
+Abra las preferencias y haga clic en la pestaña <Ui id="prefs-tab-games" />. Cada juego tiene su propia tarjeta, con una carpeta del juego y una carpeta de mods. A la derecha del nombre del juego se muestra su estado con palabras: su versión cuando la carpeta es válida, <Ui id="prefs-folder-not-set" /> mientras está vacía, o un problema de carpeta. Cada carpeta es un campo, y sus botones están dentro:
 
-- <Ui id="prefs-game-detect" />, visible mientras la carpeta del juego está vacía, busca el juego en sus bibliotecas de Steam (Windows, Linux incluida la versión Flatpak de Steam, y macOS).
-- <Ui id="prefs-game-choose" /> elige la carpeta a mano: úselo para GOG, Epic o cualquier otro lugar.
-- <Ui id="prefs-game-clear" />, visible una vez definida una carpeta, la olvida.
+- <Ui id="prefs-game-choose" />, a la derecha del campo, elige la carpeta a mano: úselo para GOG, Epic o cualquier otro lugar. También puede escribir la ruta de la carpeta del juego.
+- La cruz, visible una vez definida una carpeta, la olvida (<Ui id="prefs-game-clear" />).
+- <Ui id="prefs-game-detect" />, al pie de la tarjeta mientras la carpeta del juego está vacía, busca el juego en sus bibliotecas de Steam (Windows, Linux incluida la versión Flatpak de Steam, y macOS).
 
-Un juego es uno al que juega cuando su carpeta está definida: <Ui id="home-new-project" /> empieza en el primer juego que tiene vehículos instalados, o en el único juego cuya carpeta está definida. TruckPaint rechaza la carpeta del otro juego. La fila <Ui id="prefs-mod-folder-label" /> muestra dónde <Ui id="cmd-export-mod" /> guarda los mods de ese juego (la carpeta detectada si no eligió ninguna). Tiene <Ui id="prefs-game-choose" />, y <Ui id="prefs-game-clear" /> una vez elegida una, que vuelve a la carpeta detectada.
+Un juego es uno al que juega cuando su carpeta está definida: <Ui id="home-new-project" /> empieza en el primer juego que tiene vehículos instalados, o en el único juego cuya carpeta está definida. TruckPaint rechaza la carpeta del otro juego. La fila <Ui id="prefs-mod-folder-label" /> muestra dónde <Ui id="cmd-export-mod" /> guarda los mods de ese juego (la carpeta detectada si no eligió ninguna). Tiene <Ui id="prefs-game-choose" />, y la cruz una vez elegida una, que vuelve a la carpeta detectada.
 
 TruckPaint comprueba la carpeta, muestra la versión del juego cuando es válida y explica por qué cuando no lo es. En el primer inicio busca los juegos una vez por sí mismo.
 
