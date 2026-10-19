@@ -153,15 +153,24 @@ gh workflow run prerelease.yml --ref feat/gradients -f tag=v0.2.0-beta.1
 - **The app's version is the tag's, not the one in `Cargo.toml`.** The workflow gives it to
   the build in `TRUCKPAINT_VERSION`, and About, the log and the MCP server show it. A
   build you make yourself shows `dev`. Don't change `version` in `Cargo.toml` to release.
-- Check a download with its attestation (it needs the GitHub CLI):
+- Check a release and its downloads (it needs the GitHub CLI):
 
   ```sh
-  gh attestation verify truckpaint-v0.2.0-macos-arm64.zip -R acesyde/truckpaint
+  gh release verify v0.2.0 -R acesyde/truckpaint
+  gh attestation verify truckpaint-v0.2.0-macos-arm64.zip -R acesyde/truckpaint \
+    --signer-workflow acesyde/truckpaint/.github/workflows/release-build.yml
   ```
 
-  It proves which workflow and commit built the file. It is not code signing: the programs
-  are not signed, so Windows SmartScreen and macOS Gatekeeper still ask players to
-  confirm. The documentation says how.
+  The first checks the release itself: its tag, its commit and its files, as locked by
+  GitHub. It only works on releases published after immutable releases were turned on.
+  The second checks one file: it proves which workflow and commit built it, and
+  `--signer-workflow` refuses an attestation made by any other workflow of the repository.
+  Outside a terminal `gh` prints nothing and only its exit code tells the result; add
+  `--format json` to read the details (the commit, the workflow and what started it).
+  The players' commands on the Installation page are the same without the option.
+
+  An attestation is not code signing: the programs are not signed, so Windows SmartScreen
+  and macOS Gatekeeper still ask players to confirm. The documentation says how.
 - Make the download of your own platform with `mise run package` (it writes it to `dist/`;
   set `TRUCKPAINT_VERSION` to name a version). The release uses the same task.
 
