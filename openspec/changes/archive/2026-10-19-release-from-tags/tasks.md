@@ -42,6 +42,6 @@
 
 ## 7. First releases (by the maintainer)
 
-- [ ] 7.1 Push `v0.1.0-beta.1` on a feature branch and verify the Actions run builds the three platforms, a pre-release appears with the three archives and `SHA256SUMS`, it is not Latest, and the downloaded app's About says `0.1.0-beta.1`
-- [ ] 7.2 Push `v0.1.0` on a commit that is not on `main` and verify the run fails with the "not on `main`" message and creates no draft; delete that tag
-- [ ] 7.3 Push `v0.1.0` on `main` and verify it is published as Latest with notes since the start of the history; run the workflow again from the Actions page and verify no second release appears
+- [x] 7.1 Push `v0.1.0-beta.1` on a feature branch and verify the Actions run builds the three platforms, a pre-release appears with the three archives and `SHA256SUMS`, it is not Latest, and the downloaded app's About says `0.1.0-beta.1`
+- [ ] 7.2 Push `v0.1.0` on a commit that is not on `main` and verify the run fails with the "not on `main`" message and creates no draft; delete that tag (Not done: replaced by the manual workflows of `release-immutable-attestations`, which rehearse the circuit again.)
+- [ ] 7.3 Push `v0.1.0` on `main` and verify it is published as Latest with notes since the start of the history; run the workflow again from the Actions page and verify no second release appears (Not done: replaced by the manual workflows of `release-immutable-attestations`, which rehearse the circuit again.)
