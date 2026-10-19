@@ -13,6 +13,7 @@ pub mod game_versions;
 pub mod geometry_cache;
 pub mod gesture;
 pub mod gradient_textures;
+pub mod icon;
 pub mod image_cache;
 pub mod import;
 pub mod layout;
