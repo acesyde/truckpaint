@@ -289,7 +289,9 @@ pub fn textures_to_paint(
         let enabled = !always && !(locked && on);
         let response = ui.add_enabled(enabled, SquareCheckbox::new(&mut on, &part.name));
         let size = part.texture.size;
-        let response = response.on_hover_text(format!("{} × {}", size.width, size.height));
+        // The name too: a long one is cut in the list.
+        let response =
+            response.on_hover_text(format!("{}\n{} × {}", part.name, size.width, size.height));
         if response.changed() {
             set_painted(chosen, &order, &part.id, on);
         }
@@ -306,11 +308,7 @@ pub fn textures_to_paint(
             let ids = tr!("project-cabin-ids", ids = part.game_ids.join(", "));
             tip = format!("{tip}\n{ids}");
         }
-        let response = ui
-            .add_enabled_ui(enabled, |ui| {
-                tp_ui::widgets::chip_toggle(ui, on, &part.name)
-            })
-            .inner
+        let response = tp_ui::widgets::chip_toggle(ui, on, enabled, &part.name)
             .on_hover_text(&tip)
             .on_disabled_hover_text(&tip);
         if response.changed() {

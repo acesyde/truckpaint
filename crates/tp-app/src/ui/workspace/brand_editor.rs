@@ -290,7 +290,7 @@ fn look_controls(ui: &mut Ui, f: &mut Fields, before: &Look, after: Look) -> Opt
             s.width = v;
             changed = true;
         }
-        if chip_toggle(ui, look.stroke.is_none(), &tr("stroke-none")).changed() {
+        if chip_toggle(ui, look.stroke.is_none(), true, &tr("stroke-none")).changed() {
             look.stroke = match look.stroke {
                 Some(_) => None,
                 None => before.stroke.or(Some(StrokeStyle::default())),

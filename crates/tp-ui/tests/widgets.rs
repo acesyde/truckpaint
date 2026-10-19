@@ -866,3 +866,47 @@ mod checkboxes {
         );
     }
 }
+
+#[test]
+fn checkbox_with_a_long_label_stays_in_its_container() {
+    let mut h = themed(
+        |ui, width: &mut f32| {
+            ui.set_max_width(200.0);
+            let mut on = true;
+            let long = "chs_f_l.side02p, chs_f_l.side02sp, chs_f_l.side02tp, chs_f_l.side02tsp";
+            *width = ui
+                .add(tp_ui::widgets::SquareCheckbox::new(&mut on, long))
+                .rect
+                .width();
+        },
+        0.0,
+    );
+    h.run();
+    assert!(*h.state() <= 200.0, "{}", h.state());
+}
+
+#[test]
+fn chips_wrap_in_a_narrow_row_even_when_one_is_disabled() {
+    let mut h = themed(
+        |ui, bottom: &mut f32| {
+            ui.set_max_width(200.0);
+            ui.horizontal_wrapped(|ui| {
+                for (i, name) in [
+                    "High Roof (highline)",
+                    "High Roof (highline_8x4)",
+                    "Normal Roof",
+                ]
+                .into_iter()
+                .enumerate()
+                {
+                    let r = tp_ui::widgets::chip_toggle(ui, i == 0, i != 0, name);
+                    assert!(r.rect.right() <= 200.5, "{name} sticks out: {:?}", r.rect);
+                    *bottom = bottom.max(r.rect.bottom());
+                }
+            });
+        },
+        0.0,
+    );
+    h.run();
+    assert!(*h.state() > 60.0, "the chips did not wrap: {}", h.state());
+}
