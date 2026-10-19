@@ -1,9 +1,11 @@
 [tools]
+actionlint = "1.7.12"
 code-review-graph = "2.3.8"
 node = "24.21.0"
 openspec = "1.13.0"
 pnpm = "12.6.0"
 rust = { version = "1.98.1", components = "rustfmt,clippy" }
+shellcheck = "0.11.0"
 uv = "0.12.15"
 
 [tool_alias]
@@ -90,6 +92,30 @@ run = "bash scripts/ci-changes.sh {{arg(name='base', default='')}} {{arg(name='h
 [tasks."ci:changes:test"]
 description = "Self-test of the ci:changes detection on a throwaway Git repository"
 run = "bash scripts/ci-changes-test.sh"
+
+[tasks."release:tag"]
+description = "Check a release tag and print version= and prerelease=: mise run release:tag -- v0.2.0"
+run = "bash scripts/release-tag.sh"
+
+[tasks."release:notes-start"]
+description = "Print start=<last stable tag below TAG> for the release notes: mise run release:notes-start -- v0.2.0"
+run = "bash scripts/release-notes-start.sh"
+
+[tasks."release:test"]
+description = "Self-test of the release tag checks on a throwaway Git repository"
+run = "bash scripts/release-test.sh"
+
+[tasks."lint:workflows"]
+description = "Lint the GitHub workflows (actionlint, which also runs shellcheck on their scripts) and the shell scripts"
+run = ["actionlint", "shellcheck scripts/*.sh"]
+
+[tasks.package]
+description = "Build and pack this platform's download into dist/ (version from TRUCKPAINT_VERSION, `dev` when unset)"
+run = "bash scripts/package.sh"
+
+[tasks."package:test"]
+description = "Self-test of the package script with a stand-in program (nothing is compiled)"
+run = "bash scripts/package-test.sh"
 
 [tasks.ci]
 description = "Everything CI runs, in order"

@@ -1,16 +1,80 @@
 ---
 title: Instalación
-description: Compile TruckPaint a partir de su código fuente en Windows, macOS o Linux, y póngalo en marcha.
+description: Descargue TruckPaint para Windows, macOS o Linux, ejecútelo y manténgalo actualizado, o compílelo a partir de su código fuente.
 sidebar:
   order: 1
 ---
-import Shot from '~/components/Shot.astro';
-import Clip from '~/components/Clip.astro';
 import Ui from '~/components/Ui.astro';
 
-TruckPaint funciona en Windows, macOS y Linux. Está en una fase temprana de desarrollo: **aún no hay descargas ni instaladores listos para usar.** Están previstos para una próxima versión. Hasta entonces, usted mismo compila la aplicación a partir de su código fuente. Basta con unos pocos comandos, y solo hay que hacerlo una vez por actualización.
+TruckPaint funciona en Windows, macOS y Linux. Lo descarga de GitHub, lo descomprime y lo ejecuta. No hay instalador.
 
-## Instalar los requisitos previos
+## Descargar TruckPaint
+
+1. Abra la [página de versiones](https://github.com/acesyde/truckpaint/releases). El enlace a la [última versión](https://github.com/acesyde/truckpaint/releases/latest) lleva directamente a la más reciente.
+2. Descargue el archivo para su sistema. La versión forma parte del nombre:
+
+   | Sistema | Archivo |
+   |---|---|
+   | Windows | `truckpaint-v<version>-windows-x86_64.zip` |
+   | macOS | `truckpaint-v<version>-macos-arm64.zip` |
+   | Linux | `truckpaint-v<version>-linux-x86_64.tar.gz` |
+
+   La descarga de macOS es solo para los Mac con Apple silicon (M1 y posteriores). No hay descarga para los Mac con Intel.
+
+3. Descomprima el archivo. Contiene una carpeta con el programa (`truckpaint`, o `truckpaint.exe` en Windows) y el archivo `LICENSE`.
+4. Coloque la carpeta donde quiera y ejecute el programa. También puede crear un acceso directo a él.
+
+Todavía no hay paquete `.app` ni icono.
+
+### El primer inicio
+
+Los programas no están firmados, así que su sistema puede avisarle la primera vez. Es lo esperado.
+
+- **Windows:** SmartScreen puede mostrar «Windows protegió su PC». Haga clic en **Más información** y después en **Ejecutar de todas formas**.
+- **macOS:** Gatekeeper bloquea el primer inicio. La solución más fiable es quitar la marca de cuarentena. En un terminal, ejecute esto con la ruta de la carpeta descomprimida y luego inicie el programa:
+
+  ```sh
+  xattr -dr com.apple.quarantine <the unpacked folder>
+  ./truckpaint
+  ```
+
+  En un macOS reciente, también puede abrir Ajustes del Sistema, ir a Privacidad y seguridad y elegir «Abrir de todos modos».
+- **Linux:** no hay nada que hacer. Descomprima y ejecute:
+
+  ```sh
+  tar -xzf truckpaint-v<version>-linux-x86_64.tar.gz
+  ./truckpaint
+  ```
+
+  Al ejecutarse, la aplicación necesita las bibliotecas de ventanas y gráficos indicadas en [los requisitos previos más abajo](#instalar-los-requisitos-previos). La mayoría de los sistemas de escritorio ya las tienen.
+
+### Compruebe su descarga
+
+Cada versión incluye un archivo `SHA256SUMS`. Enumera la suma de comprobación de cada descarga. Calcule el SHA-256 de su archivo y compárelo con su línea en ese archivo:
+
+```sh
+sha256sum <file>        # Linux
+shasum -a 256 <file>    # macOS
+Get-FileHash <file>     # Windows, in PowerShell
+```
+
+### Versiones preliminares
+
+Una versión con sufijo, como `0.2.0-beta.1`, es una versión de prueba. La página de versiones la marca como «Pre-release» (versión preliminar). Úsela para probar novedades, y espere problemas. El enlace a la «última versión» nunca apunta a una versión preliminar.
+
+### ¿Qué versión tiene?
+
+Abra <Ui id="cmd-about-truckpaint" />. En macOS está en el menú TruckPaint. En Windows y Linux está en el menú <Ui id="menu-help" />. Una compilación hecha a partir del código fuente muestra «dev».
+
+### Actualizar a una versión más reciente
+
+Descargue la nueva versión y sustituya la carpeta. Sus preferencias, sus vehículos instalados y sus proyectos se conservan: no están en la carpeta del programa.
+
+## Compilar a partir del código fuente
+
+Si lo prefiere, puede compilar la aplicación usted mismo. Basta con unos pocos comandos.
+
+### Instalar los requisitos previos
 
 Necesita [Git](https://git-scm.com) para obtener el código fuente y [mise](https://mise.jdx.dev), que instala la versión correcta de Rust y ejecuta la compilación por usted. Después, añada lo que su sistema necesita para compilar una aplicación de escritorio:
 
@@ -26,7 +90,7 @@ Necesita [Git](https://git-scm.com) para obtener el código fuente y [mise](http
 
   Se admiten tanto sesiones X11 como Wayland.
 
-## Compilar TruckPaint
+### Compilar TruckPaint
 
 1. Obtenga el código fuente:
 
@@ -57,20 +121,18 @@ Necesita [Git](https://git-scm.com) para obtener el código fuente y [mise](http
 
 Puede copiar el ejecutable donde quiera, o crear un acceso directo a él.
 
-:::tip[Actualizar a una versión más reciente]
-Ejecute `git pull` en la carpeta del proyecto y, después, de nuevo `mise install` y `mise run build`. Sus preferencias, sus vehículos instalados y sus proyectos se conservan: no están en la carpeta de compilación.
-:::
+Para actualizar una compilación propia, ejecute `git pull` en la carpeta del proyecto y, después, de nuevo `mise install` y `mise run build`. Sus datos también se conservan.
 
 ## Si la aplicación no se inicia
 
 TruckPaint dibuja su ventana con Vulkan, DirectX 12 o Metal. Con controladores gráficos antiguos o en una máquina virtual, puede detenerse al iniciar con un error del adaptador gráfico. Fuerce otro backend gráfico con la variable `WGPU_BACKEND`:
 
 ```sh
-WGPU_BACKEND=gl ./target/release/truckpaint      # OpenGL (Linux, Windows)
-WGPU_BACKEND=vulkan ./target/release/truckpaint  # Vulkan
+WGPU_BACKEND=gl ./truckpaint      # OpenGL (Linux, Windows)
+WGPU_BACKEND=vulkan ./truckpaint  # Vulkan
 ```
 
-En Windows, en PowerShell, defina primero la variable: `$env:WGPU_BACKEND="gl"`, y luego ejecute `.\target\release\truckpaint.exe`.
+En Windows, en PowerShell, defina primero la variable: `$env:WGPU_BACKEND="gl"`, y luego ejecute `.\truckpaint.exe`. Si lo compiló a partir del código fuente, el programa está en la carpeta `target/release/`.
 
 En Windows y Linux, si la ventana no se puede mover ni cambiar de tamaño correctamente, abra <Ui id="home-preferences" /> y marque <Ui id="prefs-system-title-bar" />: la ventana usa entonces el marco de su sistema, con los menús en una fila debajo.
 

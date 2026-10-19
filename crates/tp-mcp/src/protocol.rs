@@ -77,7 +77,7 @@ fn initialize(params: &Value) -> Value {
     json!({
         "protocolVersion": version,
         "capabilities": {"tools": {"listChanged": false}},
-        "serverInfo": {"name": "truckpaint", "title": "TruckPaint", "version": env!("CARGO_PKG_VERSION")},
+        "serverInfo": {"name": "truckpaint", "title": "TruckPaint", "version": tp_core::VERSION},
         "instructions": tools::INSTRUCTIONS,
     })
 }

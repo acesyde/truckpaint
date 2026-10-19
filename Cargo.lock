@@ -4133,6 +4133,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "texpresso",
+ "tp-core",
  "tp-scs",
  "tp-vehicles",
  "zip",

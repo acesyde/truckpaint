@@ -20,6 +20,7 @@ Everything goes through [mise](https://mise.jdx.dev) (`mise.toml` pins the tools
 | `mise run run` | Run the app (debug build) |
 | `mise run fmt` / `fmt:check` | Format / check formatting |
 | `mise run lint` | Clippy, warnings denied |
+| `mise run lint:workflows` | actionlint on the GitHub workflows and shellcheck on `scripts/*.sh` |
 | `mise run test` | Unit tests and headless UI tests (`egui_kittest`) |
 | `mise run ci` | Everything CI runs, in order. Must pass before a PR |
 | `mise run screenshots` | Render the main screens to `target/screenshots/` (needs a GPU) |

@@ -177,6 +177,8 @@ fn isolated_failures_reports_and_unique_complete_outputs() {
     let report: Value =
         serde_json::from_slice(&std::fs::read(first.join("report.json")).unwrap()).unwrap();
     assert_eq!(report["failed"], 1, "{report:#}");
+    // The report names the app's version: `dev` unless the build sets it.
+    assert_eq!(report["tool_version"], tp_core::VERSION, "{report:#}");
     let results = report["results"].as_array().unwrap();
     let good = results
         .iter()

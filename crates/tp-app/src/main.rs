@@ -10,7 +10,7 @@ use tp_app::{AppState, TruckPaintApp};
 fn main() -> ExitCode {
     let dirs = AppDirs::resolve();
     let _log_guard = tp_app::logging::init(dirs.as_ref().map(AppDirs::logs).as_deref());
-    tracing::info!(version = env!("CARGO_PKG_VERSION"), "starting {APP_NAME}");
+    tracing::info!(version = tp_core::VERSION, "starting {APP_NAME}");
     if dirs.is_none() {
         tracing::warn!("no home directory found: preferences will not be saved");
     }
