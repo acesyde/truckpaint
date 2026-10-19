@@ -880,21 +880,11 @@ pub fn library(ctx: &egui::Context, state: &mut AppState, dialog: &mut LibraryDi
     if clicks.sample {
         dialog.messages = install_samples(state);
     }
-    if let Some((from, suggested)) = clicks.export
-        && let Some(to) = state.dialogs.save_package(&suggested)
-    {
-        let written = std::fs::read(&from)
-            .map_err(|e| e.to_string())
-            .and_then(|bytes| tp_file::write_atomic(&to, &bytes).map_err(|e| e.to_string()));
-        let file = to.display().to_string();
-        dialog.messages = vec![match written {
-            Ok(()) => Ok(tr!("vehicles-exported", file = file.as_str())),
-            Err(reason) => Err(tr!(
-                "vehicles-export-failed",
-                file = file.as_str(),
-                reason = reason.as_str()
-            )),
-        }];
+    if let Some((from, suggested)) = clicks.export {
+        state.want_dialog(
+            crate::file_dialogs::DialogRequest::save_package(&suggested),
+            crate::dialog_flow::Purpose::ExportPackage { from },
+        );
     }
     let update = clicks
         .update
@@ -915,10 +905,10 @@ pub fn library(ctx: &egui::Context, state: &mut AppState, dialog: &mut LibraryDi
         return true;
     }
     if clicks.install {
-        let paths = state.dialogs.pick_packages();
-        if !paths.is_empty() {
-            dialog.messages = install(state, &paths);
-        }
+        state.want_dialog(
+            crate::file_dialogs::DialogRequest::pick_packages(),
+            crate::dialog_flow::Purpose::InstallPackages(crate::dialog_flow::InstallInto::Library),
+        );
     }
     let escape = ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape));
     if escape {
@@ -1562,10 +1552,12 @@ pub fn add_vehicle(
         return true;
     }
     if install_clicked {
-        let paths = state.dialogs.pick_packages();
-        if !paths.is_empty() {
-            dialog.messages = install(state, &paths);
-        }
+        state.want_dialog(
+            crate::file_dialogs::DialogRequest::pick_packages(),
+            crate::dialog_flow::Purpose::InstallPackages(
+                crate::dialog_flow::InstallInto::AddVehicle,
+            ),
+        );
     }
     if add {
         let now = ctx.input(|i| i.time);

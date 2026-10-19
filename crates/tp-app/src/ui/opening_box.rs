@@ -1,5 +1,6 @@
-//! The small box shown over the window while a project file is read, once
-//! the read has lasted a little (a quick open shows nothing).
+//! The small boxes shown over the window while a project file is read (once
+//! the read has lasted a little: a quick open shows nothing) and while a file
+//! dialog is open.
 
 use egui::RichText;
 use tp_i18n::tr;
@@ -20,16 +21,30 @@ pub fn show(ctx: &egui::Context, job: Option<&OpenJob>) {
     if !job.box_shown(ctx.input(|i| i.time)) {
         return;
     }
-    let text = tr!("opening-project", name = file_name(&job.path));
-    modal("opening_project_modal").show(ctx, |ui| {
+    busy_box(
+        ctx,
+        "opening_project_modal",
+        &tr!("opening-project", name = file_name(&job.path)),
+    );
+}
+
+/// The box shown while a file dialog is open: what the application is
+/// waiting for, in case the dialog is hidden behind the window.
+pub fn waiting_for_dialog(ctx: &egui::Context) {
+    busy_box(ctx, "file_dialog_modal", &tr("file-dialog-waiting"));
+}
+
+/// A small modal with a spinner and `text`.
+fn busy_box(ctx: &egui::Context, id: &str, text: &str) {
+    modal(id).show(ctx, |ui| {
         // A very long file name ends with "…" instead of widening the box.
         ui.set_max_width(MAX_WIDTH);
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = space::MD;
             ui.add(egui::Spinner::new().color(color::TEXT_SECONDARY));
-            let label = ui
-                .add(egui::Label::new(RichText::new(&text).color(color::TEXT_PRIMARY)).truncate());
-            label.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Label, true, &text));
+            let label =
+                ui.add(egui::Label::new(RichText::new(text).color(color::TEXT_PRIMARY)).truncate());
+            label.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Label, true, text));
         });
     });
 }

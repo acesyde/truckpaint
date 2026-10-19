@@ -295,7 +295,7 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
             &mut state.preferences_tab,
             &mut GamesEnv {
                 state: &mut state.game,
-                dialogs: state.dialogs.as_mut(),
+                dialog: &mut state.dialog,
                 mod_folders: &state.mod_folders,
             },
         ) {
@@ -532,7 +532,8 @@ fn scale_slider(
 /// What the game cards work with (Preferences' Games tab and the first launch).
 pub(crate) struct GamesEnv<'a> {
     pub state: &'a mut crate::game::GameState,
-    pub dialogs: &'a mut dyn crate::file_dialogs::FileDialogs,
+    /// Where a folder dialog is asked for.
+    pub dialog: &'a mut crate::dialog_flow::DialogSlots,
     /// Where Export Mod looks for each game's mod folder.
     pub mod_folders: &'a crate::mod_export::Folders,
 }
@@ -1029,7 +1030,7 @@ pub(crate) fn game_cards(
     use crate::game::FolderStatus;
     let GamesEnv {
         state: games,
-        dialogs,
+        dialog,
         mod_folders,
     } = env;
     for game in tp_vehicles::Game::ALL {
@@ -1087,14 +1088,19 @@ pub(crate) fn game_cards(
                     set = Some(std::path::PathBuf::from(text.trim()));
                 }
                 if out.action {
-                    set =
-                        dialogs.pick_folder(&tr!("prefs-game-choose-title", game = name.as_str()));
+                    dialog.want(
+                        crate::file_dialogs::DialogRequest::pick_folder(&tr!(
+                            "prefs-game-choose-title",
+                            game = name.as_str()
+                        )),
+                        crate::dialog_flow::Purpose::GameFolder(game),
+                    );
                 }
                 if out.clear {
                     games.clear_folder(&mut prefs.game_folders, game);
                 }
             });
-            mod_folder_row(ui, prefs, game, &name, &mut **dialogs, mod_folders);
+            mod_folder_row(ui, prefs, game, &name, dialog, mod_folders);
             // Detect, at the foot of the card, while the folder is empty.
             if folder.is_none()
                 && outline_button(ui, icons::SEARCH, &tr("prefs-game-detect"), &target)
@@ -1125,7 +1131,7 @@ fn mod_folder_row(
     prefs: &mut crate::prefs::Prefs,
     game: tp_vehicles::Game,
     name: &str,
-    dialogs: &mut dyn crate::file_dialogs::FileDialogs,
+    dialog: &mut crate::dialog_flow::DialogSlots,
     folders: &crate::mod_export::Folders,
 ) {
     let code = game.code();
@@ -1159,10 +1165,14 @@ fn mod_folder_row(
             can_clear: chosen.is_some(),
         }
         .show(ui);
-        if out.action
-            && let Some(path) = dialogs.pick_folder(&tr!("prefs-mod-choose-title", game = name))
-        {
-            prefs.mod_folders.insert(code.to_owned(), path);
+        if out.action {
+            dialog.want(
+                crate::file_dialogs::DialogRequest::pick_folder(&tr!(
+                    "prefs-mod-choose-title",
+                    game = name
+                )),
+                crate::dialog_flow::Purpose::ModFolder(code.to_owned()),
+            );
         }
         if out.clear {
             prefs.mod_folders.remove(code);

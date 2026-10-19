@@ -6,6 +6,7 @@ pub mod brand_ops;
 pub mod combine;
 pub mod commands;
 pub mod custom_vehicles;
+pub mod dialog_flow;
 pub mod export;
 pub mod file_dialogs;
 pub mod game;

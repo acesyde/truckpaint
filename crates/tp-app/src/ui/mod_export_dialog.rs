@@ -14,7 +14,9 @@ use tp_ui::theme::label_strong_style;
 use tp_ui::tokens::{color, radius, space};
 use tp_ui::widgets::{primary_button, secondary_button};
 
+use crate::dialog_flow::Purpose;
 use crate::export::ExportOutcome;
+use crate::file_dialogs::DialogRequest;
 use crate::layout::Space;
 use crate::mod_export::{ModJob, Problem, ProblemPlace, VehicleSummary};
 use crate::state::{AppState, Modal};
@@ -412,18 +414,23 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut ModExportDia
 
 /// Change…: the native save dialog in the destination's folder, proposing
 /// its file name; the chosen file becomes the destination (`.scs` added
-/// when left out). Cancelling keeps it.
-fn change_destination(state: &mut AppState, dialog: &mut ModExportDialog) {
+/// when left out, see `AppState::apply_answer`). Cancelling keeps it.
+fn change_destination(state: &mut AppState, dialog: &ModExportDialog) {
     let folder = dialog.destination.parent().map(Path::to_path_buf);
     let name = file_name(&dialog.destination);
-    let Some(path) = state.dialogs.save_mod(&name, folder.as_deref()) else {
-        return;
-    };
-    let path = crate::mod_export::with_extension(path);
-    // The save dialog asked before choosing an existing file.
-    dialog.confirmed = path.exists().then(|| path.clone());
-    state.last_mod_folder = path.parent().map(Path::to_path_buf);
-    dialog.destination = path;
+    state.want_dialog(
+        DialogRequest::save_mod(&name, folder.as_deref()),
+        Purpose::ExportMod,
+    );
+}
+
+impl ModExportDialog {
+    /// Makes `path` the destination.
+    pub fn choose_destination(&mut self, path: PathBuf) {
+        // The save dialog asked before choosing an existing file.
+        self.confirmed = path.exists().then(|| path.clone());
+        self.destination = path;
+    }
 }
 
 /// Starts writing the project's mod to the destination. The project is

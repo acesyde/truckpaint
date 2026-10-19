@@ -6,7 +6,8 @@ use tp_i18n::tr;
 use egui::ViewportCommand;
 use tp_core::Project;
 
-use crate::file_dialogs::{suggested_file_name, with_extension};
+use crate::dialog_flow::Purpose;
+use crate::file_dialogs::{DialogRequest, suggested_file_name};
 use crate::open_job::{BOX_DELAY, OpenJob};
 use crate::prefs::now_unix;
 use crate::recovery::{self, RecoveryMeta, RecoveryStore};
@@ -84,9 +85,7 @@ impl AppState {
 
     /// Answer "Save" to the prompt: the action continues once saved.
     pub fn save_then(&mut self, ctx: &egui::Context, action: PendingAction) {
-        if self.save(ctx, false) {
-            self.after_save = Some(action);
-        }
+        self.save_with(ctx, false, Some(action));
     }
 
     pub fn run_action(&mut self, ctx: &egui::Context, action: PendingAction) {
@@ -103,9 +102,7 @@ impl AppState {
                 )));
             }
             PendingAction::OpenDialog => {
-                if let Some(path) = self.dialogs.open_project() {
-                    self.open_file(ctx, &path);
-                }
+                self.want_dialog(DialogRequest::open_project(), Purpose::OpenProject);
             }
             PendingAction::Open(path) => self.open_file(ctx, &path),
             PendingAction::Restore(session) => self.restore(ctx, &session),
@@ -116,25 +113,48 @@ impl AppState {
         }
     }
 
-    /// Save (or Save As when `save_as` or never saved). Returns whether a
-    /// save started.
-    pub fn save(&mut self, ctx: &egui::Context, save_as: bool) -> bool {
+    /// Save (or Save As when `save_as` or never saved).
+    pub fn save(&mut self, ctx: &egui::Context, save_as: bool) {
+        self.save_with(ctx, save_as, None);
+    }
+
+    /// Save, then run `then` once the project is written. A project that
+    /// has no file asks for one first: the save continues when a file is
+    /// chosen, and nothing continues when the dialog is cancelled.
+    fn save_with(&mut self, ctx: &egui::Context, save_as: bool, then: Option<PendingAction>) {
         let now = ctx.input(|i| i.time);
         let Some(ws) = self.workspace_mut() else {
-            return false;
+            return;
         };
         ws.commit_pending(now);
-        let path = match (&ws.path, save_as) {
-            (Some(path), false) => path.clone(),
+        match (&ws.path, save_as) {
+            (Some(path), false) => {
+                let path = path.clone();
+                self.start_save_then(ctx, path, then);
+            }
             _ => {
                 let suggested = suggested_file_name(&ws.project.name);
-                match self.dialogs.save_project(&suggested) {
-                    Some(path) => with_extension(path),
-                    None => return false,
-                }
+                let session = ws.session;
+                self.want_dialog(
+                    DialogRequest::save_project(&suggested),
+                    Purpose::SaveProject { then, session },
+                );
             }
-        };
-        self.start_save(ctx, path)
+        }
+    }
+
+    /// Starts writing the project to `path`; `then` runs once it is written.
+    pub(crate) fn start_save_then(
+        &mut self,
+        ctx: &egui::Context,
+        path: PathBuf,
+        then: Option<PendingAction>,
+    ) {
+        if self.start_save(ctx, path)
+            && let Some(action) = then
+        {
+            self.after_save = Some(action);
+        }
     }
 
     fn start_save(&mut self, ctx: &egui::Context, path: PathBuf) -> bool {

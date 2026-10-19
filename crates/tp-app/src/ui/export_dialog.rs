@@ -9,9 +9,11 @@ use tp_render::DdsEncoding;
 use tp_ui::tokens::{color, space};
 use tp_ui::widgets::{SegmentedControl, primary_button, secondary_button};
 
+use crate::dialog_flow::Purpose;
 use crate::export::{
     ExportFormat, ExportJob, ExportOutcome, ExportSettings, PreviewJob, size_text,
 };
+use crate::file_dialogs::DialogRequest;
 use crate::state::{AppState, Modal};
 
 /// State of the open Export Texture dialog.
@@ -22,6 +24,8 @@ pub struct ExportDialog {
     pub preview_for: Option<ExportSettings>,
     preview_job: Option<PreviewJob>,
     pub job: Option<ExportJob>,
+    /// The file chosen in the save dialog, to export to.
+    pub chosen: Option<std::path::PathBuf>,
 }
 
 impl ExportDialog {
@@ -32,6 +36,7 @@ impl ExportDialog {
             preview_for: None,
             preview_job: None,
             job: None,
+            chosen: None,
         }
     }
 
@@ -221,29 +226,33 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut ExportDialog
 
     if start_export {
         let suggested = dialog.settings.suggested_name(&name);
-        if let Some(path) = state.dialogs.save_export(&suggested) {
-            let ext = dialog.settings.format.extension();
-            let path = if path
-                .extension()
-                .is_some_and(|e| e.eq_ignore_ascii_case(ext))
-            {
-                path
-            } else {
-                let mut p = path.into_os_string();
-                p.push(".");
-                p.push(ext);
-                p.into()
-            };
-            if let Some(ws) = state.workspace_mut() {
-                let ctx2 = ctx.clone();
-                dialog.job = Some(ExportJob::start(
-                    ws.project.clone(),
-                    dialog.settings,
-                    ws.text.fonts.fork(),
-                    path,
-                    move || ctx2.request_repaint(),
-                ));
-            }
+        state.want_dialog(
+            DialogRequest::save_export(&suggested),
+            Purpose::ExportTexture,
+        );
+    }
+    if let Some(path) = dialog.chosen.take() {
+        let ext = dialog.settings.format.extension();
+        let path = if path
+            .extension()
+            .is_some_and(|e| e.eq_ignore_ascii_case(ext))
+        {
+            path
+        } else {
+            let mut p = path.into_os_string();
+            p.push(".");
+            p.push(ext);
+            p.into()
+        };
+        if let Some(ws) = state.workspace_mut() {
+            let ctx2 = ctx.clone();
+            dialog.job = Some(ExportJob::start(
+                ws.project.clone(),
+                dialog.settings,
+                ws.text.fonts.fork(),
+                path,
+                move || ctx2.request_repaint(),
+            ));
         }
     }
     keep

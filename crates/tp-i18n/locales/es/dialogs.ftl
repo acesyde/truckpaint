@@ -16,6 +16,7 @@ file-recovered-copy = La copia recuperada
 file-not-a-project = { $file } no es un proyecto de TruckPaint.
 file-damaged = { $file } está dañado y no se puede abrir.
 opening-project = Abriendo { $name }…
+file-dialog-waiting = Esperando el cuadro de diálogo de archivo…
 file-newer-version = { $file } se creó con una versión más reciente de TruckPaint.
 file-io = No se ha podido leer ni escribir { $file } ({ $reason }).
 
