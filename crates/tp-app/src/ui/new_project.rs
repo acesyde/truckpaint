@@ -84,11 +84,12 @@ pub fn show_modal(ctx: &egui::Context, state: &mut AppState) {
         Outcome::Pending => {}
         Outcome::Cancel => state.modal = None,
         Outcome::Install => {
-            let paths = state.dialogs.pick_packages();
-            let results = super::vehicle_dialogs::install(state, &paths);
-            if let Some(Modal::NewProject(draft)) = &mut state.modal {
-                draft.messages = results;
-            }
+            state.want_dialog(
+                crate::file_dialogs::DialogRequest::pick_packages(),
+                crate::dialog_flow::Purpose::InstallPackages(
+                    crate::dialog_flow::InstallInto::NewProject,
+                ),
+            );
         }
         Outcome::CustomVehicle => {
             if let Some(Modal::NewProject(draft)) = state.modal.take() {

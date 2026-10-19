@@ -281,6 +281,8 @@ pub struct AppState {
     pub(crate) after_save: Option<PendingAction>,
     /// The project file being read in the background, if any.
     pub(crate) opening: Option<crate::open_job::OpenJob>,
+    /// The file dialog asked for during the frame and the one that is open.
+    pub(crate) dialog: crate::dialog_flow::DialogSlots,
     /// The window may close (the user already answered the prompt).
     pub(crate) allow_close: bool,
     /// Last export choices, for the session.
@@ -339,7 +341,7 @@ impl AppState {
         }
         state.begin_first_run_if_needed();
         state.system_fonts = true;
-        state.dialogs = Box::new(NativeDialogs);
+        state.dialogs = Box::new(NativeDialogs::default());
         state.macos = cfg!(target_os = "macos");
         state.force_system_title_bar = crate::title_bar::forced_by_environment();
         state.double_click = crate::title_bar::DoubleClickAction::of_system();
@@ -382,6 +384,7 @@ impl AppState {
             recovered: Vec::new(),
             after_save: None,
             opening: None,
+            dialog: Default::default(),
             allow_close: false,
             export_settings: crate::export::ExportSettings::default(),
             last_mod_folder: None,
@@ -659,6 +662,7 @@ impl AppState {
             ctx.request_repaint_after(next);
         }
         self.poll_opening(&ctx);
+        self.poll_dialog(&ctx);
         self.game.poll(&mut self.vehicles);
         self.announce_generation();
         self.handle_close_request(&ctx);
@@ -685,6 +689,9 @@ impl AppState {
         }
         ui::dialogs::show_modal(&ctx, self);
         ui::opening_box::show(&ctx, self.opening.as_ref());
+        if self.dialog.is_open() {
+            ui::opening_box::waiting_for_dialog(&ctx);
+        }
         if self.show_gallery {
             ui::gallery::show(&ctx, &mut self.show_gallery);
         }
@@ -696,6 +703,11 @@ impl AppState {
             self.dispatch(&ctx, id);
         }
         self.after_frame(&ctx);
+        // A dialog asked for during the frame starts now; one that answers
+        // at once (scripted, or a system that waits in place) is applied in
+        // this same frame.
+        self.start_wanted_dialog(&ctx);
+        self.poll_dialog(&ctx);
         self.flush_recent_color(&ctx);
         self.text_focus_last_frame = ctx.text_edit_focused();
         self.sync_title(&ctx);
@@ -788,6 +800,10 @@ impl AppState {
     }
 
     fn handle_keyboard(&mut self, ctx: &egui::Context) {
+        // A file dialog is open: the window is closed to commands.
+        if self.dialog.is_open() {
+            return;
+        }
         let field_focused = ctx.text_edit_focused()
             || self.text_focus_last_frame
             || self.modal.is_some()
@@ -848,6 +864,9 @@ impl AppState {
 
     /// Executes a command. Disabled commands are ignored.
     pub fn dispatch(&mut self, ctx: &egui::Context, id: CommandId) {
+        if self.dialog.is_open() {
+            return;
+        }
         if !is_enabled(id, &self.edit_context()) {
             return;
         }
@@ -1260,15 +1279,11 @@ impl AppState {
         if ws.text.poll_fonts() {
             ws.relayout_all_texts();
         }
-        if let Some(which) = ws.picture_request.take()
-            && let Some(path) = self.dialogs.pick_mod_image()
-        {
-            let name = path.file_name().map_or_else(
-                || path.display().to_string(),
-                |n| n.to_string_lossy().into_owned(),
+        if let Some(which) = ws.picture_request.take() {
+            self.dialog.want(
+                crate::file_dialogs::DialogRequest::pick_mod_image(),
+                crate::dialog_flow::Purpose::ModPicture(which),
             );
-            let bytes = std::fs::read(&path).map_err(|e| e.to_string());
-            ws.use_picture_file(which, &name, bytes, now);
         }
         // A file dropped on a mod picture's preview becomes that picture.
         if let Some(i) = hover.and_then(|p| {
@@ -1287,11 +1302,13 @@ impl AppState {
             dropped.clear();
         }
         if let Some(at) = ws.place_request.take() {
-            let paths = self.dialogs.pick_images();
-            if !paths.is_empty() {
-                let files = crate::import::read_files(&paths);
-                ws.place_files(files, at, now);
-            }
+            self.dialog.want(
+                crate::file_dialogs::DialogRequest::pick_images(),
+                crate::dialog_flow::Purpose::PlaceImages {
+                    at,
+                    session: ws.session,
+                },
+            );
         }
         if !dropped.is_empty() {
             let at = match (hover, ws.canvas_rect, ws.screen_map(ppp)) {

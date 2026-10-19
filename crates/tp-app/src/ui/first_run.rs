@@ -220,7 +220,7 @@ fn language_and_game(ui: &mut Ui, state: &mut AppState) -> Ask {
     let AppState {
         prefs,
         game,
-        dialogs,
+        dialog,
         mod_folders,
         system_language,
         ..
@@ -276,7 +276,7 @@ fn language_and_game(ui: &mut Ui, state: &mut AppState) -> Ask {
         prefs,
         &mut GamesEnv {
             state: game,
-            dialogs: &mut **dialogs,
+            dialog,
             mod_folders,
         },
         CardWords::FirstLaunch,

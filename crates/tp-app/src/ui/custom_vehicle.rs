@@ -106,7 +106,7 @@ impl CustomVehicleDialog {
 
     /// Adds files from disk (Add Templates…); `replace` replaces that
     /// row's template with the first file.
-    fn add_paths(&mut self, paths: &[PathBuf], replace: Option<usize>) {
+    pub(crate) fn add_paths(&mut self, paths: &[PathBuf], replace: Option<usize>) {
         let files: Vec<_> = paths
             .iter()
             .take(if replace.is_some() { 1 } else { usize::MAX })
@@ -682,10 +682,10 @@ pub fn show(ctx: &egui::Context, state: &mut AppState, dialog: &mut CustomVehicl
         dialog.form.rows.remove(i);
     }
     if add_templates || replace.is_some() {
-        let paths = state.dialogs.pick_templates();
-        if !paths.is_empty() {
-            dialog.add_paths(&paths, replace);
-        }
+        state.want_dialog(
+            crate::file_dialogs::DialogRequest::pick_templates(),
+            crate::dialog_flow::Purpose::PickTemplates { replace },
+        );
     }
     if create && problems.is_empty() && dialog.job.is_none() {
         let ctx = ctx.clone();
