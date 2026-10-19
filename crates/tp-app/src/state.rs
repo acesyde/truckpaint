@@ -279,6 +279,8 @@ pub struct AppState {
     pub recovered: Vec<Recovered>,
     /// Action to run once the save started from the prompt succeeds.
     pub(crate) after_save: Option<PendingAction>,
+    /// The project file being read in the background, if any.
+    pub(crate) opening: Option<crate::open_job::OpenJob>,
     /// The window may close (the user already answered the prompt).
     pub(crate) allow_close: bool,
     /// Last export choices, for the session.
@@ -379,6 +381,7 @@ impl AppState {
             recovery: None,
             recovered: Vec::new(),
             after_save: None,
+            opening: None,
             allow_close: false,
             export_settings: crate::export::ExportSettings::default(),
             last_mod_folder: None,
@@ -655,6 +658,7 @@ impl AppState {
         if let Some(next) = self.mcp.next_change() {
             ctx.request_repaint_after(next);
         }
+        self.poll_opening(&ctx);
         self.game.poll(&mut self.vehicles);
         self.announce_generation();
         self.handle_close_request(&ctx);
@@ -680,6 +684,7 @@ impl AppState {
             )));
         }
         ui::dialogs::show_modal(&ctx, self);
+        ui::opening_box::show(&ctx, self.opening.as_ref());
         if self.show_gallery {
             ui::gallery::show(&ctx, &mut self.show_gallery);
         }
