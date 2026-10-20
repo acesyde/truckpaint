@@ -1019,6 +1019,10 @@ fn section_workshop() {
             ws.selection = vec![text];
             ws.panels.color_target = tp_app::workspace::ColorTarget::Fill;
         }
+        // The color popover, with the gradient bar and its two stops.
+        h.run();
+        h.get_by_label(&tp_i18n::tr("props-fill-color")).click();
+        h.run();
         shot(&mut h, language, "workshop/gradients");
     });
 }
