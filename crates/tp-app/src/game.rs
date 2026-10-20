@@ -314,11 +314,22 @@ fn read_workshop(scan: &Scan) -> Workshop {
             Err(reason) => unreadable.push((truck.workshop_id.clone(), reason)),
         }
     }
+    tell_apart(&mut vehicles);
     unreadable.sort();
     unreadable.dedup_by(|a, b| a.0 == b.0);
     Workshop::Ready {
         vehicles,
         unreadable,
+    }
+}
+
+/// Adds the truck's game id to the name of trucks that share it, so their rows differ.
+fn tell_apart(vehicles: &mut [ModVehicle]) {
+    let names = vehicles.iter().map(|v| v.name.clone()).collect::<Vec<_>>();
+    for v in vehicles {
+        if names.iter().filter(|n| **n == v.name).count() > 1 {
+            v.name = format!("{} ({})", v.name, v.truck.id);
+        }
     }
 }
 
@@ -789,6 +800,28 @@ impl GameState {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn same_named_workshop_trucks_are_told_apart() {
+        let truck = |id: &str, name: &str| ModVehicle {
+            id: format!("mod.ets2.1.{id}"),
+            truck: ModTruck {
+                workshop_id: "1".into(),
+                mod_name: String::new(),
+                mod_version: String::new(),
+                author: String::new(),
+                dlc_dependencies: Vec::new(),
+                package: PathBuf::new(),
+                id: id.into(),
+            },
+            brand: String::new(),
+            name: name.into(),
+        };
+        let mut all = [truck("a", "Same"), truck("b", "Same"), truck("c", "Other")];
+        tell_apart(&mut all);
+        let names = all.map(|v| v.name);
+        assert_eq!(names, ["Same (a)", "Same (b)", "Other"]);
+    }
+
     use super::*;
     use tp_pack::synthetic::{Vehicle, write_game};
 
