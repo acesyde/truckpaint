@@ -688,6 +688,13 @@ fn game_folder(version: &str) -> PathBuf {
             Vehicle::trailer("example.tanker", "Tanker").in_archive("dlc_tanker"),
         ],
     );
+    // One Workshop mod with a truck, beside the game in the same made-up library.
+    tp_pack::synthetic::write_workshop_mod(
+        &dir,
+        "1234567890",
+        &[Vehicle::truck("example.glacier", "Glacier")],
+        &["truck"],
+    );
     dir
 }
 
@@ -696,7 +703,7 @@ fn generate_now(h: &mut H, folder: &std::path::Path, ids: &[&str]) {
     let s = h.state_mut();
     s.game.refresh_scan();
     s.game.ensure_scan(folder, || {});
-    while s.game.scanned().is_none() {
+    while s.game.scanned().is_none() || matches!(s.game.workshop, tp_app::game::Workshop::Loading) {
         s.game.poll(&mut s.vehicles);
         std::thread::sleep(std::time::Duration::from_millis(2));
     }
@@ -728,7 +735,15 @@ fn my_game_shots(language: Language) {
             ..Default::default()
         };
         h.state_mut().game.last = None;
-        modal(&mut h, Modal::VehicleLibrary(tab.clone()));
+        // Trucks only, so that the Workshop section below them is in view.
+        let trucks = LibraryDialog {
+            game_filter: tp_app::ui::vehicle_dialogs::VehicleFilter {
+                kind: Some(tp_vehicles::Kind::Truck),
+                ..Default::default()
+            },
+            ..tab.clone()
+        };
+        modal(&mut h, Modal::VehicleLibrary(trucks));
         h.get_by_label(&tp_i18n::tr("game-select-updates")).click();
         settle(&mut h);
         shot(&mut h, language, "vehicles/my-game");
@@ -743,7 +758,9 @@ fn my_game_shots(language: Language) {
         modal(&mut h, Modal::VehicleLibrary(tab));
         for _ in 0..500 {
             h.run_steps(1);
-            if h.state().game.scanned().is_some() {
+            let game = &h.state().game;
+            if game.scanned().is_some() && !matches!(game.workshop, tp_app::game::Workshop::Loading)
+            {
                 break;
             }
             std::thread::sleep(std::time::Duration::from_millis(5));

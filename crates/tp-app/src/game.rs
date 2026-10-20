@@ -10,6 +10,7 @@ use std::sync::mpsc::{self, Receiver};
 use std::thread;
 
 use tp_i18n::tr;
+use tp_pack::extract::workshop::ModTruck;
 use tp_pack::extract::{self, GameInfo, InspectError, Outcome, Scan};
 use tp_vehicles::{Game, Package};
 
@@ -238,7 +239,12 @@ pub fn generation(
     vehicle: &str,
     info: &GameInfo,
 ) -> Generation {
-    let Some(installed) = library.get(&package_id(game, vehicle)) else {
+    generation_of(library, &package_id(game, vehicle), info)
+}
+
+/// A package's state against the installed library, by the id of the package.
+pub fn generation_of(library: &VehicleLibrary, id: &str, info: &GameInfo) -> Generation {
+    let Some(installed) = library.get(id) else {
         return Generation::NotGenerated;
     };
     let m = &installed.newest().manifest;
@@ -250,9 +256,93 @@ pub fn generation(
     }
 }
 
-/// The game read in a worker thread.
+/// A truck of a Workshop mod, as the My Game tab lists it.
+#[derive(Clone, Debug)]
+pub struct ModVehicle {
+    /// The id of its package (`mod.ets2.3815870196.actros.mp6`), which also keys its row.
+    pub id: String,
+    pub truck: ModTruck,
+    pub brand: String,
+    pub name: String,
+}
+
+impl ModVehicle {
+    /// What the row says about the mod: its name, else its Workshop id.
+    pub fn mod_label(&self) -> String {
+        if self.truck.mod_name.is_empty() {
+            self.truck.workshop_id.clone()
+        } else {
+            self.truck.mod_name.clone()
+        }
+    }
+}
+
+/// What reading the Workshop gave.
+#[derive(Clone, Debug, Default)]
+pub enum Workshop {
+    /// Not read yet (the game is being read, or no game is).
+    #[default]
+    Loading,
+    /// The game's library has no Workshop folder.
+    Missing,
+    Ready {
+        vehicles: Vec<ModVehicle>,
+        /// Mods that could not be read: Workshop id and why.
+        unreadable: Vec<(String, String)>,
+    },
+    Failed(String),
+}
+
+/// Reads the Workshop of a scanned game: its truck mods and, for each truck, its name.
+fn read_workshop(scan: &Scan) -> Workshop {
+    let found = match scan.workshop() {
+        None => return Workshop::Missing,
+        Some(Err(message)) => return Workshop::Failed(message),
+        Some(Ok(found)) => found,
+    };
+    let game = scan.info.game.code();
+    let mut unreadable = found.unreadable;
+    let mut vehicles = Vec::new();
+    for truck in found.trucks {
+        match extract::describe_mod_truck(scan, &truck) {
+            Ok((brand, name)) => vehicles.push(ModVehicle {
+                id: truck.package_id(game),
+                truck,
+                brand,
+                name,
+            }),
+            Err(reason) => unreadable.push((truck.workshop_id.clone(), reason)),
+        }
+    }
+    tell_apart(&mut vehicles);
+    unreadable.sort();
+    unreadable.dedup_by(|a, b| a.0 == b.0);
+    Workshop::Ready {
+        vehicles,
+        unreadable,
+    }
+}
+
+/// Adds the truck's game id to the name of trucks that share it, so their rows differ.
+fn tell_apart(vehicles: &mut [ModVehicle]) {
+    let names = vehicles.iter().map(|v| v.name.clone()).collect::<Vec<_>>();
+    for v in vehicles {
+        if names.iter().filter(|n| **n == v.name).count() > 1 {
+            v.name = format!("{} ({})", v.name, v.truck.id);
+            v.truck.name = Some(v.name.clone());
+        }
+    }
+}
+
+/// What the scan worker tells, in order.
+enum Message {
+    Game(Result<Arc<Scan>, String>),
+    Workshop(Workshop),
+}
+
+/// The game, then its Workshop, read in a worker thread.
 pub struct ScanJob {
-    done: Receiver<Result<Scan, String>>,
+    done: Receiver<Message>,
 }
 
 impl ScanJob {
@@ -261,7 +351,17 @@ impl ScanJob {
         let spawned = thread::Builder::new()
             .name("game-scan".into())
             .spawn(move || {
-                let _ = tx.send(extract::scan(&folder));
+                match extract::scan(&folder) {
+                    Ok(scan) => {
+                        let scan = Arc::new(scan);
+                        let _ = tx.send(Message::Game(Ok(scan.clone())));
+                        notify();
+                        let _ = tx.send(Message::Workshop(read_workshop(&scan)));
+                    }
+                    Err(message) => {
+                        let _ = tx.send(Message::Game(Err(message)));
+                    }
+                }
                 notify();
             });
         if let Err(err) = spawned {
@@ -270,11 +370,11 @@ impl ScanJob {
         Self { done }
     }
 
-    fn poll(&self) -> Option<Result<Scan, String>> {
+    fn poll(&self) -> Option<Message> {
         match self.done.try_recv() {
-            Ok(result) => Some(result),
+            Ok(message) => Some(message),
             Err(mpsc::TryRecvError::Empty) => None,
-            Err(mpsc::TryRecvError::Disconnected) => Some(Err("stopped".into())),
+            Err(mpsc::TryRecvError::Disconnected) => Some(Message::Game(Err("stopped".into()))),
         }
     }
 }
@@ -283,6 +383,8 @@ impl ScanJob {
 pub struct Item {
     pub id: String,
     pub previous: Option<PathBuf>,
+    /// The Workshop truck to make; `None` for the game's own vehicle `id`.
+    pub from_mod: Option<ModTruck>,
 }
 
 /// What the worker tells, in order.
@@ -340,7 +442,11 @@ fn make(scan: &Scan, item: &Item) -> Result<Option<Vec<u8>>, String> {
         }
         None => None,
     };
-    match extract::generate(scan, &item.id, previous.as_ref())? {
+    let outcome = match &item.from_mod {
+        Some(truck) => extract::generate_mod_truck(scan, truck, previous.as_ref())?,
+        None => extract::generate(scan, &item.id, previous.as_ref())?,
+    };
+    match outcome {
         Outcome::Package(packed) => Ok(Some(packed.bytes)),
         Outcome::UpToDate => Ok(None),
     }
@@ -442,7 +548,11 @@ pub struct GameState {
     /// The folder found in Steam for a game with no folder set (looked for once).
     pub detected: BTreeMap<Game, Option<PathBuf>>,
     pub scan: ScanState,
-    /// Vehicles checked in the My Game tab.
+    /// The trucks of the Workshop mods of the game being shown, read after the game.
+    pub workshop: Workshop,
+    /// The scan worker while it has the Workshop left to tell.
+    workshop_job: Option<ScanJob>,
+    /// Vehicles checked in the My Game tab (the ids of their packages for Workshop trucks).
     pub checked: BTreeSet<String>,
     pub run: Option<Run>,
     pub last: Option<Summary>,
@@ -458,6 +568,8 @@ impl Default for GameState {
             refused: BTreeMap::new(),
             detected: BTreeMap::new(),
             scan: ScanState::Idle,
+            workshop: Workshop::Loading,
+            workshop_job: None,
             checked: BTreeSet::new(),
             run: None,
             last: None,
@@ -506,6 +618,8 @@ impl GameState {
     pub fn refresh_scan(&mut self) {
         self.detected.clear();
         self.scan = ScanState::Idle;
+        self.workshop = Workshop::Loading;
+        self.workshop_job = None;
     }
 
     /// Starts reading `folder` unless it is the one already read or being read.
@@ -514,6 +628,8 @@ impl GameState {
             return;
         }
         self.checked.clear();
+        self.workshop = Workshop::Loading;
+        self.workshop_job = None;
         self.scan = ScanState::Scanning {
             folder: folder.to_path_buf(),
             job: ScanJob::start(folder.to_path_buf(), notify),
@@ -526,6 +642,22 @@ impl GameState {
             ScanState::Ready { scan, .. } => Some(scan),
             _ => None,
         }
+    }
+
+    /// The Workshop trucks read, when they have been.
+    pub fn mod_vehicles(&self) -> &[ModVehicle] {
+        match &self.workshop {
+            Workshop::Ready { vehicles, .. } => vehicles,
+            _ => &[],
+        }
+    }
+
+    fn mod_vehicles_checked(&self) -> Vec<ModVehicle> {
+        self.mod_vehicles()
+            .iter()
+            .filter(|v| self.checked.contains(&v.id))
+            .cloned()
+            .collect()
     }
 
     /// Starts making the checked vehicles of the scan, if no run is going.
@@ -542,22 +674,33 @@ impl GameState {
             .iter()
             .filter(|v| self.checked.contains(&v.id))
             .collect::<Vec<_>>();
-        if chosen.is_empty() {
+        let mods = self.mod_vehicles_checked();
+        if chosen.is_empty() && mods.is_empty() {
             return;
         }
-        let items = chosen
+        let mut items = chosen
             .iter()
             .map(|v| Item {
                 id: v.id.clone(),
                 previous: library
                     .get(&package_id(game, &v.id))
                     .map(|i| i.newest().path.clone()),
+                from_mod: None,
             })
-            .collect();
-        let rows = chosen
+            .collect::<Vec<_>>();
+        items.extend(mods.iter().map(|v| Item {
+            id: v.id.clone(),
+            previous: library.get(&v.id).map(|i| i.newest().path.clone()),
+            from_mod: Some(v.truck.clone()),
+        }));
+        let mut rows = chosen
             .iter()
             .map(|v| (v.id.clone(), v.name.clone(), RowState::Waiting))
-            .collect();
+            .collect::<Vec<_>>();
+        rows.extend(
+            mods.iter()
+                .map(|v| (v.id.clone(), v.name.clone(), RowState::Waiting)),
+        );
         let cancel = Arc::new(AtomicBool::new(false));
         self.last = None;
         self.run = Some(Run {
@@ -578,21 +721,30 @@ impl GameState {
 
     /// Takes what the workers sent; installs each package in `library`.
     pub fn poll(&mut self, library: &mut VehicleLibrary) {
-        if let ScanState::Scanning { folder, job } = &self.scan
-            && let Some(result) = job.poll()
+        if matches!(self.scan, ScanState::Scanning { .. })
+            && let ScanState::Scanning { folder, job } =
+                std::mem::replace(&mut self.scan, ScanState::Idle)
         {
-            let folder = folder.clone();
-            self.scan = match result {
-                Ok(scan) => {
+            self.scan = match job.poll() {
+                Some(Message::Game(Ok(scan))) => {
                     self.checked
                         .retain(|id| scan.vehicles.iter().any(|v| v.id == *id));
-                    ScanState::Ready {
-                        folder,
-                        scan: Arc::new(scan),
-                    }
+                    self.workshop = Workshop::Loading;
+                    self.workshop_job = Some(job);
+                    ScanState::Ready { folder, scan }
                 }
-                Err(message) => ScanState::Failed { folder, message },
+                Some(Message::Game(Err(message))) => ScanState::Failed { folder, message },
+                _ => ScanState::Scanning { folder, job },
             };
+        }
+        if let Some(job) = &self.workshop_job
+            && let Some(message) = job.poll()
+        {
+            match message {
+                Message::Workshop(workshop) => self.workshop = workshop,
+                Message::Game(_) => self.workshop = Workshop::Failed("stopped".into()),
+            }
+            self.workshop_job = None;
         }
         let Some(run) = &mut self.run else {
             return;
@@ -649,6 +801,31 @@ impl GameState {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn same_named_workshop_trucks_are_told_apart() {
+        let truck = |id: &str, name: &str| ModVehicle {
+            id: format!("mod.ets2.1.{id}"),
+            truck: ModTruck {
+                workshop_id: "1".into(),
+                mod_name: String::new(),
+                mod_version: String::new(),
+                author: String::new(),
+                dlc_dependencies: Vec::new(),
+                package: PathBuf::new(),
+                id: id.into(),
+                name: None,
+            },
+            brand: String::new(),
+            name: name.into(),
+        };
+        let mut all = [truck("a", "Same"), truck("b", "Same"), truck("c", "Other")];
+        tell_apart(&mut all);
+        let names = all.clone().map(|v| v.name);
+        assert_eq!(names, ["Same (a)", "Same (b)", "Other"]);
+        assert_eq!(all[0].truck.name.as_deref(), Some("Same (a)"));
+        assert_eq!(all[2].truck.name, None);
+    }
+
     use super::*;
     use tp_pack::synthetic::{Vehicle, write_game};
 
@@ -874,6 +1051,7 @@ mod tests {
             .map(|id| Item {
                 id: id.into(),
                 previous: None,
+                from_mod: None,
             })
             .into();
         // The worker cancels itself after its first vehicle's last event (Started, Made).
@@ -937,5 +1115,153 @@ mod tests {
             state.folders[&Game::Ets2],
             FolderStatus::Problem(FolderProblem::Inspect(InspectError::NotAFolder))
         );
+    }
+
+    /// A Steam library with the game (two trucks) and Workshop mod 111 (one truck).
+    fn library_with_mod() -> (tempfile::TempDir, PathBuf) {
+        let dir = tempfile::tempdir().unwrap();
+        let game = dir
+            .path()
+            .join("lib/steamapps/common/Euro Truck Simulator 2");
+        std::fs::create_dir_all(&game).unwrap();
+        write_game(
+            &game,
+            "eut2",
+            "1.61.1.9",
+            &[
+                Vehicle::truck("example.a", "A"),
+                Vehicle::truck("example.c", "C"),
+            ],
+        );
+        tp_pack::synthetic::write_workshop_mod(
+            &game,
+            "111",
+            &[Vehicle::truck("example.modded", "Modded")],
+            &["truck"],
+        );
+        (dir, game)
+    }
+
+    fn read(state: &mut GameState, library: &mut VehicleLibrary, game: &Path) {
+        state.ensure_scan(game, || {});
+        while state.scanned().is_none() || matches!(state.workshop, Workshop::Loading) {
+            state.poll(library);
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
+    }
+
+    #[test]
+    fn the_workshop_is_read_after_the_game_and_listed_with_its_names() {
+        let (_dir, game) = library_with_mod();
+        let vehicles = tempfile::tempdir().unwrap();
+        let mut library = VehicleLibrary::open(vehicles.path());
+        let mut state = GameState::default();
+        state.ensure_scan(&game, || {});
+        assert!(matches!(state.workshop, Workshop::Loading));
+        read(&mut state, &mut library, &game);
+        let listed = state
+            .mod_vehicles()
+            .iter()
+            .map(|v| (v.id.as_str(), v.name.as_str(), v.mod_label()))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            listed,
+            [(
+                "mod.ets2.111.example.modded",
+                "Example Modded",
+                "111".to_owned()
+            )]
+        );
+        // The official list is the game's alone.
+        assert_eq!(state.scanned().unwrap().vehicles.len(), 2);
+        // A game without a Workshop folder says so.
+        let (_dir, game) = library_with_mod();
+        std::fs::remove_dir_all(game.parent().unwrap().parent().unwrap().join("workshop")).unwrap();
+        let mut state = GameState::default();
+        read(&mut state, &mut library, &game);
+        assert!(matches!(state.workshop, Workshop::Missing));
+    }
+
+    #[test]
+    fn official_and_workshop_trucks_are_made_in_one_run() {
+        let (_dir, game) = library_with_mod();
+        let vehicles = tempfile::tempdir().unwrap();
+        let mut library = VehicleLibrary::open(vehicles.path());
+        let mut state = GameState::default();
+        read(&mut state, &mut library, &game);
+        state.checked = [
+            "example.a".to_owned(),
+            "mod.ets2.111.example.modded".to_owned(),
+        ]
+        .into();
+        state.generate(&library, || {});
+        let names = state
+            .run
+            .as_ref()
+            .unwrap()
+            .rows
+            .iter()
+            .map(|r| r.1.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(names, ["Example A", "Example Modded"]);
+        finish(&mut state, &mut library);
+        let last = state.last.clone().unwrap();
+        assert_eq!((last.installed, last.failed.len()), (2, 0));
+        let mut ids = library
+            .vehicles()
+            .iter()
+            .map(|v| v.id.as_str())
+            .collect::<Vec<_>>();
+        ids.sort_unstable();
+        assert_eq!(
+            ids,
+            ["mod.ets2.111.example.modded", "official.ets2.example.a"]
+        );
+        // The Workshop truck carries its author's license, not SCS's.
+        let installed = library.get("mod.ets2.111.example.modded").unwrap();
+        let license = installed.newest().manifest.license.clone().unwrap();
+        assert!(
+            license.contains("mod's author") && !license.contains("SCS"),
+            "{license}"
+        );
+        // Its state is read from its own package id, and a second run is up to date.
+        let info = &state.scanned().unwrap().info;
+        assert!(matches!(
+            generation_of(&library, "mod.ets2.111.example.modded", info),
+            Generation::Generated(_)
+        ));
+        state.checked = ["mod.ets2.111.example.modded".to_owned()].into();
+        state.generate(&library, || {});
+        finish(&mut state, &mut library);
+        assert_eq!(state.last.clone().unwrap().skipped, 1);
+    }
+
+    #[test]
+    fn a_damaged_mod_is_named_and_the_others_are_listed() {
+        let (_dir, game) = library_with_mod();
+        let steamapps = game.parent().unwrap().parent().unwrap();
+        tp_pack::synthetic::write_workshop_mod(
+            &game,
+            "222",
+            &[Vehicle::truck("example.other", "Other")],
+            &["truck"],
+        );
+        let package = steamapps.join("workshop/content/227300/222/content_161.zip");
+        let bytes = std::fs::read(&package).unwrap();
+        std::fs::write(&package, &bytes[..40]).unwrap();
+        let vehicles = tempfile::tempdir().unwrap();
+        let mut library = VehicleLibrary::open(vehicles.path());
+        let mut state = GameState::default();
+        read(&mut state, &mut library, &game);
+        let Workshop::Ready {
+            vehicles,
+            unreadable,
+        } = &state.workshop
+        else {
+            panic!("ready")
+        };
+        assert_eq!(vehicles.len(), 1);
+        assert_eq!(unreadable.len(), 1);
+        assert_eq!(unreadable[0].0, "222");
     }
 }

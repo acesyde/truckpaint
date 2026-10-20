@@ -1,6 +1,6 @@
 ---
 title: Offizielle Fahrzeuge
-description: Die offiziellen ETS2-Lkw und -Auflieger aus Ihrem eigenen Spiel erstellen, direkt in TruckPaint.
+description: Die offiziellen ETS2-Lkw und -Auflieger sowie die Lkw Ihrer Steam-Workshop-Mods aus Ihrem eigenen Spiel erstellen, direkt in TruckPaint.
 sidebar:
   order: 2
 ---
@@ -30,11 +30,23 @@ TruckPaint prüft den Ordner, zeigt die Version des Spiels, wenn er gültig ist,
 3. Wählen Sie die gewünschten Fahrzeuge aus oder nutzen Sie <Ui id="game-select-all" />, <Ui id="game-select-none" /> und <Ui id="game-select-updates" />.
 4. Klicken Sie auf <Ui id="game-generate" args={{ count: 3 }} />. Noch nicht erstellte Fahrzeuge werden erstellt, die anderen neu erstellt.
 
-<Shot name="vehicles/my-game" alt="Der Reiter Mein Spiel: drei Lkw und zwei Auflieger, zwei davon als Spiel aktualisiert markiert und ausgewählt, und die Schaltfläche Erzeugen (2)" />
+<Shot name="vehicles/my-game" alt="Der Reiter Mein Spiel: die Lkw: drei Lkw, zwei davon als Spiel aktualisiert markiert und ausgewählt, dann ein Bereich Workshop mit einem Lkw aus einem Mod, und die Schaltfläche Erzeugen (2)" />
 
-Die Fahrzeuge werden nacheinander erstellt, und jedes wird installiert, sobald es fertig ist. Ein Fortschrittsbalken zählt sie („1 von 5“), das aktuelle Fahrzeug wird genannt, und jede Zeile zeigt, ob es wartet, in Arbeit, installiert, aktuell oder fehlgeschlagen ist. Sie können in der App weiterarbeiten und die Bibliothek schließen: Eine Meldung sagt Ihnen, wann es fertig ist. <Ui id="button-cancel" /> stoppt vor dem nächsten Fahrzeug und behält die bereits installierten. Ein fehlgeschlagenes Fahrzeug stoppt die anderen nicht; das Ergebnis nennt es mit dem Grund.
+Die Fahrzeuge werden nacheinander erstellt, und jedes wird installiert, sobald es fertig ist. Ein Fortschrittsbalken zählt sie („1 von 6“), das aktuelle Fahrzeug wird genannt, und jede Zeile zeigt, ob es wartet, in Arbeit, installiert, aktuell oder fehlgeschlagen ist. Sie können in der App weiterarbeiten und die Bibliothek schließen: Eine Meldung sagt Ihnen, wann es fertig ist. <Ui id="button-cancel" /> stoppt vor dem nächsten Fahrzeug und behält die bereits installierten. Ein fehlgeschlagenes Fahrzeug stoppt die anderen nicht; das Ergebnis nennt es mit dem Grund.
 
-<Shot name="vehicles/my-game-progress" alt="Ein laufender Vorgang: das erste Fahrzeug installiert, das zweite in Arbeit, drei wartend, der Balken bei 1 von 5" />
+<Shot name="vehicles/my-game-progress" alt="Ein laufender Vorgang: das erste Fahrzeug installiert, das zweite in Arbeit, vier wartend, der Balken bei 1 von 6" />
+
+## Lkw aus dem Steam Workshop
+
+Ein Lkw-Mod, den Sie im Steam Workshop abonniert haben, wird auf dieselbe Weise gelesen. Unter den offiziellen Fahrzeugen hat der Reiter <Ui id="vehicles-tab-game" /> einen Abschnitt <Ui id="game-workshop" />, der die Lkw Ihrer Workshop-Mods mit dem Namen ihres Mods auflistet. Wählen Sie sie aus und klicken Sie wie bei den anderen auf <Ui id="game-generate" args={{ count: 2 }} />: Sie werden im selben Durchlauf nacheinander erstellt und in der Fahrzeugbibliothek mit einer ID installiert, die mit `mod.ets2` beginnt.
+
+TruckPaint findet den Workshop-Ordner selbst: Er liegt in derselben Steam-Bibliothek wie Ihr Spiel (`steamapps/workshop/content/227300`). Für jeden Mod verwendet es das Paket, das zur Version Ihres Spiels passt, und betrachtet nur Mods der Kategorie Lkw. Ein Lkw, den das Spiel schon hat (eine Neulackierung oder ein Innenraum-Mod für einen offiziellen Lkw), wird nicht aufgelistet, weil er kein neuer Lkw ist. Der Mod wird auf Ihrem Spiel aufbauend gelesen, daher funktioniert auch ein Mod, der die Modelle des Spiels wiederverwendet.
+
+- Ein Workshop-Lkw gehört seinem Autor. Sein Paket wird auf Ihrem Computer für Ihren eigenen Gebrauch erstellt, und seine Lizenz sagt das.
+- Kann ein Mod nicht gelesen werden, nennt ihn der Abschnitt und gibt den Grund an. Die anderen Mods werden wie gewohnt aufgelistet.
+- Ein Mod, der ein DLC braucht, das Sie nicht besitzen, kann mit einer Meldung fehlschlagen, die das DLC nennt.
+- Workshop-Lkw werden einzeln erstellt, und ein großer Mod kann einige Minuten dauern. Wurde der Mod von Steam aktualisiert, wählen Sie seinen Lkw aus und erzeugen Sie ihn erneut.
+- Liegt Ihr Workshop in einer anderen Steam-Bibliothek als das Spiel oder liegt das Spiel in keiner Steam-Bibliothek, sagt der Abschnitt, dass der Workshop nicht gefunden werden konnte.
 
 ## Nach einem Spiel-Update
 
@@ -56,9 +68,10 @@ Die Vorlagen zeichnen das Lacklayout des Modells nach; sie beweisen nicht, dass 
 
 - Vorerst können nur ETS2-Fahrzeuge erstellt werden. Den Ordner von American Truck Simulator können Sie festlegen und prüfen lassen, und der Reiter sagt, dass dessen Fahrzeuge noch nicht unterstützt werden.
 - Es werden nur die Fahrzeuge Ihres installierten Spiels und der DLC aufgelistet.
-- Benutzer-Mods werden nicht gelesen.
+- Von den Mods werden nur die Lkw Ihrer Steam-Workshop-Mods gelesen. Auflieger-Mods und Dateien, die Sie von Hand in den Mod-Ordner des Spiels legen, werden nicht gelesen.
+- Ein Workshop-Lkw kann schwerer zu lackieren sein als ein Lkw aus dem Spiel. Manche Mods legen ein ganzes Fahrerhaus auf eine gemeinsame Textur, und mehrere Lkw eines Mods können dieselben Texturen teilen. Eine Lackierung gilt dann im Spiel für alle.
 
-Die Pakete tragen die Lizenz „Personal modding only, not for sale. Game content belongs to SCS Software.“ TruckPaint wird nicht von SCS Software unterstützt. Beim Exportieren eines Pakets bleibt ein Hinweis, zu prüfen, ob Sie es weitergeben dürfen.
+Die Pakete tragen die Lizenz „Personal modding only, not for sale. Game content belongs to SCS Software.“ (bei einem Workshop-Lkw besagt sie, dass der Inhalt dem Autor des Mods gehört). TruckPaint wird nicht von SCS Software unterstützt. Beim Exportieren eines Pakets bleibt ein Hinweis, zu prüfen, ob Sie es weitergeben dürfen.
 
 ## Installieren und lackieren
 

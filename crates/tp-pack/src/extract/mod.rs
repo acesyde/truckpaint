@@ -3,12 +3,17 @@
 mod geometry;
 mod source;
 mod syntax;
+pub mod workshop;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
+
+/// License of packages made from a Workshop mod: the templates are its author's.
+pub const MOD_LICENSE: &str =
+    "Personal modding only, not for sale. Content belongs to the mod's author.";
 
 /// License of generated packages: the templates are SCS Software's.
 pub const LICENSE: &str =
@@ -354,6 +359,8 @@ struct Build<'a> {
     previous: Option<&'a tp_vehicles::Package>,
     kind: Kind,
     vehicle: &'a str,
+    /// The Workshop mod the vehicle comes from; `None` for the game's own.
+    origin: Option<&'a workshop::ModTruck>,
     root: String,
     evidence: BTreeSet<String>,
     stage: &'static str,
@@ -374,6 +381,7 @@ impl<'a> Build<'a> {
             previous,
             kind,
             vehicle,
+            origin: None,
             root: format!("/def/vehicle/{}/{vehicle}/", kind.folder()),
             evidence: BTreeSet::new(),
             stage: "definitions",
@@ -785,8 +793,42 @@ impl<'a> Build<'a> {
         Ok(out)
     }
 
+    /// The package id, description, authors and license: SCS's for the game's own vehicles,
+    /// the mod author's for a Workshop truck.
+    fn origin_texts(&self, info: &GameInfo) -> (String, String, Vec<String>, &'static str) {
+        let (code, vehicle) = (info.game.code(), self.vehicle);
+        let Some(truck) = self.origin else {
+            return (
+                format!("official.{code}.{vehicle}"),
+                format!("Generated from ETS2 {} on this computer.", info.version),
+                vec!["SCS Software".into(), "TruckPaint contributors".into()],
+                LICENSE,
+            );
+        };
+        let mut authors = vec![truck.author.clone()];
+        authors.retain(|a| !a.is_empty());
+        authors.push("TruckPaint contributors".into());
+        let version = if truck.mod_version.is_empty() {
+            String::new()
+        } else {
+            format!(" version {}", truck.mod_version)
+        };
+        (
+            truck.package_id(code),
+            format!(
+                "Generated from Workshop mod {}{version} for ETS2 {} on this computer.",
+                truck.workshop_id, info.version
+            ),
+            authors,
+            MOD_LICENSE,
+        )
+    }
+
     fn package(&mut self, info: &GameInfo) -> Result<(Outcome, Value), String> {
-        let (brand, name) = self.identity()?;
+        let (brand, mut name) = self.identity()?;
+        if let Some(own) = self.origin.and_then(|t| t.name.clone()) {
+            name = own;
+        }
         let paths = self.definition_paths();
         let masks = self.paint_overrides(&paths)?;
         let parts = self.painted_parts(&paths)?;
@@ -814,7 +856,8 @@ impl<'a> Build<'a> {
             }
         }
         let vehicle = self.vehicle;
-        let manifest = json!({"format":1,"id":format!("official.{}.{vehicle}", info.game.code()),"version":version,"name":name,"brand":brand,"kind":self.kind.manifest(),"description":format!("Generated from ETS2 {} on this computer.", info.version),"authors":["SCS Software","TruckPaint contributors"],"license":LICENSE,"game":{"id":info.game.code(),"path":vehicle,"versions":format!(">={}.{}, <{}.{next}", game.major, game.minor, game.major),"alt_uv":false,"colour_picker":false},"paint_job":{"main":textures.main,"accessories":textures.accessories}});
+        let (id, description, authors, license) = self.origin_texts(info);
+        let manifest = json!({"format":1,"id":id,"version":version,"name":name,"brand":brand,"kind":self.kind.manifest(),"description":description,"authors":authors,"license":license,"game":{"id":info.game.code(),"path":vehicle,"versions":format!(">={}.{}, <{}.{next}", game.major, game.minor, game.major),"alt_uv":false,"colour_picker":false},"paint_job":{"main":textures.main,"accessories":textures.accessories}});
         self.stage = "package-validation";
         let packed =
             crate::pack_entries(manifest, textures.templates).map_err(|e| e.to_string())?;
@@ -1008,6 +1051,80 @@ pub fn scan(folder: &Path) -> Result<Scan, String> {
     })
 }
 
+impl Scan {
+    /// The trucks added by the Workshop mods of this game's Steam library, with the mods that
+    /// could not be read. `None` when the library has no Workshop folder.
+    pub fn workshop(&self) -> Option<Result<workshop::Workshop, String>> {
+        let folder = &self.sources.installation;
+        let workshop = workshop::folder_of(folder)?;
+        let base = self
+            .discovered
+            .iter()
+            .filter(|(_, kinds)| kinds.contains(&Kind::Truck))
+            .map(|(id, _)| id.clone())
+            .collect();
+        Some(workshop::scan(&workshop, folder, &self.info.version, &base))
+    }
+
+    /// The game and the files of the truck's mod, mounted in that order, with the names the
+    /// two give.
+    fn with_mod(&self, truck: &workshop::ModTruck) -> Result<(Sources, Names), String> {
+        let owned = workshop::owned_dlc(&self.sources.installation);
+        let layers = workshop::layers(&truck.package, &owned)?;
+        let sources = self.sources.with_mod(layers, &truck.id)?;
+        let names = names(&sources)?;
+        Ok((sources, names))
+    }
+}
+
+/// Words a mod truck's failure the way the player needs it: naming the mod, and the DLC when
+/// the mod needs one this game folder does not have.
+fn mod_error(scan: &Scan, truck: &workshop::ModTruck, error: String) -> String {
+    let owned = workshop::owned_dlc(&scan.sources.installation);
+    let missing = truck
+        .dlc_dependencies
+        .iter()
+        .filter(|dlc| !owned.contains(*dlc))
+        .cloned()
+        .collect::<Vec<_>>();
+    let mut text = format!("Workshop mod {}: {error}", truck.workshop_id);
+    if error.starts_with("missing game file ") && !missing.is_empty() {
+        text += &format!(
+            " (the mod needs {}, which this game folder does not have)",
+            missing.join(", ")
+        );
+    }
+    text
+}
+
+/// The brand and name of a Workshop truck, from the game and its mod.
+pub fn describe_mod_truck(
+    scan: &Scan,
+    truck: &workshop::ModTruck,
+) -> Result<(String, String), String> {
+    let run = || {
+        let (sources, names) = scan.with_mod(truck)?;
+        Build::new(&sources, &names, None, Kind::Truck, &truck.id).identity()
+    };
+    run().map_err(|e| mod_error(scan, truck, e))
+}
+
+/// Builds the package of a Workshop truck in memory, like [`generate`] does for the game's own.
+/// Mod trucks are made one at a time by the caller: a ZIP model is unpacked whole in memory.
+pub fn generate_mod_truck(
+    scan: &Scan,
+    truck: &workshop::ModTruck,
+    previous: Option<&tp_vehicles::Package>,
+) -> Result<Outcome, String> {
+    let run = || {
+        let (sources, names) = scan.with_mod(truck)?;
+        let mut build = Build::new(&sources, &names, previous, Kind::Truck, &truck.id);
+        build.origin = Some(truck);
+        build.package(&scan.info).map(|(outcome, _)| outcome)
+    };
+    run().map_err(|e| mod_error(scan, truck, e))
+}
+
 /// What generating a vehicle gives.
 pub enum Outcome {
     Package(Box<crate::Packed>),
@@ -1064,6 +1181,17 @@ pub fn generate(
     attempt(scan, vehicle, previous)?
         .result
         .map(|(outcome, _)| outcome)
+}
+
+/// How many vehicles are built at once: half the cores, at most 8, because concurrent builds
+/// must leave the desktop memory and CPU. A batch with a Workshop truck builds one at a time:
+/// a ZIP model is unpacked whole in memory, and one can be over 100 MB.
+fn workers(cores: usize, vehicles: usize, has_mod_truck: bool) -> usize {
+    const MAX_WORKERS: usize = 8;
+    if has_mod_truck {
+        return 1;
+    }
+    (cores / 2).min(MAX_WORKERS).clamp(1, vehicles.max(1))
 }
 
 /// Extracts a batch, continuing after per-vehicle refusals.
@@ -1134,10 +1262,9 @@ pub fn run(options: &Options) -> Result<Batch, String> {
             }
         }
     };
-    // Half the cores, at most 8: concurrent builds must leave the desktop memory and CPU.
-    const MAX_WORKERS: usize = 8;
     let cores = std::thread::available_parallelism().map_or(1, |n| n.get());
-    let workers = (cores / 2).min(MAX_WORKERS).clamp(1, vehicles.len().max(1));
+    // This batch holds the game's own vehicles only.
+    let workers = workers(cores, vehicles.len(), false);
     let next = AtomicUsize::new(0);
     let done = Mutex::new(Vec::new());
     std::thread::scope(|scope| {
@@ -1347,5 +1474,221 @@ mod tests {
         assert_eq!(changed.manifest.version.to_string(), "1.61.2");
         assert_eq!(changed.manifest.paint_job.main[0].texture.layout_version, 2);
         assert!(generate(&scan(first.path()).unwrap(), "nothing", None).is_err());
+    }
+
+    /// A made-up Steam library: the game with `game_vehicles`, and Workshop mod 111 whose
+    /// ZIP package (`content_161`, files under `base/`) holds `mod_files`.
+    fn library(
+        game_vehicles: &[Made],
+        mod_files: Vec<(String, Vec<u8>)>,
+    ) -> (tempfile::TempDir, PathBuf) {
+        let dir = tempfile::tempdir().unwrap();
+        let game = dir
+            .path()
+            .join("lib/steamapps/common/Euro Truck Simulator 2");
+        std::fs::create_dir_all(&game).unwrap();
+        write_game(&game, "eut2", "1.61.1.9", game_vehicles);
+        let folder = dir.path().join("lib/steamapps/workshop/content/227300/111");
+        std::fs::create_dir_all(&folder).unwrap();
+        std::fs::write(
+            folder.join("versions.sii"),
+            "SiiNunit\n{\npackage_version_info : .v\n{\npackage_name: \"content_161\"\ncompatible_versions[]: \"1.61.*\"\n}\n}\n",
+        )
+        .unwrap();
+        let entries = mod_files
+            .iter()
+            .map(|(path, bytes)| (format!("base/{path}"), bytes.as_slice()))
+            .collect::<Vec<_>>();
+        let named = entries
+            .iter()
+            .map(|(path, bytes)| {
+                (
+                    if path == "base/manifest.sii" {
+                        "manifest.sii"
+                    } else {
+                        path.as_str()
+                    },
+                    *bytes,
+                )
+            })
+            .collect::<Vec<_>>();
+        std::fs::write(
+            folder.join("content_161.zip"),
+            tp_scs::synthetic::zip_package(&named, true),
+        )
+        .unwrap();
+        (dir, game)
+    }
+
+    fn mod_truck(scan: &Scan) -> workshop::ModTruck {
+        let found = scan.workshop().expect("a Workshop folder").unwrap();
+        assert!(found.unreadable.is_empty(), "{:?}", found.unreadable);
+        found.trucks.into_iter().next().expect("a mod truck")
+    }
+
+    #[test]
+    fn a_workshop_truck_is_made_from_the_game_and_its_mod() {
+        use crate::synthetic::mod_files;
+        let files = mod_files(&[Made::truck("example.modded", "Modded")], &["truck"]);
+        let (_dir, game) = library(&[Made::truck("example.alpha", "Alpha")], files);
+        let scan = scan(&game).unwrap();
+        // The game's own list is unchanged by the mod.
+        assert_eq!(scan_ids(&game), ["example.alpha"]);
+        let truck = mod_truck(&scan);
+        assert_eq!(
+            (truck.id.as_str(), truck.workshop_id.as_str()),
+            ("example.modded", "111")
+        );
+        assert_eq!(
+            describe_mod_truck(&scan, &truck).unwrap(),
+            ("Example".to_owned(), "Example Modded".to_owned())
+        );
+        let packed = package(generate_mod_truck(&scan, &truck, None).unwrap());
+        let manifest = tp_vehicles::Package::read(&packed.bytes).unwrap().manifest;
+        assert_eq!(manifest.id, "mod.ets2.111.example.modded");
+        assert_eq!(manifest.game.path, "example.modded");
+        assert_eq!(manifest.version.to_string(), "1.61.1");
+        assert_eq!(manifest.license.as_deref(), Some(MOD_LICENSE));
+        assert_eq!(manifest.name, "Example Modded");
+        let named = workshop::ModTruck {
+            name: Some("Example Modded (example.modded)".into()),
+            ..truck.clone()
+        };
+        let packed = package(generate_mod_truck(&scan, &named, None).unwrap());
+        let manifest = tp_vehicles::Package::read(&packed.bytes).unwrap().manifest;
+        assert_eq!(manifest.name, "Example Modded (example.modded)");
+        assert_eq!(manifest.authors, ["Erik", "TruckPaint contributors"]);
+        assert!(
+            manifest
+                .description
+                .as_deref()
+                .unwrap_or_default()
+                .contains("Workshop mod 111 version 2.2.00")
+        );
+        // The official id is untouched.
+        let official = package(generate(&scan, "example.alpha", None).unwrap());
+        let official = tp_vehicles::Package::read(&official.bytes)
+            .unwrap()
+            .manifest;
+        assert_eq!(official.id, "official.ets2.example.alpha");
+        assert_eq!(official.license.as_deref(), Some(LICENSE));
+    }
+
+    #[test]
+    fn a_workshop_truck_can_use_a_model_of_the_game() {
+        use crate::synthetic::mod_files;
+        // The mod ships definitions only: its cabin points to the game's model.
+        let files = mod_files(&[Made::truck("example.skin", "Skin")], &["truck"])
+            .into_iter()
+            .filter(|(path, _)| !path.starts_with("vehicle/"))
+            .map(|(path, bytes)| {
+                let text = String::from_utf8_lossy(&bytes)
+                    .replace("example.skin.pmd", "example.alpha.pmd");
+                (
+                    path,
+                    if path_is_text(&bytes) {
+                        text.into_bytes()
+                    } else {
+                        bytes
+                    },
+                )
+            })
+            .collect();
+        let (_dir, game) = library(&[Made::truck("example.alpha", "Alpha")], files);
+        let scan = scan(&game).unwrap();
+        let truck = mod_truck(&scan);
+        let packed = package(generate_mod_truck(&scan, &truck, None).unwrap());
+        assert_eq!(
+            tp_vehicles::Package::read(&packed.bytes)
+                .unwrap()
+                .manifest
+                .id,
+            "mod.ets2.111.example.skin"
+        );
+    }
+
+    fn path_is_text(bytes: &[u8]) -> bool {
+        bytes.starts_with(b"SiiNunit")
+    }
+
+    #[test]
+    fn a_missing_file_names_the_mod_and_a_missing_dlc() {
+        use crate::synthetic::mod_files;
+        let files = mod_files(&[Made::truck("example.broken", "Broken")], &["truck"])
+            .into_iter()
+            .filter(|(path, _)| !path.ends_with(".pmd"))
+            .map(|(path, bytes)| {
+                if path == "manifest.sii" {
+                    let text = String::from_utf8(bytes).unwrap().replace(
+                        "category[]",
+                        "dlc_dependencies[]: \"dlc_daf_2021\"\ncategory[]",
+                    );
+                    (path, text.into_bytes())
+                } else {
+                    (path, bytes)
+                }
+            })
+            .collect();
+        let (_dir, game) = library(&[Made::truck("example.alpha", "Alpha")], files);
+        let scan = scan(&game).unwrap();
+        let truck = mod_truck(&scan);
+        let error = generate_mod_truck(&scan, &truck, None).err().unwrap();
+        assert!(
+            error.starts_with(
+                "Workshop mod 111: missing game file /vehicle/shared/example.broken.pmd"
+            ),
+            "{error}"
+        );
+        assert!(error.contains("the mod needs dlc_daf_2021"), "{error}");
+        // With that DLC in the game folder the reason no longer blames it.
+        std::fs::write(
+            game.join("dlc_daf_2021.scs"),
+            tp_scs::synthetic::ArchiveBuilder::default().build(),
+        )
+        .unwrap();
+        let scan = super::scan(&game).unwrap();
+        let error = generate_mod_truck(&scan, &truck, None).err().unwrap();
+        assert!(!error.contains("the mod needs"), "{error}");
+    }
+
+    #[test]
+    fn a_changed_workshop_truck_takes_the_next_version_like_a_game_update() {
+        use crate::synthetic::mod_files;
+        let make = |shifted| {
+            let truck = Made {
+                shifted,
+                ..Made::truck("example.modded", "Modded")
+            };
+            let (dir, game) = library(
+                &[Made::truck("example.alpha", "Alpha")],
+                mod_files(&[truck], &["truck"]),
+            );
+            let scan = scan(&game).unwrap();
+            let truck = mod_truck(&scan);
+            (dir, scan, truck)
+        };
+        let (_a, scan_a, truck_a) = make(false);
+        let first = package(generate_mod_truck(&scan_a, &truck_a, None).unwrap());
+        let first = tp_vehicles::Package::read(&first.bytes).unwrap();
+        let (_b, scan_b, truck_b) = make(true);
+        // Same mod, same game, a template moved: the next patch, the first stays installed.
+        let second = package(generate_mod_truck(&scan_b, &truck_b, Some(&first)).unwrap());
+        let second = tp_vehicles::Package::read(&second.bytes).unwrap();
+        assert_eq!(first.manifest.version.to_string(), "1.61.1");
+        assert_eq!(second.manifest.version.to_string(), "1.61.2");
+        // Unchanged: nothing to install.
+        assert!(matches!(
+            generate_mod_truck(&scan_a, &truck_a, Some(&first)).unwrap(),
+            Outcome::UpToDate
+        ));
+    }
+
+    #[test]
+    fn a_batch_with_a_workshop_truck_builds_one_vehicle_at_a_time() {
+        assert_eq!(workers(32, 20, true), 1);
+        assert_eq!(workers(32, 20, false), 8);
+        assert_eq!(workers(8, 20, false), 4);
+        assert_eq!(workers(32, 2, false), 2);
+        assert_eq!(workers(1, 0, false), 1);
     }
 }
