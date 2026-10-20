@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="600" viewBox="0 0 2000 600" preserveAspectRatio="none">
+  <!-- Blue Wave Biarritz: flowing wave bands rising to the right. Original artwork, MIT licensed. -->
+  <path d="M0 330 C400 300 800 380 1200 250 S1800 60 2000 40 L2000 600 L0 600 Z" fill="#3E9EDB"/>
+  <path d="M-40 430 C400 400 800 480 1200 350 S1800 170 2040 135 L2040 660 L-40 660 Z" fill="#033163" stroke="#FFFFFF" stroke-width="16" stroke-linejoin="round"/>
+  <path d="M0 500 C400 470 800 550 1200 430 S1800 270 2000 240" fill="none" stroke="#3E9EDB" stroke-width="22" stroke-linecap="round"/>
+</svg>

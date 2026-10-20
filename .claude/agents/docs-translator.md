@@ -20,6 +20,7 @@ If you are given pages, use them. Otherwise compare the trees: for each `en/**/*
 - Casing: sentence case for headings in fr, es and de (German nouns stay capitalised). Use the game's own terms when the game has them. Two different commands must keep clearly different names.
 - Register: copy the existing pages of that language. Spanish and German address the reader formally ("Cambie de textura…", "Wechseln Sie die Textur…"); French uses "vous". Check a neighbouring page before choosing a verb form.
 - French typography: curly apostrophes (’) and the same quote habits as the existing French pages.
+- The example livery is artwork: "Blue Wave Biarritz", its tagline, and the names of its swatches and styles (White, Light blue, Blue, White base, Blue panel, Tagline) are the same in every language, because the screenshots show them as they are. Translate only the sentence around them.
 - Example names shown in a screenshot (a layer called "Background", a group called "Graphics") are rendered per language by the app, and the existing pages follow what each language's screenshot shows: the French page keeps "Background", the Spanish one says "Fondo". Do not guess: read the same page in the target language if it exists, or check the media scenario in `crates/tp-app/tests/doc_media.rs`.
 - Do not add, remove or reinterpret content. If the English text looks wrong or unclear, report it instead of fixing it in one language only.
 

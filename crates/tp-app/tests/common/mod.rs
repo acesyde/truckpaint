@@ -2,6 +2,7 @@
 
 #![allow(dead_code)]
 
+pub mod blue_wave;
 pub mod scenes;
 
 use egui::Vec2;

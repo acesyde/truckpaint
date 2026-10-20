@@ -8,7 +8,7 @@ import Shot from '~/components/Shot.astro';
 import Clip from '~/components/Clip.astro';
 import Ui from '~/components/Ui.astro';
 
-The palette holds your project's named colors, called swatches: "Company red", "Company grey", "Cream"… When an object's color is linked to a swatch, editing the swatch recolors that object, on every texture of the fleet.
+The palette holds your project's named colors, called swatches: "White", "Light blue", "Blue"… When an object's color is linked to a swatch, editing the swatch recolors that object, on every texture of the fleet.
 
 ## Why the brand is shared by elements
 
@@ -27,11 +27,11 @@ The color becomes a new swatch, and the color you picked it from is linked to it
 
 In the Workshop, the <Ui id="cmd-tab-resources" /> tab lists the project's palette, symbols, styles and images. Its <Ui id="colors-palette" /> section works like the palette of the color popover.
 
-<Shot name="brand/resources" alt="The Resources tab of the Workshop, listing a palette of five swatches, graphic and text styles, the symbol Logo and an image" />
+<Shot name="brand/resources" alt="The Resources tab of the Workshop, listing a palette of three swatches, graphic and text styles, the symbol Logo and its images" />
 
 Select one or more objects, then click a swatch: its color goes to the fill or the stroke, whichever is the target (press X to switch), and is linked to the swatch. With a gradient, the swatch colors the selected stop.
 
-<Clip name="brand/apply-swatch" label="Clicking the swatches Company red, Company grey, then Company red again changes the fill of the selected panel" />
+<Clip name="brand/apply-swatch" label="Clicking the swatches Light blue, Blue, then Light blue again changes the fill of the selected panel" />
 
 A linked color shows the swatch's name with a link icon in the Fill or Stroke row, and the swatch has a ring in the color popover. Picking any other color (a recent color, the picker or the eyedropper) unlinks it: the color then shows as a hex code.
 
@@ -39,14 +39,14 @@ Swatches can also color a stroke, a drop shadow, a gradient stop, a style, or an
 
 ## Recolor the whole fleet
 
-Open the <Ui id="cmd-space-brand" /> space from the space switcher, or press <kbd>Ctrl</kbd>+<kbd>3</kbd> (<kbd>⌘</kbd> on macOS). Each swatch card shows its color, its hex value and its usage, such as "5 textures · 11 objects", or <Ui id="brand-unused" />.
+Open the <Ui id="cmd-space-brand" /> space from the space switcher, or press <kbd>Ctrl</kbd>+<kbd>3</kbd> (<kbd>⌘</kbd> on macOS). Each swatch card shows its color, its hex value and its usage, such as "2 textures · 11 objects", or <Ui id="brand-unused" />.
 
 1. Open the swatch's menu (…) and choose <Ui id="colors-edit-swatch" />.
 2. In the editor on the right, pick the new color or type its hex value. You can also rename the swatch here.
 3. Compare the <Ui id="brand-before" /> and <Ui id="brand-after" /> previews, and check the impact: the number of textures and objects that will change, with a thumbnail of each texture in the new color.
 4. Click <Ui id="brand-apply-to-fleet" />.
 
-<Shot name="brand/brand-space" alt="The Brand space editing the swatch Company red with a new green, with the Before and After previews and the impact on five textures" />
+<Shot name="brand/brand-space" alt="The Brand space editing the swatch Light blue with a new turquoise, with the Before and After previews and the impact on two textures" />
 
 Nothing changes in the project until you click <Ui id="brand-apply-to-fleet" />: <Ui id="button-cancel" /> or Escape closes the editor and leaves everything as it was. Once applied, every linked color takes the new value on every texture and stays linked, and one Undo restores the previous color everywhere.
 
