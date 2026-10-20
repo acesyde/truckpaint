@@ -11,6 +11,7 @@ mod common;
 
 use std::path::PathBuf;
 
+use common::blue_wave::{self, Color};
 use common::scenes::*;
 use egui::{Event, Modifiers, Pos2, Rect, Vec2};
 use egui_kittest::kittest::Queryable;
@@ -425,17 +426,50 @@ fn load_sample(h: &H, id: &str, version: &str) -> tp_vehicles::Package {
         .unwrap()
 }
 
+/// The example livery on the sample truck and trailer, showing the
+/// trailer's curtain body (the texture that tells the livery best).
+fn livery(h: &mut H) -> blue_wave::Livery {
+    let livery = blue_wave::blue_wave_fleet(h);
+    show_texture(h, "body_13_6");
+    livery
+}
+
+/// Makes the texture `texture` of the open project the active one.
+fn show_texture(h: &mut H, texture: &str) {
+    let ws = h.state_mut().workspace_mut().unwrap();
+    let index = blue_wave::surface_of(ws, texture).expect("a texture of the fleet");
+    ws.set_active_surface(index);
+    h.run();
+}
+
+/// The first object named `name` of the active texture, groups searched.
+fn object_named(h: &H, name: &str) -> tp_core::document::ObjectId {
+    fn find(
+        objects: &[std::sync::Arc<tp_core::document::Object>],
+        name: &str,
+    ) -> Option<tp_core::document::ObjectId> {
+        objects.iter().find_map(|o| {
+            (o.name == name)
+                .then_some(o.id)
+                .or_else(|| find(&o.children, name))
+        })
+    }
+    let ws = h.state().workspace().unwrap();
+    find(&ws.project.surface().objects, name).expect("an object of that name")
+}
+
 /// The sample truck alone, with both main textures.
 fn sample_truck_project(h: &mut H) {
     let truck = load_sample(h, tp_app::vehicles::SAMPLE_ID, "1.1.0");
     let mut textures = tp_app::vehicle_project::default_textures(&truck.manifest);
     textures.insert(1, "high_roof".into());
     let project =
-        tp_app::vehicle_project::fleet_project("ACE Logistics", &[(&truck, &textures)]).unwrap();
+        tp_app::vehicle_project::fleet_project("Blue Wave Biarritz", &[(&truck, &textures)])
+            .unwrap();
     common::open_project(h, project);
 }
 
-/// The sample truck 1.0.0 with the demo livery on its Standard cab, the
+/// The sample truck 1.0.0 with the example livery on its Standard cab, the
 /// sample truck 1.1.0 (which redraws that cab's layout) installed too.
 fn outdated_truck_project(h: &mut H) {
     let older = concat!(
@@ -449,9 +483,11 @@ fn outdated_truck_project(h: &mut H) {
     let truck = load_sample(h, tp_app::vehicles::SAMPLE_ID, "1.0.0");
     let textures = tp_app::vehicle_project::default_textures(&truck.manifest);
     let project =
-        tp_app::vehicle_project::fleet_project("ACE Logistics", &[(&truck, &textures)]).unwrap();
+        tp_app::vehicle_project::fleet_project("Blue Wave Biarritz", &[(&truck, &textures)])
+            .unwrap();
     common::open_project(h, project);
-    demo_scene(h);
+    blue_wave::paint(h.state_mut().workspace_mut().unwrap());
+    common::settle_renders(h);
 }
 
 /// Update Template for the sample truck of [`outdated_truck_project`].
@@ -460,19 +496,6 @@ fn update_template_dialog(h: &H) -> tp_app::ui::vehicle_dialogs::UpdateDialog {
     let plan =
         tp_app::vehicle_project::plan(&h.state().workspace().unwrap().project, &newer).unwrap();
     tp_app::ui::vehicle_dialogs::UpdateDialog::new(newer, plan)
-}
-
-/// The sample truck and the sample trailer.
-fn sample_fleet(h: &mut H) {
-    sample_truck_project(h);
-    let trailer = load_sample(h, tp_app::vehicles::SAMPLE_TRAILER_ID, "1.0.0");
-    let all = tp_app::vehicle_project::default_textures(&trailer.manifest);
-    h.state_mut()
-        .workspace_mut()
-        .unwrap()
-        .add_vehicle(&trailer, &all, 1.0)
-        .unwrap();
-    common::settle_renders(h);
 }
 
 /// Mod export writes into a temporary Documents folder.
@@ -496,17 +519,16 @@ fn section_getting_started() {
     use egui::accesskit::Role;
     // A recent project with artwork, for the home screen's card.
     let dir = tempfile::tempdir().unwrap();
-    let ace = dir.path().join("ACE Logistics.truckpaint");
+    let ace = dir.path().join("Blue Wave Biarritz.truckpaint");
     {
         let mut h = common::harness();
-        common::create_project(&mut h);
-        demo_scene(&mut h);
+        livery(&mut h);
         tp_file::write(&h.state().workspace().unwrap().project, &ace).unwrap();
     }
     for_each_language(|language| {
         let prefs = Prefs {
             recent: vec![tp_app::prefs::RecentProject {
-                name: "ACE Logistics".into(),
+                name: "Blue Wave Biarritz".into(),
                 path: ace.clone(),
                 last_opened: tp_app::prefs::now_unix() - 7_200,
             }],
@@ -779,8 +801,8 @@ fn section_fleet() {
     use tp_app::ui::vehicle_dialogs::{AddVehicleDialog, TexturesDialog, VehicleChoice};
     for_each_language(|language| {
         let mut h = harness(language);
-        sample_fleet(&mut h);
-        demo_scene(&mut h);
+        livery(&mut h);
+        show_texture(&mut h, "standard");
         space(&mut h, Space::Project);
         common::settle_renders(&mut h);
         shot(&mut h, language, "fleet/project");
@@ -791,7 +813,8 @@ fn section_fleet() {
         // alone, so the installed sample trailer is offered, checked.
         let mut add = harness(language);
         sample_truck_project(&mut add);
-        demo_scene(&mut add);
+        blue_wave::paint(add.state_mut().workspace_mut().unwrap());
+        common::settle_renders(&mut add);
         let mut dialog = AddVehicleDialog::for_game(Some("ets2"));
         let trailer = add
             .state()
@@ -822,34 +845,18 @@ fn section_fleet() {
 #[ignore = "needs a GPU; run with `mise run doc:media`"]
 fn section_workshop() {
     use tp_app::layout::LeftTab;
-    use tp_core::document::{CharStyle, Rgba};
     for_each_language(|language| {
-        // The Workshop with a livery, the lettering selected.
+        // The Workshop with the livery, then the tagline selected.
         let mut h = harness(language);
-        common::create_project(&mut h);
-        demo_scene(&mut h);
-        let text = {
-            let ws = h.state_mut().workspace_mut().unwrap();
-            let style = CharStyle {
-                size: 260.0,
-                ..CharStyle::default()
-            };
-            add_text(
-                ws,
-                "ACE Logistics",
-                style,
-                (300.0, 3950.0),
-                Rgba::rgb(0x1B, 0x23, 0x40),
-                None,
-            )
-        };
+        livery(&mut h);
         shot(&mut h, language, "workshop/workshop");
-        h.state_mut().workspace_mut().unwrap().selection = vec![text];
+        let tagline = object_named(&h, "Tagline");
+        h.state_mut().workspace_mut().unwrap().selection = vec![tagline];
         shot(&mut h, language, "workshop/text-selected");
         h.state_mut().workspace_mut().unwrap().selection.clear();
         left_tab(&mut h, LeftTab::Layers);
-        let ids = livery_tree(&mut h);
-        h.state_mut().workspace_mut().unwrap().selection = vec![ids[3]];
+        let side = object_named(&h, "Side (left)");
+        h.state_mut().workspace_mut().unwrap().selection = vec![side];
         shot(&mut h, language, "workshop/layers");
 
         // After Update Template: the objects to reposition are marked.
@@ -883,7 +890,17 @@ fn section_workshop() {
         // Moving and resizing: drag the ellipse, then its corner handle.
         let mut h = harness(language);
         common::create_project(&mut h);
-        let ellipse = demo_scene(&mut h)[2];
+        let ellipse = {
+            use tp_core::document::{Frame, Object, ObjectId, ShapeKind};
+            use tp_core::kurbo::{Point, Size};
+            let mut o = Object::new(
+                ObjectId(0),
+                ShapeKind::Ellipse,
+                Frame::new(Point::new(2900.0, 2600.0), Size::new(1400.0, 1400.0), 0.0),
+            );
+            o.fill = Color::LightBlue.rgba().into();
+            h.state_mut().workspace_mut().unwrap().project.add(o)
+        };
         let center = doc_to_screen(&h, 2900.0, 2600.0);
         let mut clip = Clip::start(
             &mut h,
@@ -918,7 +935,6 @@ fn section_workshop() {
         // Writing a text: the Text tool, a click, typing.
         let mut h = harness(language);
         common::create_project(&mut h);
-        demo_scene(&mut h);
         let at = doc_to_screen(&h, 1300.0, 3350.0);
         let mut clip = Clip::start(
             &mut h,
@@ -929,7 +945,7 @@ fn section_workshop() {
         );
         clip.wait(&mut h, 300).click(&mut h, "tool-text");
         clip.click_at(&mut h, at);
-        clip.type_text(&mut h, "ACE Logistics");
+        clip.type_text(&mut h, "Blue Wave");
         clip.wait(&mut h, 400)
             .key(&mut h, egui::Key::Escape, Modifiers::NONE);
         clip.finish(&mut h);
@@ -960,9 +976,9 @@ fn section_workshop() {
 
         // Texts and images; shapes and paths; gradients.
         let mut h = harness(language);
-        common::create_project(&mut h);
-        lettering_scene(&mut h);
-        wait_for_images(&mut h);
+        livery(&mut h);
+        let logo = object_named(&h, "Logo");
+        h.state_mut().workspace_mut().unwrap().selection = vec![logo];
         shot(&mut h, language, "workshop/text-images");
         let mut h = harness(language);
         common::create_project(&mut h);
@@ -980,6 +996,22 @@ fn section_workshop() {
     });
 }
 
+/// Opens the swatch editor on `swatch` with a new turquoise, as the color
+/// picker would set it: the Brand space then shows what that changes.
+fn edit_swatch(h: &mut H, swatch: tp_core::document::SwatchId) {
+    use tp_app::brand_ops::EditValue;
+    let turquoise = tp_core::document::Rgba::rgb(0x1F, 0xB8, 0xA6);
+    let ws = h.state_mut().workspace_mut().unwrap();
+    ws.start_swatch_edit(swatch);
+    ws.set_edit_value(EditValue::Color(turquoise));
+    let edit = ws.panels.brand_edit.as_mut().unwrap();
+    let hsva = tp_core::document::Hsva::from(turquoise);
+    edit.hex = turquoise.to_hex();
+    edit.hsv = tp_ui::widgets::Hsv::new(hsva.h / 360.0, hsva.s, hsva.v, hsva.a);
+    h.run();
+    common::settle_renders(h);
+}
+
 // --- Brand --------------------------------------------------------------------
 
 #[test]
@@ -991,24 +1023,23 @@ fn section_brand() {
     for_each_language(|language| {
         // The Resources tab with a palette, styles, a symbol and an image.
         let mut h = harness(language);
-        common::create_project(&mut h);
-        let ids = demo_scene(&mut h);
-        demo_brand(&mut h, &ids);
+        livery(&mut h);
         left_tab(&mut h, LeftTab::Resources);
         shot(&mut h, language, "brand/resources");
 
         // The Brand space, editing a swatch with its impact on the fleet.
         let mut h = harness(language);
-        editor_fleet(&mut h);
+        let made = livery(&mut h);
         space(&mut h, Space::Brand);
-        open_editor(&mut h, EditorTarget::Swatch);
+        edit_swatch(&mut h, made.swatches[Color::LightBlue as usize]);
         h.run();
         common::settle_renders(&mut h);
         shot(&mut h, language, "brand/brand-space");
 
         // Applying a swatch, then a style, to a new panel.
         let mut h = harness(language);
-        brand_fleet(&mut h);
+        livery(&mut h);
+        show_texture(&mut h, "standard");
         left_tab(&mut h, LeftTab::Resources);
         {
             let ws = h.state_mut().workspace_mut().unwrap();
@@ -1017,23 +1048,26 @@ fn section_brand() {
                 ShapeKind::Rectangle {
                     corner_radius: 80.0,
                 },
-                Frame::new(Point::new(2048.0, 900.0), Size::new(2600.0, 900.0), 0.0),
+                Frame::new(Point::new(2048.0, 380.0), Size::new(2600.0, 420.0), 0.0),
             );
             o.fill = Rgba::rgb(0xD8, 0xDA, 0xDF).into();
+            o.name = "Panel".into();
             let id = ws.project.add(o);
             ws.selection = vec![id];
             ws.panels.color_target = tp_app::workspace::ColorTarget::Fill;
         }
-        let start = doc_to_screen(&h, 2048.0, 900.0);
+        let start = doc_to_screen(&h, 2048.0, 380.0);
         let mut clip = Clip::start(&mut h, language, "brand/apply-swatch", None, start);
-        clip.wait(&mut h, 400).click_label(&mut h, "Company red");
-        clip.wait(&mut h, 500).click_label(&mut h, "Company grey");
-        clip.wait(&mut h, 500).click_label(&mut h, "Company red");
+        clip.wait(&mut h, 400).click_label(&mut h, "Light blue");
+        clip.wait(&mut h, 500).click_label(&mut h, "Blue");
+        clip.wait(&mut h, 500).click_label(&mut h, "Light blue");
         clip.finish(&mut h);
 
         let style = tp_i18n::tr_args(
             "styles-graphic-item",
-            &[("name", tp_i18n::value("Band"))].into_iter().collect(),
+            &[("name", tp_i18n::value("Blue panel"))]
+                .into_iter()
+                .collect(),
         );
         let start = clip.pointer;
         let mut clip = Clip::start(&mut h, language, "brand/apply-style", None, start);
@@ -1052,9 +1086,7 @@ fn section_export() {
     for_each_language(|language| {
         // Export Texture, with its preview.
         let mut h = harness(language);
-        common::create_project(&mut h);
-        lettering_scene(&mut h);
-        wait_for_images(&mut h);
+        livery(&mut h);
         h.key_press_modifiers(Modifiers::COMMAND | Modifiers::SHIFT, egui::Key::E);
         for _ in 0..400 {
             h.step();
@@ -1072,7 +1104,7 @@ fn section_export() {
         {
             let s = &mut h.state_mut().workspace_mut().unwrap().project.mod_settings;
             s.author = "Jane Doe".into();
-            s.description = "ACE Logistics fleet colors".into();
+            s.description = "Blue Wave Biarritz fleet colors".into();
         }
         space(&mut h, Space::Project);
         common::settle_renders(&mut h);
@@ -1102,8 +1134,7 @@ fn section_ai_assistant() {
     use tp_app::state::Modal;
     for_each_language(|language| {
         let mut h = harness(language);
-        common::create_project(&mut h);
-        demo_scene(&mut h);
+        livery(&mut h);
         h.state_mut().prefs.mcp_port = std::net::TcpListener::bind(("127.0.0.1", 0))
             .unwrap()
             .local_addr()

@@ -54,6 +54,7 @@ Player documentation is an Astro Starlight site in `website/`, in the same four 
 - Write the English page first, then the three translations. The files and `sidebar.order` match across languages.
 - Quote an interface label with `<Ui id="message-id" />` (never type it by hand): it shows the app's own text in the page's language, so the id must exist in all four locales. Use `<Shot name="…" alt="…" />` for a screenshot and `<Clip name="…" label="…" />` for an animation. The build fails on an unknown id or a missing medium.
 - Screenshots and animations are rendered from the app by `crates/tp-app/tests/doc_media.rs` and committed under `website/public/media/<lang>/`. After changing a documented screen, run `mise run doc:media <section>`.
+- The media that show a finished paint job show one example livery, "Blue Wave Biarritz", on the sample truck and trailer. It is defined in one place: the brief and artwork in `crates/tp-app/tests/fixtures/blue-wave/` and the layout table in `crates/tp-app/tests/common/blue_wave.rs`, which a headless test (`tests/blue_wave.rs`) also checks. Change the livery there, never in a scenario, then render the sections again.
 - Site colors come from the app's design tokens; a test fails when they are stale (`mise run doc:tokens`).
 - `vehicles/package-format.mdx` has no fr/es/de translation yet; Starlight falls back to the English page with a "not translated" notice. Don't treat it as an error, but ask before translating it.
 

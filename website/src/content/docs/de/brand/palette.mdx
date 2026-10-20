@@ -8,7 +8,7 @@ import Shot from '~/components/Shot.astro';
 import Clip from '~/components/Clip.astro';
 import Ui from '~/components/Ui.astro';
 
-Die Palette enthält die benannten Farben Ihres Projekts, die Farbfelder: „Firmenrot“, „Firmengrau“, „Creme“… Ist die Farbe eines Objekts mit einem Farbfeld verknüpft, färbt eine Bearbeitung des Farbfelds dieses Objekt um, auf jeder Textur der Flotte.
+Die Palette enthält die benannten Farben Ihres Projekts, die Farbfelder: „White“, „Light blue“, „Blue“… Ist die Farbe eines Objekts mit einem Farbfeld verknüpft, färbt eine Bearbeitung des Farbfelds dieses Objekt um, auf jeder Textur der Flotte.
 
 ## Warum die Marke über Elemente geteilt wird
 
@@ -27,11 +27,11 @@ Die Farbe wird zu einem neuen Farbfeld, und die Farbe, aus der Sie es erstellt h
 
 In der Werkstatt listet die Registerkarte <Ui id="cmd-tab-resources" /> Palette, Symbole, Stile und Bilder des Projekts auf. Ihr Abschnitt <Ui id="colors-palette" /> funktioniert wie die Palette des Farb-Popovers.
 
-<Shot name="brand/resources" alt="Die Registerkarte Ressourcen der Werkstatt mit einer Palette aus fünf Farbfeldern, Grafik- und Textstilen, dem Symbol Logo und einem Bild" />
+<Shot name="brand/resources" alt="Die Registerkarte Ressourcen der Werkstatt mit einer Palette aus drei Farbfeldern, Grafik- und Textstilen, dem Symbol Logo und seinen Bildern" />
 
 Wählen Sie ein oder mehrere Objekte aus und klicken Sie dann auf ein Farbfeld: Seine Farbe geht an die Fläche oder die Kontur, je nachdem, welche das Ziel ist (mit X wechseln), und wird mit dem Farbfeld verknüpft. Bei einem Verlauf färbt das Farbfeld den ausgewählten Farbregler.
 
-<Clip name="brand/apply-swatch" label="Ein Klick auf die Farbfelder Company red, Company grey und dann wieder Company red ändert die Fläche der ausgewählten Platte" />
+<Clip name="brand/apply-swatch" label="Ein Klick auf die Farbfelder Light blue, Blue und dann wieder Light blue ändert die Fläche der ausgewählten Platte" />
 
 Eine verknüpfte Farbe zeigt den Namen des Farbfelds mit einem Verknüpfungssymbol in der Zeile Fläche oder Kontur, und das Farbfeld hat im Farb-Popover einen Ring. Wählen Sie eine andere Farbe (eine zuletzt verwendete Farbe, den Farbwähler oder die Pipette), wird die Verknüpfung aufgehoben: Die Farbe erscheint dann als Hex-Code.
 
@@ -39,14 +39,14 @@ Farbfelder können auch eine Kontur, einen Schlagschatten, einen Farbregler eine
 
 ## Die ganze Flotte umfärben
 
-Öffnen Sie den Bereich <Ui id="cmd-space-brand" /> über den Bereichsumschalter oder drücken Sie <kbd>Strg</kbd>+<kbd>3</kbd> (<kbd>⌘</kbd> unter macOS). Jede Farbfeldkarte zeigt ihre Farbe, ihren Hex-Wert und ihre Verwendung, etwa „5 Texturen · 11 Objekte“, oder <Ui id="brand-unused" />.
+Öffnen Sie den Bereich <Ui id="cmd-space-brand" /> über den Bereichsumschalter oder drücken Sie <kbd>Strg</kbd>+<kbd>3</kbd> (<kbd>⌘</kbd> unter macOS). Jede Farbfeldkarte zeigt ihre Farbe, ihren Hex-Wert und ihre Verwendung, etwa „2 Texturen · 11 Objekte“, oder <Ui id="brand-unused" />.
 
 1. Öffnen Sie das Menü des Farbfelds (…) und wählen Sie <Ui id="colors-edit-swatch" />.
 2. Wählen Sie im Editor rechts die neue Farbe oder geben Sie ihren Hex-Wert ein. Hier können Sie das Farbfeld auch umbenennen.
 3. Vergleichen Sie die Vorschauen <Ui id="brand-before" /> und <Ui id="brand-after" /> und prüfen Sie die Auswirkung: die Anzahl der Texturen und Objekte, die sich ändern, mit einer Miniatur jeder Textur in der neuen Farbe.
 4. Klicken Sie auf <Ui id="brand-apply-to-fleet" />.
 
-<Shot name="brand/brand-space" alt="Der Bereich Marke beim Bearbeiten des Farbfelds Company red mit einem neuen Grün, mit den Vorschauen Vorher und Nachher und der Auswirkung auf fünf Texturen" />
+<Shot name="brand/brand-space" alt="Der Bereich Marke beim Bearbeiten des Farbfelds Light blue mit einem neuen Türkis, mit den Vorschauen Vorher und Nachher und der Auswirkung auf zwei Texturen" />
 
 Im Projekt ändert sich nichts, bis Sie auf <Ui id="brand-apply-to-fleet" /> klicken: <Ui id="button-cancel" /> oder Esc schließt den Editor und lässt alles, wie es war. Nach dem Anwenden übernimmt jede verknüpfte Farbe auf jeder Textur den neuen Wert und bleibt verknüpft, und ein einziges Rückgängig stellt überall die vorherige Farbe wieder her.
 

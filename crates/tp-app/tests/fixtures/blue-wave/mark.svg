@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300">
+  <!-- Blue Wave Biarritz: the wave mark. Original artwork, MIT licensed. -->
+  <path d="M0 290 C8 170 90 52 214 36 C300 25 372 66 394 132 C352 104 302 104 266 132 C306 130 330 158 334 196 C298 170 250 172 214 202 C168 238 96 268 0 290 Z" fill="#033163"/>
+  <path d="M40 290 C60 200 124 124 214 108 C268 99 314 118 338 150 C300 140 262 150 238 172 C196 206 120 258 40 290 Z" fill="#3E9EDB" stroke="#FFFFFF" stroke-width="8" stroke-linejoin="round"/>
+  <path d="M96 290 C116 236 160 190 220 172 C250 163 280 164 300 176 C262 180 232 196 204 222 C176 246 140 270 96 290 Z" fill="#033163" stroke="#FFFFFF" stroke-width="8" stroke-linejoin="round"/>
+</svg>

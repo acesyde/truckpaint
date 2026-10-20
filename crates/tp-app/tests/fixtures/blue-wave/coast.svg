@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="500" viewBox="0 0 360 500">
+  <!-- Blue Wave Biarritz: the lighthouse and the rocks of the coast. Original artwork, MIT licensed. -->
+  <path d="M168 120 L192 120 L204 360 L156 360 Z" fill="#033163"/>
+  <rect x="150" y="104" width="60" height="18" rx="3" fill="#033163"/>
+  <rect x="160" y="64" width="40" height="42" fill="#033163"/>
+  <path d="M154 66 L180 34 L206 66 Z" fill="#033163"/>
+  <rect x="177" y="18" width="6" height="18" fill="#033163"/>
+  <rect x="168" y="76" width="24" height="18" fill="#FFFFFF"/>
+  <path d="M0 500 L0 410 C30 392 58 372 86 380 C118 346 150 342 176 352 C214 330 262 336 290 372 C318 366 342 380 360 396 L360 500 Z" fill="#033163"/>
+  <path d="M20 430 C70 414 130 420 190 434 C250 448 310 440 340 424" fill="none" stroke="#3E9EDB" stroke-width="12" stroke-linecap="round"/>
+</svg>

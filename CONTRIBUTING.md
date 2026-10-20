@@ -215,6 +215,13 @@ mise run doc:tokens            # update the site's colors from the app
   `crates/tp-app/tests/doc_media.rs`, then committed. When your change modifies a
   documented screen, render its section again, for example
   `mise run doc:media workshop`. `doc:media` installs ffmpeg for you.
+- The screenshots and animations that show a finished paint job show one example
+  livery, "Blue Wave Biarritz", painted on the sample truck and trailer. Its brief and
+  artwork are in `crates/tp-app/tests/fixtures/blue-wave/` and its layout (which element
+  goes in which zone of each template) is a table in
+  `crates/tp-app/tests/common/blue_wave.rs`; `cargo test -p tp-app --test blue_wave`
+  checks it without a GPU, and `BLUE_WAVE_DUMP=<folder>` on that test writes each
+  texture as a PNG to look at. Change the livery there, not in a scenario.
 - The site's colors come from the app's design tokens. A test fails if they are out of
   date: run `mise run doc:tokens`.
 
