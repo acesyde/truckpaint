@@ -1,6 +1,6 @@
 ---
 title: Official vehicles
-description: Make the official ETS2 trucks and trailers from your own game, inside TruckPaint.
+description: Make the official ETS2 trucks and trailers, and the trucks of your Steam Workshop mods, from your own game, inside TruckPaint.
 sidebar:
   order: 2
 ---
@@ -30,11 +30,23 @@ TruckPaint checks the folder, shows the game's version when it is valid, and say
 3. Check the vehicles you want, or use <Ui id="game-select-all" />, <Ui id="game-select-none" /> and <Ui id="game-select-updates" />.
 4. Click <Ui id="game-generate" args={{ count: 3 }} />. The vehicles that are not made yet are made, and the others are made again.
 
-<Shot name="vehicles/my-game" alt="The My Game tab: three trucks and two trailers, two of them marked Game updated and checked, and the Generate (2) button" />
+<Shot name="vehicles/my-game" alt="The My Game tab filtered on trucks: three trucks, two of them marked Game updated and checked, then a Workshop section with one truck from a mod, and the Generate (2) button" />
 
-The vehicles are made one after another, and each one is installed as soon as it is ready. A progress bar counts them ("1 of 5"), the vehicle being made is named, and each row shows whether it is waiting, in progress, installed, up to date or failed. You can keep working in the app, and close the library: a message tells you when it is done. <Ui id="button-cancel" /> stops before the next vehicle and keeps those already installed. A vehicle that fails does not stop the others; the result lists it with the reason.
+The vehicles are made one after another, and each one is installed as soon as it is ready. A progress bar counts them ("1 of 6"), the vehicle being made is named, and each row shows whether it is waiting, in progress, installed, up to date or failed. You can keep working in the app, and close the library: a message tells you when it is done. <Ui id="button-cancel" /> stops before the next vehicle and keeps those already installed. A vehicle that fails does not stop the others; the result lists it with the reason.
 
-<Shot name="vehicles/my-game-progress" alt="A run in progress: the first vehicle installed, the second in progress, three waiting, and the bar at 1 of 5" />
+<Shot name="vehicles/my-game-progress" alt="A run in progress: the first vehicle installed, the second in progress, four waiting, and the bar at 1 of 6" />
+
+## Trucks from the Steam Workshop
+
+A truck mod you subscribed to on the Steam Workshop is read the same way. Under the official vehicles, the <Ui id="vehicles-tab-game" /> tab has a <Ui id="game-workshop" /> section that lists the trucks of your Workshop mods, with the name of their mod. Check them and click <Ui id="game-generate" args={{ count: 2 }} /> like the others: they are made in the same run, one after another, and installed in the Vehicle Library with an id that starts with `mod.ets2`.
+
+TruckPaint finds the Workshop folder by itself: it is in the same Steam library as your game (`steamapps/workshop/content/227300`). For each mod it uses the package that fits your game's version, and only looks at mods of the truck category. A truck the game already has (a retexture or an interior mod for an official truck) is not listed, because it is not a new truck. The mod is read on top of your game, so a mod that reuses the game's models works too.
+
+- A Workshop truck belongs to its author. Its package is made on your computer for your own use, and its license says so.
+- If a mod cannot be read, the section names it and says why. The other mods are listed as usual.
+- A mod that needs a DLC you do not own may fail with a message naming the DLC.
+- Workshop trucks are made one at a time, and a large mod can take a few minutes. After the mod is updated by Steam, check its truck and generate it again.
+- If your Workshop is in another Steam library than the game, or the game is not in a Steam library, the section says the Workshop could not be found.
 
 ## After a game update
 
@@ -56,9 +68,9 @@ Templates trace the model's paint layout; they do not prove that a livery looks 
 
 - Only ETS2 vehicles can be made for now. You can set and check the American Truck Simulator folder, and the tab says that its vehicles are not supported yet.
 - Only the vehicles of your installed game and DLC are listed.
-- User mods are not read.
+- Of the mods, only the trucks of your Steam Workshop mods are read. Trailer mods and the files you put in the game's mod folder by hand are not.
 
-The packages carry the license "Personal modding only, not for sale. Game content belongs to SCS Software." TruckPaint is not endorsed by SCS Software. Exporting a package keeps a reminder to check that you may share it.
+The packages carry the license "Personal modding only, not for sale. Game content belongs to SCS Software." (a Workshop truck's says that the content belongs to the mod's author). TruckPaint is not endorsed by SCS Software. Exporting a package keeps a reminder to check that you may share it.
 
 ## Install and paint
 

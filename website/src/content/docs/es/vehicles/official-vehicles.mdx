@@ -1,6 +1,6 @@
 ---
 title: Vehículos oficiales
-description: Crear los camiones y remolques oficiales de ETS2 desde su propio juego, dentro de TruckPaint.
+description: Crear los camiones y remolques oficiales de ETS2, y los camiones de sus mods del Workshop de Steam, desde su propio juego, dentro de TruckPaint.
 sidebar:
   order: 2
 ---
@@ -30,11 +30,23 @@ TruckPaint comprueba la carpeta, muestra la versión del juego cuando es válida
 3. Marque los vehículos que quiera, o use <Ui id="game-select-all" />, <Ui id="game-select-none" /> y <Ui id="game-select-updates" />.
 4. Haga clic en <Ui id="game-generate" args={{ count: 3 }} />. Los vehículos que aún no se han creado se crean, y los demás se vuelven a crear.
 
-<Shot name="vehicles/my-game" alt="La pestaña Mi juego: tres camiones y dos remolques, dos de ellos marcados como Juego actualizado y seleccionados, y el botón Generar (2)" />
+<Shot name="vehicles/my-game" alt="La pestaña Mi juego: los camiones: tres camiones, dos de ellos marcados como Juego actualizado y seleccionados, y después una sección Workshop con un camión de un mod, y el botón Generar (2)" />
 
-Los vehículos se crean uno tras otro, y cada uno se instala en cuanto está listo. Una barra de progreso los cuenta («1 de 5»), se nombra el vehículo en curso y cada fila indica si está en espera, en curso, instalado, al día o con error. Puede seguir trabajando en la aplicación y cerrar la biblioteca: un mensaje le avisa al terminar. <Ui id="button-cancel" /> se detiene antes del siguiente vehículo y conserva los ya instalados. Un vehículo con error no detiene a los demás; el resultado lo enumera con el motivo.
+Los vehículos se crean uno tras otro, y cada uno se instala en cuanto está listo. Una barra de progreso los cuenta («1 de 6»), se nombra el vehículo en curso y cada fila indica si está en espera, en curso, instalado, al día o con error. Puede seguir trabajando en la aplicación y cerrar la biblioteca: un mensaje le avisa al terminar. <Ui id="button-cancel" /> se detiene antes del siguiente vehículo y conserva los ya instalados. Un vehículo con error no detiene a los demás; el resultado lo enumera con el motivo.
 
-<Shot name="vehicles/my-game-progress" alt="Una creación en curso: el primer vehículo instalado, el segundo en curso, tres en espera y la barra en 1 de 5" />
+<Shot name="vehicles/my-game-progress" alt="Una creación en curso: el primer vehículo instalado, el segundo en curso, cuatro en espera y la barra en 1 de 6" />
+
+## Camiones del Workshop de Steam
+
+Un mod de camión al que se ha suscrito en el Workshop de Steam se lee del mismo modo. Debajo de los vehículos oficiales, la pestaña <Ui id="vehicles-tab-game" /> tiene una sección <Ui id="game-workshop" /> que lista los camiones de sus mods del Workshop, con el nombre de su mod. Márquelos y haga clic en <Ui id="game-generate" args={{ count: 2 }} /> como los demás: se crean en la misma ejecución, uno tras otro, y se instalan en la biblioteca de vehículos con un id que empieza por `mod.ets2`.
+
+TruckPaint encuentra solo la carpeta del Workshop: está en la misma biblioteca de Steam que su juego (`steamapps/workshop/content/227300`). Para cada mod usa el paquete que corresponde a la versión de su juego, y solo mira los mods de la categoría de camiones. Un camión que el juego ya tiene (un retexturizado o un mod de interior para un camión oficial) no se lista, porque no es un camión nuevo. El mod se lee sobre su juego, así que un mod que reutiliza los modelos del juego también funciona.
+
+- Un camión del Workshop pertenece a su autor. Su paquete se crea en su ordenador para su uso personal, y su licencia lo dice.
+- Si un mod no se puede leer, la sección lo nombra e indica el motivo. Los demás mods se listan como de costumbre.
+- Un mod que necesita un DLC que usted no tiene puede fallar con un mensaje que nombra el DLC.
+- Los camiones del Workshop se crean de uno en uno, y un mod grande puede tardar unos minutos. Cuando Steam actualice el mod, marque su camión y créelo de nuevo.
+- Si su Workshop está en otra biblioteca de Steam distinta de la del juego, o el juego no está en una biblioteca de Steam, la sección indica que no se encontró el Workshop.
 
 ## Tras una actualización del juego
 
@@ -56,9 +68,9 @@ Las plantillas siguen la disposición de pintura del modelo; no demuestran que u
 
 - Por ahora solo se pueden crear vehículos de ETS2. Puede definir y comprobar la carpeta de American Truck Simulator, y la pestaña indica que sus vehículos aún no son compatibles.
 - Solo se listan los vehículos de su juego y de los DLC instalados.
-- Los mods de usuario no se leen.
+- De los mods, solo se leen los camiones de sus mods del Workshop de Steam. Los mods de remolques y los archivos que coloque a mano en la carpeta de mods del juego no se leen.
 
-Los paquetes llevan la licencia «Personal modding only, not for sale. Game content belongs to SCS Software.». SCS Software no respalda TruckPaint. Al exportar un paquete se mantiene un recordatorio para comprobar que puede compartirlo.
+Los paquetes llevan la licencia «Personal modding only, not for sale. Game content belongs to SCS Software.» (la de un camión del Workshop indica que el contenido pertenece al autor del mod). SCS Software no respalda TruckPaint. Al exportar un paquete se mantiene un recordatorio para comprobar que puede compartirlo.
 
 ## Instalar y pintar
 

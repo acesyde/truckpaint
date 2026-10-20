@@ -427,3 +427,114 @@ fn an_empty_library_offers_my_game() {
     // The tab and the button.
     assert_eq!(count(&h, "My Game"), 2);
 }
+
+/// A Steam library with the game (the usual vehicles) and, when `with_mod`, Workshop mod 111
+/// with one truck; the game folder.
+fn library_with_workshop(dir: &Path, with_mod: bool) -> std::path::PathBuf {
+    let game = dir.join("lib/steamapps/common/Euro Truck Simulator 2");
+    std::fs::create_dir_all(&game).unwrap();
+    write_game(&game, "eut2", "1.61.1.9", &vehicles());
+    if with_mod {
+        tp_pack::synthetic::write_workshop_mod(
+            &game,
+            "111",
+            &[Vehicle::truck("example.modded", "Modded")],
+            &["truck"],
+        );
+    }
+    game
+}
+
+fn has_text(h: &H, text: &str) -> bool {
+    h.query_by_label_contains(text).is_some()
+}
+
+#[test]
+fn my_game_lists_workshop_trucks_after_the_official_ones_and_makes_them() {
+    let temp = tempfile::tempdir().unwrap();
+    let game = library_with_workshop(temp.path(), true);
+    // A second mod that cannot be read is named, and the first is still listed.
+    tp_pack::synthetic::write_workshop_mod(
+        &game,
+        "222",
+        &[Vehicle::truck("example.other", "Other")],
+        &["truck"],
+    );
+    let broken = temp
+        .path()
+        .join("lib/steamapps/workshop/content/227300/222/content_161.zip");
+    std::fs::write(&broken, &std::fs::read(&broken).unwrap()[..40]).unwrap();
+    let mut h = app(temp.path(), Some(&game));
+    open_my_game(&mut h);
+    until(&mut h, "the Workshop", |h| shows(h, "Example Modded"));
+    assert!(shows(&h, "Workshop"));
+    assert!(shows(&h, "Example · Workshop mod 111"));
+    assert!(has_text(&h, "Workshop mod 222 could not be read"));
+    assert!(shows(
+        &h,
+        "A Workshop truck belongs to its author. Its package is made on this computer for your own use."
+    ));
+    // Four official vehicles and the Workshop truck, all Not generated.
+    assert_eq!(count(&h, "Not generated"), 5);
+    h.get_by_label("Example Modded").click();
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
+    h.get_by_label("Generate (1)").click();
+    until(&mut h, "the run", |h| h.state().game.run.is_none());
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
+    assert!(shows(&h, "Installed: 1 · Up to date: 0 · Failed: 0"));
+    assert_eq!(count(&h, "Generated 1.61.1"), 1);
+    assert!(
+        h.state()
+            .vehicles
+            .get("mod.ets2.111.example.modded")
+            .is_some()
+    );
+    // Select All counts the Workshop truck with the others.
+    h.get_by_label("Select All").click();
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
+    assert!(shows(&h, "Generate (5)"));
+}
+
+#[test]
+fn my_game_says_when_the_workshop_is_missing_or_has_no_truck() {
+    let temp = tempfile::tempdir().unwrap();
+    // The usual folder of these tests is not in a Steam library.
+    let alone = temp.path().join("alone");
+    std::fs::create_dir(&alone).unwrap();
+    write_game(&alone, "eut2", "1.61.1.9", &vehicles());
+    let mut h = app(temp.path(), Some(&alone));
+    open_my_game(&mut h);
+    until(&mut h, "the scan", |h| count(h, "Not generated") == 4);
+    until(&mut h, "the Workshop", |h| {
+        shows(h, "The Workshop folder of this game could not be found.")
+    });
+    // A library whose Workshop holds only a mod of another category.
+    let game = library_with_workshop(temp.path(), false);
+    tp_pack::synthetic::write_workshop_mod(&game, "333", &[], &["ui"]);
+    let mut h = app(temp.path(), Some(&game));
+    open_my_game(&mut h);
+    until(&mut h, "the Workshop", |h| {
+        shows(h, "No Workshop truck found.")
+    });
+}
+
+#[test]
+fn the_workshop_section_is_hidden_when_the_filter_wants_trailers() {
+    let temp = tempfile::tempdir().unwrap();
+    let game = library_with_workshop(temp.path(), true);
+    let mut h = app(temp.path(), Some(&game));
+    open_my_game(&mut h);
+    until(&mut h, "the Workshop", |h| shows(h, "Example Modded"));
+    if let Some(Modal::VehicleLibrary(dialog)) = &mut h.state_mut().modal {
+        dialog.game_filter.kind = Some(tp_vehicles::Kind::Trailer);
+    }
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
+    assert!(!shows(&h, "Example Modded"));
+    assert!(!shows(&h, "Workshop"));
+    assert!(shows(&h, "Example Box"));
+    if let Some(Modal::VehicleLibrary(dialog)) = &mut h.state_mut().modal {
+        dialog.game_filter.kind = Some(tp_vehicles::Kind::Truck);
+    }
+    let _ = h.run_ok(); // a scan's spinner may still be repainting
+    assert!(shows(&h, "Example Modded") && !shows(&h, "Example Box"));
+}

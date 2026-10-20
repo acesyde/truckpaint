@@ -344,3 +344,20 @@ pub fn pmd(looks: &[(&str, &[&str])], variants: &[(&str, &[i32])], parts: usize)
 pub fn mat(effect: &str) -> Vec<u8> {
     format!("effect : \"{effect}\" {{\n\tattribute : 1\n}}\n").into_bytes()
 }
+
+/// A ZIP package holding `files` (entry name, bytes), deflated when `deflate` is set, else stored.
+pub fn zip_package(files: &[(&str, &[u8])], deflate: bool) -> Vec<u8> {
+    use std::io::Write;
+    let method = if deflate {
+        zip::CompressionMethod::Deflated
+    } else {
+        zip::CompressionMethod::Stored
+    };
+    let options = zip::write::SimpleFileOptions::default().compression_method(method);
+    let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+    for (name, bytes) in files {
+        writer.start_file(*name, options).unwrap();
+        writer.write_all(bytes).unwrap();
+    }
+    writer.finish().unwrap().into_inner()
+}

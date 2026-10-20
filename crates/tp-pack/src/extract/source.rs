@@ -8,6 +8,8 @@ use tp_scs::Mount;
 /// built, so every worker of a batch shares one.
 pub struct Sources {
     pub archives: Vec<PathBuf>,
+    /// The game folder, as it was given.
+    pub installation: PathBuf,
     mount: Mount,
     /// Game files of the inventoried folders.
     paths: BTreeSet<String>,
@@ -64,6 +66,7 @@ pub fn virtual_path(parent: &str, reference: &str) -> Result<String, String> {
 
 impl Sources {
     pub fn new(installation: &Path) -> Result<Self, String> {
+        let given = installation.to_owned();
         let installation = installation
             .canonicalize()
             .map_err(|e| format!("installation: {e}"))?;
@@ -105,14 +108,31 @@ impl Sources {
         let mount = Mount::open(&archives)?;
         Ok(Self {
             archives,
+            installation: given,
             mount,
             paths: BTreeSet::new(),
         })
     }
 
+    /// The game and, mounted after it, the files of one mod package. Only the mod's
+    /// `/def/vehicle/truck/<truck>` is inventoried: a mod truck is new, so all its
+    /// definitions are in the mod.
+    pub fn with_mod(&self, layers: Vec<tp_scs::Layer>, truck: &str) -> Result<Self, String> {
+        let mut sources = Self::new(&self.installation)?;
+        let first = sources.mount.len();
+        for layer in layers {
+            sources.mount.push(layer);
+        }
+        let folder = format!("/def/vehicle/truck/{truck}");
+        for index in first..sources.mount.len() {
+            sources.paths.extend(sources.mount.walk(index, &folder)?);
+        }
+        Ok(sources)
+    }
+
     /// Records the files below each of `folders` (`/def/vehicle/truck`...) of every archive.
     pub fn inventory(&mut self, folders: &[&str]) -> Result<(), String> {
-        for index in 0..self.archives.len() {
+        for index in 0..self.mount.len() {
             for folder in folders {
                 self.paths.extend(self.mount.walk(index, folder)?);
             }
@@ -189,13 +209,7 @@ impl Sources {
                     let sources = self
                         .sources_of(path)
                         .iter()
-                        .map(|i| {
-                            self.archives[*i]
-                                .file_name()
-                                .unwrap()
-                                .to_string_lossy()
-                                .to_string()
-                        })
+                        .map(|i| self.mount.name(*i))
                         .collect::<Vec<_>>();
                     json!({"path": path, "source": sources.last(), "mounted_sources": sources})
                 })

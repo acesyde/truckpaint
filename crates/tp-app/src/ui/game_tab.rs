@@ -11,7 +11,9 @@ use tp_ui::widgets::{
 use tp_vehicles::Game;
 
 use super::vehicle_dialogs::{VehicleFilter, game_label, game_name, kind_label};
-use crate::game::{FolderStatus, GameState, Generation, RowState, ScanState, generation};
+use crate::game::{
+    FolderStatus, GameState, Generation, RowState, ScanState, Workshop, generation, generation_of,
+};
 use crate::vehicles::VehicleLibrary;
 
 /// What the tab asks for this frame.
@@ -215,6 +217,11 @@ fn list(ui: &mut Ui, game: &mut GameState, library: &VehicleLibrary, filter: &mu
         .iter()
         .map(|v| generation(library, scan.info.game, &v.id, &scan.info))
         .collect::<Vec<_>>();
+    let mods = game.mod_vehicles().to_vec();
+    let mod_generations = mods
+        .iter()
+        .map(|v| generation_of(library, &v.id, &scan.info))
+        .collect::<Vec<_>>();
     if scan.vehicles.is_empty() {
         message(ui, &tr("game-empty"), &tr("game-empty-hint"));
         return;
@@ -223,7 +230,12 @@ fn list(ui: &mut Ui, game: &mut GameState, library: &VehicleLibrary, filter: &mu
         ui.spacing_mut().item_spacing.x = space::SM;
         ui.add_enabled_ui(!running, |ui| {
             if ui.add(secondary_button(&tr("game-select-all"))).clicked() {
-                game.checked = scan.vehicles.iter().map(|v| v.id.clone()).collect();
+                game.checked = scan
+                    .vehicles
+                    .iter()
+                    .map(|v| v.id.clone())
+                    .chain(mods.iter().map(|v| v.id.clone()))
+                    .collect();
             }
             if ui.add(secondary_button(&tr("game-select-none"))).clicked() {
                 game.checked.clear();
@@ -232,12 +244,19 @@ fn list(ui: &mut Ui, game: &mut GameState, library: &VehicleLibrary, filter: &mu
                 .add(secondary_button(&tr("game-select-updates")))
                 .clicked()
             {
+                let updated = |g: &Generation| matches!(g, Generation::GameUpdated(_));
                 game.checked = scan
                     .vehicles
                     .iter()
                     .zip(&generations)
-                    .filter(|(_, g)| matches!(g, Generation::GameUpdated(_)))
+                    .filter(|(_, g)| updated(g))
                     .map(|(v, _)| v.id.clone())
+                    .chain(
+                        mods.iter()
+                            .zip(&mod_generations)
+                            .filter(|(_, g)| updated(g))
+                            .map(|(v, _)| v.id.clone()),
+                    )
                     .collect();
             }
         });
@@ -259,34 +278,139 @@ fn list(ui: &mut Ui, game: &mut GameState, library: &VehicleLibrary, filter: &mu
                     filter.matches_vehicle(&v.name, &v.brand, scan.info.game, v.kind)
                 });
             for (v, generation) in shown {
-                ui.horizontal(|ui| {
-                    ui.set_min_height(32.0);
-                    let mut on = checked.contains(&v.id);
-                    if ui
-                        .add_enabled(!running, SquareCheckbox::new(&mut on, &v.name))
-                        .changed()
-                    {
-                        if on {
-                            checked.insert(v.id.clone());
-                        } else {
-                            checked.remove(&v.id);
-                        }
-                    }
-                    ui.label(
-                        RichText::new(format!("{} · {}", v.brand, kind_label(v.kind)))
-                            .color(color::TEXT_MUTED),
-                    );
-                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        let (icon, text, tint) = state_look(&v.id, run.as_ref(), generation);
-                        let label = ui.label(RichText::new(text.as_str()).color(tint));
-                        label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &text));
-                        ui.label(icons::rich(icon).color(tint));
-                    });
-                });
+                let detail = format!("{} · {}", v.brand, kind_label(v.kind));
+                vehicle_row(
+                    ui,
+                    run.as_ref(),
+                    checked,
+                    running,
+                    &v.id,
+                    &v.name,
+                    &detail,
+                    generation,
+                );
+            }
+            // Trucks only: the Workshop section is not shown when the filter wants trailers.
+            if filter.kind != Some(tp_vehicles::Kind::Trailer) {
+                workshop_section(
+                    ui,
+                    &game.workshop,
+                    run.as_ref(),
+                    checked,
+                    running,
+                    filter,
+                    scan.info.game,
+                    &mod_generations,
+                );
             }
         });
     ui.add_space(space::SM);
     progress_and_actions(ui, game, library);
+}
+
+/// One vehicle: its checkbox, what it is, and its state at the right.
+#[allow(clippy::too_many_arguments)]
+fn vehicle_row(
+    ui: &mut Ui,
+    run: Option<&crate::game::Run>,
+    checked: &mut std::collections::BTreeSet<String>,
+    running: bool,
+    id: &str,
+    name: &str,
+    detail: &str,
+    generation: &Generation,
+) {
+    ui.horizontal(|ui| {
+        ui.set_min_height(32.0);
+        let mut on = checked.contains(id);
+        if ui
+            .add_enabled(!running, SquareCheckbox::new(&mut on, name))
+            .changed()
+        {
+            if on {
+                checked.insert(id.to_owned());
+            } else {
+                checked.remove(id);
+            }
+        }
+        ui.label(RichText::new(detail).color(color::TEXT_MUTED));
+        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            let (icon, text, tint) = state_look(id, run, generation);
+            let label = ui.label(RichText::new(text.as_str()).color(tint));
+            label.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &text));
+            ui.label(icons::rich(icon).color(tint));
+        });
+    });
+}
+
+/// The trucks of the Workshop mods, under their own heading, or why there are none.
+#[allow(clippy::too_many_arguments)]
+fn workshop_section(
+    ui: &mut Ui,
+    workshop: &Workshop,
+    run: Option<&crate::game::Run>,
+    checked: &mut std::collections::BTreeSet<String>,
+    running: bool,
+    filter: &VehicleFilter,
+    game: Game,
+    generations: &[Generation],
+) {
+    ui.add_space(space::MD);
+    ui.label(RichText::new(tr("game-workshop")).strong());
+    let secondary = |ui: &mut Ui, text: String| {
+        ui.label(RichText::new(text).color(color::TEXT_SECONDARY));
+    };
+    match workshop {
+        Workshop::Loading => {
+            ui.horizontal(|ui| {
+                ui.spinner();
+                secondary(ui, tr("game-workshop-loading"));
+            });
+        }
+        Workshop::Missing => secondary(ui, tr("game-workshop-missing")),
+        Workshop::Failed(reason) => {
+            super::dialogs::problem(ui, &tr!("game-workshop-failed", reason = reason.as_str()));
+        }
+        Workshop::Ready {
+            vehicles,
+            unreadable,
+        } => {
+            if vehicles.is_empty() && unreadable.is_empty() {
+                secondary(ui, tr("game-workshop-none"));
+            }
+            let shown = vehicles.iter().zip(generations).filter(|(v, _)| {
+                filter.matches_vehicle(&v.name, &v.brand, game, tp_vehicles::Kind::Truck)
+            });
+            for (v, generation) in shown {
+                let detail = tr!(
+                    "game-workshop-detail",
+                    brand = v.brand.as_str(),
+                    mod = v.mod_label()
+                );
+                vehicle_row(
+                    ui, run, checked, running, &v.id, &v.name, &detail, generation,
+                );
+            }
+            for (id, reason) in unreadable {
+                super::dialogs::problem(
+                    ui,
+                    &tr!(
+                        "game-workshop-unreadable",
+                        mod = id.as_str(),
+                        reason = reason.as_str()
+                    ),
+                );
+            }
+        }
+    }
+    ui.add(
+        egui::Label::new(
+            RichText::new(tr("game-workshop-notice"))
+                .small()
+                .color(color::TEXT_SECONDARY),
+        )
+        .wrap(),
+    );
 }
 
 /// The progress of the run, or how the last one ended; Generate and Cancel; the notice.
