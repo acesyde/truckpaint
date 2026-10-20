@@ -205,6 +205,8 @@ pub struct ModTruck {
     pub package: PathBuf,
     /// The truck's game id (`actros.mp6`).
     pub id: String,
+    /// The name to give the package when the game's name repeats another truck's of the mod.
+    pub name: Option<String>,
 }
 
 impl ModTruck {
@@ -267,6 +269,7 @@ fn read_mod(
             dlc_dependencies: manifest.dlc_dependencies.clone(),
             package: package.clone(),
             id,
+            name: None,
         })
         .collect())
 }

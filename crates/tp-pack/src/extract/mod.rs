@@ -825,7 +825,10 @@ impl<'a> Build<'a> {
     }
 
     fn package(&mut self, info: &GameInfo) -> Result<(Outcome, Value), String> {
-        let (brand, name) = self.identity()?;
+        let (brand, mut name) = self.identity()?;
+        if let Some(own) = self.origin.and_then(|t| t.name.clone()) {
+            name = own;
+        }
         let paths = self.definition_paths();
         let masks = self.paint_overrides(&paths)?;
         let parts = self.painted_parts(&paths)?;
@@ -1546,6 +1549,14 @@ mod tests {
         assert_eq!(manifest.game.path, "example.modded");
         assert_eq!(manifest.version.to_string(), "1.61.1");
         assert_eq!(manifest.license.as_deref(), Some(MOD_LICENSE));
+        assert_eq!(manifest.name, "Example Modded");
+        let named = workshop::ModTruck {
+            name: Some("Example Modded (example.modded)".into()),
+            ..truck.clone()
+        };
+        let packed = package(generate_mod_truck(&scan, &named, None).unwrap());
+        let manifest = tp_vehicles::Package::read(&packed.bytes).unwrap().manifest;
+        assert_eq!(manifest.name, "Example Modded (example.modded)");
         assert_eq!(manifest.authors, ["Erik", "TruckPaint contributors"]);
         assert!(
             manifest

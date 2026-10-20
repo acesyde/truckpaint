@@ -329,6 +329,7 @@ fn tell_apart(vehicles: &mut [ModVehicle]) {
     for v in vehicles {
         if names.iter().filter(|n| **n == v.name).count() > 1 {
             v.name = format!("{} ({})", v.name, v.truck.id);
+            v.truck.name = Some(v.name.clone());
         }
     }
 }
@@ -812,14 +813,17 @@ mod tests {
                 dlc_dependencies: Vec::new(),
                 package: PathBuf::new(),
                 id: id.into(),
+                name: None,
             },
             brand: String::new(),
             name: name.into(),
         };
         let mut all = [truck("a", "Same"), truck("b", "Same"), truck("c", "Other")];
         tell_apart(&mut all);
-        let names = all.map(|v| v.name);
+        let names = all.clone().map(|v| v.name);
         assert_eq!(names, ["Same (a)", "Same (b)", "Other"]);
+        assert_eq!(all[0].truck.name.as_deref(), Some("Same (a)"));
+        assert_eq!(all[2].truck.name, None);
     }
 
     use super::*;
