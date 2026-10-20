@@ -124,14 +124,14 @@ A screenshot in the documentation SHALL open in a full-screen preview when the r
 - **THEN** no preview opens
 
 ### Requirement: One example livery in the media
-Every documentation screenshot and animation that shows a finished paint job SHALL show the same example livery, "Blue Wave Biarritz" (a fictional carrier), not ad-hoc test shapes. Media that teach one gesture or one drawing feature (drawing a first shape, the Pen, shapes and paths, gradients) MAY keep their own scene, on an empty texture or with the feature's own artwork. The livery SHALL be painted on the sample truck and the sample trailer, so a fleet is shown, and SHALL be built from the elements the app teaches: a palette of three named colors (White, Light blue, Blue), a logo symbol with one instance per texture, a graphic style and a text style, with objects linked to the swatches and styles they use. Its artwork (logo, wave graphics, coast silhouette) SHALL be original vector drawings kept in the repository under the repository's license; no third-party logo, trademark or generated image SHALL be committed. Its brand name and tagline are artwork and SHALL read the same in the four documentation languages.
+Every documentation screenshot and animation that shows a finished paint job SHALL show the same example livery, "Blue Wave Biarritz" (a fictional carrier), not ad-hoc test shapes. Media that teach one gesture or one drawing feature (drawing a first shape, the Pen, shapes and paths) MAY keep their own scene, on an empty texture or with the feature's own artwork. The livery SHALL be painted on the sample truck and the sample trailer, so a fleet is shown, and SHALL be built from the elements the app teaches: a palette of three named colors (White, Light blue, Blue), a logo symbol with one instance per texture, a graphic style and a text style, with objects linked to the swatches and styles they use. Its artwork (logo, wave graphics, coast silhouette) SHALL be original vector drawings kept in the repository under the repository's license; no third-party logo, trademark or generated image SHALL be committed. Its brand name and tagline are artwork and SHALL read the same in the four documentation languages.
 
 #### Scenario: Same livery on every page
 - **WHEN** a reader goes from the Workshop pages to the Brand and Export pages
 - **THEN** every screenshot and animation that shows a finished paint job shows the Blue Wave Biarritz livery, on the sample truck or the sample trailer
 
 #### Scenario: A feature demo keeps its own scene
-- **WHEN** a reader opens the screenshot of gradients or of shapes and paths
+- **WHEN** a reader opens the screenshot of shapes and paths
 - **THEN** it may show that feature's own artwork rather than the livery, and the animation that draws a first rectangle starts from an empty texture
 
 #### Scenario: Brand elements are real

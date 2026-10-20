@@ -985,10 +985,37 @@ fn section_workshop() {
         vector_scene(&mut h);
         shot(&mut h, language, "workshop/shapes-paths");
         let mut h = harness(language);
-        common::create_project(&mut h);
-        let (text, _) = gradient_scene(&mut h);
+        let made = livery(&mut h);
+        show_texture(&mut h, "standard");
         {
+            use tp_core::document::{CharStyle, ColorStop, Gradient, GradientKind, Paint};
             let ws = h.state_mut().workspace_mut().unwrap();
+            let style = CharStyle {
+                family: "Montserrat".into(),
+                weight: 800,
+                size: 420.0,
+                ..CharStyle::default()
+            };
+            let text = add_text(
+                ws,
+                "Blue Wave",
+                style,
+                (900.0, 560.0),
+                Color::Blue.rgba(),
+                None,
+            );
+            // From Blue to Light blue, both stops linked to the palette.
+            let stop = |at: f32, color: Color| {
+                let mut stop = ColorStop::new(at, color.rgba());
+                stop.swatch = Some(made.swatches[color as usize]);
+                stop
+            };
+            let mut object = (**ws.project.surface().get(text).unwrap()).clone();
+            object.fill = Paint::Gradient(Gradient::new(
+                GradientKind::Linear,
+                &[stop(0.0, Color::Blue), stop(1.0, Color::LightBlue)],
+            ));
+            ws.project.surface_mut().replace(&[object]);
             ws.selection = vec![text];
             ws.panels.color_target = tp_app::workspace::ColorTarget::Fill;
         }
