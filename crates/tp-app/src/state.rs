@@ -986,6 +986,9 @@ impl AppState {
             CommandId::TogglePanels => {
                 self.prefs.layout.panels_hidden = !self.prefs.layout.panels_hidden;
             }
+            CommandId::ShowSideView => {
+                self.prefs.layout.side_view = !self.prefs.layout.side_view;
+            }
             CommandId::ResetWorkspace => self.prefs.layout.reset(),
             CommandId::DesignGallery => self.show_gallery = !self.show_gallery,
             CommandId::CommandPalette => {}
@@ -1386,6 +1389,7 @@ fn keeps_text_session(id: CommandId) -> bool {
             | CommandId::ActualSize
             | CommandId::ShowLeftTab(_)
             | CommandId::TogglePanels
+            | CommandId::ShowSideView
             | CommandId::ResetWorkspace
             | CommandId::DesignGallery
             | CommandId::KeyboardShortcuts

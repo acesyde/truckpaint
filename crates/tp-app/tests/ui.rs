@@ -473,6 +473,15 @@ fn view_menu_lists_spaces_tabs_and_view_settings_in_order() {
             .center()
             .y,
     );
+    // Show Side View follows the snapping item, then the zoom commands.
+    ys.push(
+        h.query_all_by_role_and_label(Role::CheckBox, "Show Side View")
+            .map(|n| n.rect())
+            .find(|r| (r.left() - left).abs() < 1.0)
+            .expect("Show Side View")
+            .center()
+            .y,
+    );
     for label in [
         "Zoom In",
         "Zoom Out",

@@ -111,6 +111,7 @@ pkg-newer-format = il a été créé pour une version plus récente de TruckPain
 pkg-bad-id = son identifiant « { $id } » est invalide.
 pkg-no-main-texture = il n’a aucune texture principale.
 pkg-bad-changelog = son journal des modifications dépasse 1000 caractères.
+pkg-bad-preview = son maillage d’aperçu « { $path } » est invalide : { $cause }
 pkg-bad-game-path = son chemin dans le jeu « { $path } » est invalide (mots en a–z, 0–9 et _ séparés par des points).
 pkg-bad-game-id = l’identifiant du jeu « { $id } » est invalide (mots en a–z, 0–9 et _ séparés par des points).
 pkg-missing-game-ids = « { $texture } » n’a aucun identifiant du jeu.

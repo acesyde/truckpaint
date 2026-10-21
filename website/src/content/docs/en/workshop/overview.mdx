@@ -44,6 +44,29 @@ Above the canvas, the tool options bar shows the name of the active tool, and th
 
 To make room, choose <Ui id="menu-view" /> › <Ui id="cmd-hide-panels" /> (Tab): the left panel and the inspector disappear, the tool rail and the bars stay. Press Tab again to bring them back. <Ui id="menu-view" /> › <Ui id="cmd-reset-workspace" /> puts the panels back at their default widths.
 
+## The Side View
+
+A texture is flat, but a vehicle is not: the pieces of the texture are cut, turned and spread over the model. The Side View shows the vehicle with your livery on it, so you can tell where each part of the texture lands.
+
+Choose <Ui id="menu-view" /> › <Ui id="cmd-show-side-view" /> to show or hide it. The panel sits under the canvas, across its width. Drag its top edge to make it taller or shorter. Whether it is shown, its direction and its height are remembered, and <Ui id="cmd-hide-panels" /> (Tab) leaves it in place.
+
+<Shot name="workshop/side-view" alt="The Side View under the canvas, showing the sample truck's Standard cab from the left with the Blue Wave Biarritz livery: the white door with the logo." />
+
+- **Five directions.** Pick <Ui id="side-view-left" />, <Ui id="side-view-right" />, <Ui id="side-view-front" />, <Ui id="side-view-back" /> or <Ui id="side-view-top" /> (seen from above, handy for a decorated roof) at the top right of the panel. The drawing is flat, with no perspective, and always fits the panel. You can't turn it or zoom it.
+- **Live.** Each change you make on the canvas shows in the view a moment later. While you drag an object, the canvas follows your pointer and the view catches up when you let go.
+- **Main textures only.** For a truck, the view shows the cabin of the main texture you have open. For a trailer, it shows the main texture. The accessory textures (deflectors, side skirts, sun visors and so on) are not drawn yet: while one of them is open, the view keeps showing the last main texture you worked on.
+- **Parts mounted as accessories are missing.** On some trucks, parts painted with the main texture are mounted as accessories: the doors, the bumper, the fenders, the deflectors. They appear on the template but not in the view yet, so the view can show a gap where a door should be.
+- **Switching texture.** Open another cabin, or a texture of another vehicle, and the view changes with it.
+
+The Side View is a guide while you design. The final check is still in the game.
+
+When there is nothing to draw, the panel says why:
+
+- custom vehicles have no Side View;
+- an official vehicle generated before the Side View needs to be generated again from <Ui id="vehicles-tab-game" />;
+- some trailers have a main texture that only carries the base color, because their parts are painted on accessory textures;
+- a project opened on a computer where its vehicle's package is not installed needs that package.
+
 ## The template overlay
 
 The template is drawn over your artwork as a locked guide: you can't select or move it, it is not in the Layers tab, and it is **never exported**. Press G, or choose <Ui id="menu-view" /> › <Ui id="cmd-show-template" />, to hide or show it. Set its opacity (60% by default) next to the <Ui id="status-template" /> toggle in the status bar. Both settings are kept per texture.

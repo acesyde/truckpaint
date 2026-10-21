@@ -112,6 +112,7 @@ pkg-newer-format = it was made for a newer version of TruckPaint.
 pkg-bad-id = its id “{ $id }” is invalid.
 pkg-no-main-texture = it has no main texture.
 pkg-bad-changelog = its changelog is longer than 1000 characters.
+pkg-bad-preview = its preview mesh “{ $path }” is invalid: { $cause }
 pkg-bad-game-path = its game path “{ $path }” is not valid (words of a–z, 0–9 and _ separated by dots).
 pkg-bad-game-id = the game id “{ $id }” is not valid (words of a–z, 0–9 and _ separated by dots).
 pkg-missing-game-ids = “{ $texture }” has no game id.

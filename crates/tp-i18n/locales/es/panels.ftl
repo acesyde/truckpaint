@@ -428,3 +428,15 @@ shadow-blur = Desenfoque
 undo-add-shadow = Añadir sombra
 undo-change-shadow = Cambiar sombra
 undo-remove-shadow = Quitar sombra
+
+side-view-title = Vista lateral
+side-view-left = Izquierda
+side-view-right = Derecha
+side-view-front = Frontal
+side-view-back = Trasera
+side-view-top = Superior
+side-view-custom = La vista lateral no está disponible para los vehículos personalizados.
+side-view-regenerate = Genere de nuevo este vehículo desde Mi juego para obtener la vista lateral.
+side-view-blank = Esta textura solo lleva el color base. Sus piezas se pintan en texturas de accesorios, que la vista lateral aún no muestra.
+side-view-package = Se necesita el paquete del vehículo para la vista lateral.
+side-view-none = La vista lateral no está disponible para este vehículo.

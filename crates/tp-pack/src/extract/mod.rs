@@ -345,6 +345,9 @@ struct Textures {
     coverage: Vec<Value>,
     /// A template is new, different or gone compared with the previous package.
     changed: bool,
+    /// A main texture gains a preview mesh the previous package did not have: a new
+    /// package, but no template change.
+    preview_added: bool,
 }
 
 /// One truck's extraction; what it gathered stays readable after a failure.
@@ -747,10 +750,35 @@ impl<'a> Build<'a> {
                 ([4096, 4096], geometry::svg(&meshes, [4096, 4096])?)
             };
             let (texture, edges) = add(&mut out, &id, size, rendered)?;
-            out.main
-                .push(json!({"id": id, "name": name, "game_ids": game_ids, "texture": texture}));
+            let mut main =
+                json!({"id": id, "name": name, "game_ids": game_ids, "texture": texture});
+            // The preview mesh is made of the very meshes the template draws, so they match. Accessories
+            // sit at locators the preview does not read yet, so a truck shows its cabin alone and a
+            // trailer its first painted definition: one configuration, never several on top of each other.
+            let shown = match kind {
+                Kind::Truck => contributors
+                    .iter()
+                    .find(|p| p.group == "cabin" && p.name == id),
+                Kind::Trailer => contributors.first(),
+            };
+            let preview = if let Some(shown) = shown {
+                let path = format!("preview/{id}.json");
+                out.templates
+                    .insert(path.clone(), geometry::preview(&shown.mesh, &id)?);
+                main["preview_mesh"] = json!(path);
+                out.preview_added |= previous.is_some_and(|p| {
+                    p.manifest
+                        .paint_job
+                        .part(&id)
+                        .is_none_or(|(_, part)| part.preview_mesh.is_none())
+                });
+                json!({"configuration": shown.id, "pieces": shown.mesh.len()})
+            } else {
+                json!({"configuration": null, "reason": "blank template: its parts have their own textures"})
+            };
+            out.main.push(main);
             covered.extend(contributors.iter().map(|p| p.id.clone()));
-            out.coverage.push(json!({"part": id, "size": size, "edges": edges, "contributors": contributors.iter().map(|p| json!({"id": p.id, "definition": p.source, "selections": p.selection})).collect::<Vec<_>>()}));
+            out.coverage.push(json!({"part": id, "size": size, "edges": edges, "preview_mesh": preview, "contributors": contributors.iter().map(|p| json!({"id": p.id, "definition": p.source, "selections": p.selection})).collect::<Vec<_>>()}));
         }
         for group in groups {
             let ids = group
@@ -803,7 +831,10 @@ impl<'a> Build<'a> {
         let next = game.minor.checked_add(1).ok_or("invalid game version")?;
         let mut version = semver::Version::new(game.major, game.minor, game.patch);
         if let Some(previous) = self.previous {
-            if !textures.changed && previous.manifest.game.versions.matches(&version) {
+            if !textures.changed
+                && !textures.preview_added
+                && previous.manifest.game.versions.matches(&version)
+            {
                 return Ok((Outcome::UpToDate, json!(textures.coverage)));
             }
             // An installed version is never replaced by a different package.
@@ -1347,5 +1378,27 @@ mod tests {
         assert_eq!(changed.manifest.version.to_string(), "1.61.2");
         assert_eq!(changed.manifest.paint_job.main[0].texture.layout_version, 2);
         assert!(generate(&scan(first.path()).unwrap(), "nothing", None).is_err());
+    }
+
+    /// vehicle-generation "Package made before the Side View".
+    #[test]
+    fn a_package_without_preview_meshes_is_replaced_by_the_next_patch() {
+        let alpha = [Made::truck("example.alpha", "Alpha")];
+        let folder = game("eut2", "1.61.1.9", &alpha);
+        let current = package(generated(folder.path(), None));
+        let mut before = tp_vehicles::Package::read(&current.bytes).unwrap();
+        assert!(before.manifest.paint_job.main[0].preview_mesh.is_some());
+        before.previews.clear();
+        before.manifest.paint_job.main[0].preview_mesh = None;
+
+        let renewed = package(generated(folder.path(), Some(&before)));
+        assert_eq!(renewed.manifest.version.to_string(), "1.61.2");
+        let part = &renewed.manifest.paint_job.main[0];
+        assert!(part.preview_mesh.is_some());
+        // Same templates: same layout versions, so projects are not flagged.
+        assert_eq!(
+            part.texture.layout_version,
+            before.manifest.paint_job.main[0].texture.layout_version
+        );
     }
 }

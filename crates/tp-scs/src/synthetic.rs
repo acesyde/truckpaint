@@ -210,6 +210,8 @@ pub struct PieceSpec {
     pub material: u32,
     /// Texture-coordinate mask: nibble `n` is the set that `_TEXCOORDn` aliases.
     pub mask: u32,
+    /// One per vertex; missing ones are the origin.
+    pub positions: Vec<[f32; 3]>,
     pub uv_sets: Vec<Vec<[f32; 2]>>,
     pub triangles: Vec<[u16; 3]>,
 }
@@ -251,7 +253,8 @@ pub fn pmg(parts: &[(&str, i32, i32)], pieces: &[PieceSpec]) -> Vec<u8> {
         put(&mut data, at + 64, first as i32);
         put(&mut data, at + 72, first as i32 + 12);
         for v in 0..vertices {
-            data.extend([0u8; 12]);
+            let position = piece.positions.get(v).copied().unwrap_or_default();
+            position.iter().for_each(|c| data.extend(c.to_le_bytes()));
             for set in &piece.uv_sets {
                 data.extend(set[v][0].to_le_bytes());
                 data.extend(set[v][1].to_le_bytes());

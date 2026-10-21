@@ -85,6 +85,9 @@ type Templates = Vec<(AssetId, Option<ColorImage>)>;
 pub struct SurfaceThumbnails {
     /// Prefix of the textures' debug names.
     name: &'static str,
+    /// Longest side of the thumbnails, in pixels.
+    side: u32,
+    background: Option<Rgba>,
     shown: HashMap<usize, Thumbnail>,
     /// The running render: surfaces, and templates when asked for.
     job: Option<Receiver<(Rendered, Templates)>>,
@@ -107,8 +110,15 @@ impl Default for SurfaceThumbnails {
 impl SurfaceThumbnails {
     /// Thumbnails whose textures are named "`name`_N" (for debugging).
     pub fn named(name: &'static str) -> Self {
+        Self::sized(name, SIDE, None)
+    }
+
+    /// Same, with the longest side of the thumbnails at `side` pixels, over `background`.
+    pub fn sized(name: &'static str, side: u32, background: Option<Rgba>) -> Self {
         Self {
             name,
+            side,
+            background,
             shown: HashMap::new(),
             job: None,
             broken: false,
@@ -237,7 +247,15 @@ impl SurfaceThumbnails {
         for asset in &missing {
             self.templates.insert(asset.id, None);
         }
-        self.job = start(ctx, project.clone(), stale, missing, fonts.fork());
+        self.job = start(
+            ctx,
+            project.clone(),
+            stale,
+            missing,
+            fonts.fork(),
+            self.side,
+            self.background,
+        );
         self.broken = self.job.is_none();
     }
 
@@ -281,6 +299,8 @@ fn start(
     surfaces: Vec<(usize, Key)>,
     templates: Vec<Arc<Asset>>,
     mut fonts: FontLibrary,
+    side: u32,
+    background: Option<Rgba>,
 ) -> Option<Receiver<(Rendered, Templates)>> {
     let (tx, rx) = mpsc::channel();
     let ctx = ctx.clone();
@@ -290,11 +310,11 @@ fn start(
             let done: Rendered = surfaces
                 .into_iter()
                 .map(|(surface, key)| {
-                    let (width, height) = thumbnail_size(key.size, SIDE);
+                    let (width, height) = thumbnail_size(key.size, side);
                     let options = RenderOptions {
                         width,
                         height,
-                        background: None,
+                        background,
                     };
                     let pixmap =
                         tp_render::render(&project, surface, options, &mut fonts, &mut |_, _| true)
@@ -308,7 +328,7 @@ fn start(
                 .collect();
             let read: Templates = templates
                 .iter()
-                .map(|a| (a.id, crate::image_cache::asset_image(a, SIDE)))
+                .map(|a| (a.id, crate::image_cache::asset_image(a, side)))
                 .collect();
             let _ = tx.send((done, read));
             // Shown at the next frame, without waking the UI at once: a
@@ -425,5 +445,9 @@ mod tests {
         let mut cache = SurfaceThumbnails::default();
         settle(&mut cache, &ctx, &p, &fonts);
         assert_eq!(cache.size_of(0), Some([128, 16]));
+        // A larger instance keeps the shape too.
+        let mut large = SurfaceThumbnails::sized("large", 1024, None);
+        settle(&mut large, &ctx, &p, &fonts);
+        assert_eq!(large.size_of(0), Some([1024, 128]));
     }
 }

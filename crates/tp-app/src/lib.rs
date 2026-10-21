@@ -41,6 +41,7 @@ pub mod recovery;
 pub mod saver;
 pub mod shadow_cache;
 pub mod shadow_ops;
+pub mod side_view;
 pub mod snap;
 pub mod state;
 pub mod surface_thumbnails;

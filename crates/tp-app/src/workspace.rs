@@ -202,6 +202,8 @@ pub struct Workspace {
     /// Thumbnails of the textures affected by the open before/after
     /// editor, with its new value (reset when an edit starts).
     pub preview_thumbs: crate::surface_thumbnails::SurfaceThumbnails,
+    /// What the Side View draws.
+    pub side_view: crate::side_view::SideView,
     /// Usage of the swatches, styles and symbols (see [`Workspace::usage`]).
     pub usage_cache: crate::brand_ops::UsageCache,
     /// The mod's pictures shown by the Project space.
@@ -293,6 +295,7 @@ impl Workspace {
             preview_thumbs: crate::surface_thumbnails::SurfaceThumbnails::named(
                 "preview_thumbnail",
             ),
+            side_view: Default::default(),
             usage_cache: Default::default(),
             mod_previews: Default::default(),
             gradients: Default::default(),

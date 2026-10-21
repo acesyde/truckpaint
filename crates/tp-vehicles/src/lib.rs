@@ -149,6 +149,31 @@ pub struct Part {
     #[serde(default)]
     pub also_paints: Vec<String>,
     pub texture: Texture,
+    /// Path of the preview mesh inside the package (main textures only).
+    #[serde(default)]
+    pub preview_mesh: Option<String>,
+}
+
+/// Highest preview mesh format this version understands.
+pub const PREVIEW_FORMAT: u32 = 1;
+
+/// A simple model of a vehicle's painted surfaces, used by the Side View.
+/// Positions are in meters (x right, y up, z towards the back), UVs in
+/// texture coordinates with `[0, 0]` at the top left.
+#[derive(Clone, Debug, Default, PartialEq, Deserialize, Serialize)]
+pub struct PreviewMesh {
+    pub format: u32,
+    pub pieces: Vec<PreviewPiece>,
+}
+
+/// Triangles painted by one texture of the package.
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct PreviewPiece {
+    /// Id of the package part whose texture paints the piece.
+    pub texture: String,
+    pub positions: Vec<[f32; 3]>,
+    pub uv: Vec<[f32; 2]>,
+    pub triangles: Vec<[u32; 3]>,
 }
 
 /// Whether a part is a main texture or an accessory.
@@ -320,6 +345,11 @@ pub enum PackageError {
     },
     /// The changelog is longer than [`MAX_CHANGELOG`] characters.
     BadChangelog,
+    /// A preview mesh is missing or invalid (its path and what is wrong).
+    BadPreview {
+        path: String,
+        cause: String,
+    },
 }
 
 /// The longest changelog a package may carry, in characters.
@@ -356,12 +386,19 @@ pub struct Package {
     pub manifest: Manifest,
     /// `(part id, image)`.
     pub templates: Vec<(String, TemplateImage)>,
+    /// `(main part id, mesh)` for the main textures that have one.
+    pub previews: Vec<(String, PreviewMesh)>,
 }
 
 impl Package {
     /// The template of part `id`.
     pub fn template(&self, id: &str) -> Option<&TemplateImage> {
         self.templates.iter().find(|(p, _)| p == id).map(|(_, i)| i)
+    }
+
+    /// The preview mesh of main part `id`.
+    pub fn preview(&self, id: &str) -> Option<&PreviewMesh> {
+        self.previews.iter().find(|(p, _)| p == id).map(|(_, m)| m)
     }
 
     /// Reads and fully validates a package.
@@ -375,10 +412,33 @@ impl Package {
             let image = read_template(&mut zip, part)?;
             templates.push((part.id.clone(), image));
         }
+        let mut previews = Vec::new();
+        for part in &manifest.paint_job.main {
+            if let Some(path) = &part.preview_mesh {
+                previews.push((part.id.clone(), parse_preview(&mut zip, path, &manifest)?));
+            }
+        }
         Ok(Package {
             manifest,
             templates,
+            previews,
         })
+    }
+
+    /// Reads only the preview mesh of main part `id`, if it has one (the Side View
+    /// loads it on demand, without the templates).
+    pub fn read_preview(bytes: &[u8], id: &str) -> Result<Option<PreviewMesh>, PackageError> {
+        let mut zip = open(bytes)?;
+        let manifest = parse_manifest(&mut zip)?;
+        validate(&manifest)?;
+        let path = manifest
+            .paint_job
+            .main
+            .iter()
+            .find(|p| p.id == id)
+            .and_then(|p| p.preview_mesh.as_ref());
+        path.map(|path| parse_preview(&mut zip, path, &manifest))
+            .transpose()
     }
 
     /// Reads only the manifest (listing an installed library).
@@ -530,6 +590,11 @@ fn validate(m: &Manifest) -> Result<(), PackageError> {
         }
         validate_part(part)?;
     }
+    for path in job.main.iter().filter_map(|p| p.preview_mesh.as_ref()) {
+        if !is_safe_path(path) {
+            return Err(PackageError::UnsafePath(path.clone()));
+        }
+    }
     // Several main textures each say which cabins they are for; an
     // accessory always says which accessories it covers.
     validate_game_ids(&job.main, job.main.len() > 1)?;
@@ -621,6 +686,46 @@ pub fn image_size(kind: ImageKind, bytes: &[u8]) -> Option<(f64, f64)> {
             Some((f64::from(s.width()), f64::from(s.height())))
         }
     }
+}
+
+fn parse_preview(zip: &mut Zip<'_>, path: &str, m: &Manifest) -> Result<PreviewMesh, PackageError> {
+    let bad = |cause: String| PackageError::BadPreview {
+        path: path.to_owned(),
+        cause,
+    };
+    let bytes = read_entry(zip, path).ok_or_else(|| bad("the file is missing".into()))?;
+    let mesh: PreviewMesh = serde_json::from_slice(&bytes).map_err(|e| bad(e.to_string()))?;
+    if mesh.format != PREVIEW_FORMAT {
+        return Err(bad(format!("unknown preview mesh format {}", mesh.format)));
+    }
+    for piece in &mesh.pieces {
+        if m.paint_job.part(&piece.texture).is_none() {
+            return Err(bad(format!("unknown texture \"{}\"", piece.texture)));
+        }
+        let vertices = piece.positions.len();
+        if piece.uv.len() != vertices {
+            return Err(bad("positions and uv have different lengths".into()));
+        }
+        if piece
+            .triangles
+            .iter()
+            .flatten()
+            .any(|i| *i as usize >= vertices)
+        {
+            return Err(bad(format!(
+                "a triangle uses a vertex beyond the {vertices} of its piece"
+            )));
+        }
+        let finite = piece
+            .positions
+            .iter()
+            .flatten()
+            .chain(piece.uv.iter().flatten());
+        if finite.into_iter().any(|n| !n.is_finite()) {
+            return Err(bad("a number is not finite".into()));
+        }
+    }
+    Ok(mesh)
 }
 
 fn read_template(zip: &mut Zip<'_>, part: &Part) -> Result<TemplateImage, PackageError> {

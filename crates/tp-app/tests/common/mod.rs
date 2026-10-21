@@ -130,6 +130,7 @@ pub fn settle_renders(harness: &mut Harness<'static, AppState>) {
                 || ws.preview_thumbs.is_rendering()
                 || ws.mod_previews.is_rendering()
                 || ws.shadows.is_rendering()
+                || ws.side_view.is_rendering()
         });
         if !busy {
             harness.run();

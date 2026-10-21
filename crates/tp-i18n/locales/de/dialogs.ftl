@@ -111,6 +111,7 @@ pkg-newer-format = es wurde für eine neuere TruckPaint-Version erstellt.
 pkg-bad-id = seine ID „{ $id }“ ist ungültig.
 pkg-no-main-texture = es hat keine Haupttextur.
 pkg-bad-changelog = sein Änderungsprotokoll ist länger als 1000 Zeichen.
+pkg-bad-preview = sein Vorschaunetz „{ $path }“ ist ungültig: { $cause }
 pkg-bad-game-path = sein Spielpfad „{ $path }“ ist ungültig (Wörter aus a–z, 0–9 und _, durch Punkte getrennt).
 pkg-bad-game-id = die Spiel-ID „{ $id }“ ist ungültig (Wörter aus a–z, 0–9 und _, durch Punkte getrennt).
 pkg-missing-game-ids = „{ $texture }“ hat keine Spiel-ID.

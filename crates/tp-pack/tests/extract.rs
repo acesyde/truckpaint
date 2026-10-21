@@ -17,6 +17,11 @@ const INNER: [[f32; 2]; 3] = [[0.25, 0.25], [0.75, 0.25], [0.25, 0.75]];
 
 /// A body of one piece whose first set is `_TEXCOORD1`; `second` adds a `_TEXCOORD2` set.
 fn geometry(first: [[f32; 2]; 3], second: Option<[[f32; 2]; 3]>) -> Vec<u8> {
+    geometry_at(first, second, 0.)
+}
+
+/// [`geometry`] with its vertices moved `x` meters to the right.
+fn geometry_at(first: [[f32; 2]; 3], second: Option<[[f32; 2]; 3]>, x: f32) -> Vec<u8> {
     let mut sets = vec![first.to_vec()];
     let mut mask = 0;
     if let Some(second) = second {
@@ -26,6 +31,7 @@ fn geometry(first: [[f32; 2]; 3], second: Option<[[f32; 2]; 3]>) -> Vec<u8> {
     let piece = PieceSpec {
         material: 0,
         mask,
+        positions: vec![[x, 0., 0.], [x + 1., 0., 0.], [x, 1., 0.]],
         uv_sets: sets,
         triangles: vec![[0, 1, 2]],
     };
@@ -822,8 +828,8 @@ fn help_mentions_trailers() {
     assert!(String::from_utf8_lossy(&help.stdout).contains("trailers"));
 }
 
-/// Extracts `vehicle` alone and returns its report entry and validated manifest.
-fn extract_one(root: &Path, vehicle: &str) -> (Value, tp_vehicles::Manifest) {
+/// Extracts `vehicle` alone and returns its report entry and validated package.
+fn extract_package(root: &Path, vehicle: &str) -> (Value, tp_vehicles::Package) {
     let result = run(root, Some(vehicle));
     assert!(
         result.status.success(),
@@ -833,7 +839,13 @@ fn extract_one(root: &Path, vehicle: &str) -> (Value, tp_vehicles::Manifest) {
     let batch = batches(root).pop().unwrap();
     let entry = report(&batch)["results"][0].clone();
     let bytes = std::fs::read(batch.join(entry["package"].as_str().unwrap())).unwrap();
-    (entry, tp_pack::check(&bytes).unwrap())
+    (entry, tp_vehicles::Package::read(&bytes).unwrap())
+}
+
+/// Extracts `vehicle` alone and returns its report entry and validated manifest.
+fn extract_one(root: &Path, vehicle: &str) -> (Value, tp_vehicles::Manifest) {
+    let (entry, package) = extract_package(root, vehicle);
+    (entry, package.manifest)
 }
 
 #[test]
@@ -1050,6 +1062,76 @@ fn a_trailer_whose_parts_all_have_their_own_region_gets_a_plain_main_texture() {
     assert!(main.game_ids.is_empty());
     assert_eq!(entry["textures"][0]["edges"], 0);
     assert_eq!(manifest.paint_job.accessories.len(), 2);
+    // A blank main texture gets no preview mesh and the report says why.
+    assert!(main.preview_mesh.is_none());
+    let reason = entry["textures"][0]["preview_mesh"]["reason"].as_str();
+    assert!(reason.unwrap().contains("blank"), "{entry:#}");
+}
+
+/// preview-mesh: each cabin's mesh holds its own pieces, drawn on the lines of its template.
+#[test]
+fn each_cabin_gets_a_preview_mesh_of_its_own_pieces_on_its_template_lines() {
+    let fixture = fixture();
+    let root = fixture.path();
+    let source = root.join("game/version.scs.files");
+    write(
+        &source,
+        "def/vehicle/truck/example.good/cabin/high_8x4.sii",
+        "SiiNunit\n{\naccessory_cabin_data : high_8x4.example.good.cabin {\nname: \"High\"\nmodel: \"/vehicle/shared/second.pmd\"\n}\n}\n",
+    );
+    write_model(
+        &source,
+        "second",
+        &geometry_at(INNER, None, 10.),
+        "eut2.truckpaint.tsnmapuv",
+    );
+    let (entry, package) = extract_package(root, "example.good");
+    let ids = package
+        .manifest
+        .paint_job
+        .main
+        .iter()
+        .map(|p| p.id.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(ids, ["high", "high_8x4"]);
+    for (id, x, configuration) in [
+        ("high", 0., "cabin.high"),
+        ("high_8x4", 10., "cabin.high_8x4"),
+    ] {
+        let mesh = package.preview(id).unwrap();
+        // Only this cabin's piece: the other cabin sits ten meters away.
+        let [piece] = mesh.pieces.as_slice() else {
+            panic!("one piece expected");
+        };
+        assert_eq!(piece.texture, id);
+        assert_eq!(piece.positions[0], [x, 0., 0.]);
+        let part = entry["textures"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|t| t["part"] == id)
+            .unwrap();
+        assert_eq!(part["preview_mesh"]["configuration"], configuration);
+        // Every edge of the mesh is a line of the template built from the same meshes.
+        let svg = package.template(id).unwrap();
+        let svg = std::str::from_utf8(&svg.bytes).unwrap();
+        let point = |uv: [f32; 2]| uv.map(|v| (f64::from(v) * 10_000_000.0).round() as i64);
+        for [a, b, c] in &piece.triangles {
+            for (a, b) in [(a, b), (b, c), (c, a)] {
+                let (a, b) = (point(piece.uv[*a as usize]), point(piece.uv[*b as usize]));
+                let (a, b) = if a < b { (a, b) } else { (b, a) };
+                let side = |p: [i64; 2], axis: usize| p[axis] as f64 / 10_000_000.0 * 4096.;
+                let line = format!(
+                    "M{:.3},{:.3}L{:.3},{:.3}",
+                    side(a, 0),
+                    side(a, 1),
+                    side(b, 0),
+                    side(b, 1)
+                );
+                assert!(svg.contains(&line), "{line} not in the {id} template");
+            }
+        }
+    }
 }
 
 #[test]

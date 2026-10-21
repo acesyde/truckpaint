@@ -25,7 +25,8 @@
           "size": [2048, 2048],
           "template": "templates/base.svg",
           "layout_version": 1
-        }
+        },
+        "preview_mesh": "preview/base.json"
       }
     ],
     "accessories": [

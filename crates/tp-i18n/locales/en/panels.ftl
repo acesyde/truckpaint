@@ -428,3 +428,15 @@ shadow-blur = Blur
 undo-add-shadow = Add Shadow
 undo-change-shadow = Change Shadow
 undo-remove-shadow = Remove Shadow
+
+side-view-title = Side View
+side-view-left = Left
+side-view-right = Right
+side-view-front = Front
+side-view-back = Back
+side-view-top = Top
+side-view-custom = The Side View is not available for custom vehicles.
+side-view-regenerate = Generate this vehicle again from My Game to get the Side View.
+side-view-blank = This texture only carries the base color. Its parts are painted on accessory textures, which the Side View does not show yet.
+side-view-package = The vehicle’s package is needed for the Side View.
+side-view-none = The Side View is not available for this vehicle.

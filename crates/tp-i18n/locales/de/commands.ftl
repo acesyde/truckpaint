@@ -49,6 +49,7 @@ cmd-show-grid = Raster anzeigen
 cmd-show-guides = Hilfslinien anzeigen
 cmd-clear-guides = Hilfslinien löschen
 cmd-snapping = Einrasten
+cmd-show-side-view = Seitenansicht anzeigen
 cmd-design-system-gallery = Designsystem-Galerie
 cmd-export-texture = Textur exportieren…
 cmd-export-mod = Mod exportieren…
