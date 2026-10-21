@@ -146,10 +146,11 @@ pub fn add_text(
 pub fn wait_for_thumbnails(h: &mut egui_kittest::Harness<'static, tp_app::AppState>) {
     for _ in 0..200 {
         let state = h.state();
-        let rendering = state
-            .workspace()
-            .is_some_and(|ws| ws.thumbnails.is_rendering() || ws.mod_previews.is_rendering())
-            || state.recent_thumbnails.is_reading()
+        let rendering = state.workspace().is_some_and(|ws| {
+            ws.thumbnails.is_rendering()
+                || ws.mod_previews.is_rendering()
+                || ws.side_view.is_rendering()
+        }) || state.recent_thumbnails.is_reading()
             || state.package_previews.is_reading();
         if !rendering {
             break;

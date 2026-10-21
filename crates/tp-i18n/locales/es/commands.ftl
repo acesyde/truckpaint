@@ -49,6 +49,7 @@ cmd-show-grid = Mostrar cuadrícula
 cmd-show-guides = Mostrar guías
 cmd-clear-guides = Borrar guías
 cmd-snapping = Ajuste
+cmd-show-side-view = Mostrar vista lateral
 cmd-design-system-gallery = Galería del sistema de diseño
 cmd-export-texture = Exportar textura…
 cmd-export-mod = Exportar mod…

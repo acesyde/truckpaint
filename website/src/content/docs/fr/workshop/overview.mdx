@@ -44,6 +44,29 @@ Au-dessus de la zone de travail, la barre d’options de l’outil affiche le no
 
 Pour gagner de la place, choisissez <Ui id="menu-view" /> › <Ui id="cmd-hide-panels" /> (Tab) : le panneau de gauche et l’inspecteur disparaissent, la barre d’outils et les barres restent. Appuyez à nouveau sur Tab pour les faire revenir. <Ui id="menu-view" /> › <Ui id="cmd-reset-workspace" /> remet les panneaux à leur largeur par défaut.
 
+## La vue latérale
+
+Une texture est plate, mais un véhicule ne l’est pas : les morceaux de la texture sont découpés, tournés et répartis sur le modèle. La vue latérale montre le véhicule avec votre livrée, pour que vous voyiez où atterrit chaque partie de la texture.
+
+Choisissez <Ui id="menu-view" /> › <Ui id="cmd-show-side-view" /> pour l’afficher ou la masquer. Le panneau se place sous la zone de travail, sur toute sa largeur. Faites glisser son bord supérieur pour l’agrandir ou le réduire. Son affichage, sa direction et sa hauteur sont mémorisés, et <Ui id="cmd-hide-panels" /> (Tab) le laisse en place.
+
+<Shot name="workshop/side-view" alt="La vue latérale sous la zone de travail, montrant la cabine Standard du camion d’exemple vue de la gauche avec la livrée Blue Wave Biarritz : la portière blanche avec le logo." />
+
+- **Cinq directions.** Choisissez <Ui id="side-view-left" />, <Ui id="side-view-right" />, <Ui id="side-view-front" />, <Ui id="side-view-back" /> ou <Ui id="side-view-top" /> (vu du dessus, pratique pour un toit décoré) en haut à droite du panneau. Le dessin est plat, sans perspective, et s’ajuste toujours au panneau. Vous ne pouvez ni le faire tourner ni le zoomer.
+- **En direct.** Chaque modification faite sur la zone de travail apparaît dans la vue un instant plus tard. Pendant que vous faites glisser un objet, la zone de travail suit votre pointeur et la vue rattrape son retard quand vous relâchez.
+- **Textures principales seulement.** Pour un camion, la vue montre la cabine de la texture principale ouverte. Pour une remorque, elle montre la texture principale. Les textures d’accessoires (déflecteurs, jupes latérales, pare-soleil, etc.) ne sont pas encore dessinées : tant que l’une d’elles est ouverte, la vue continue d’afficher la dernière texture principale sur laquelle vous avez travaillé.
+- **Les pièces montées en accessoires manquent.** Sur certains camions, des pièces peintes avec la texture principale sont montées comme des accessoires : les portières, le pare-chocs, les ailes, les déflecteurs. Elles figurent sur le gabarit mais pas encore dans la vue, qui peut donc montrer un trou à la place d’une portière.
+- **Changer de texture.** Ouvrez une autre cabine, ou une texture d’un autre véhicule, et la vue change avec elle.
+
+La vue latérale est un guide pendant la conception. La vérification finale reste dans le jeu.
+
+Quand il n’y a rien à dessiner, le panneau en donne la raison :
+
+- les véhicules personnalisés n’ont pas de vue latérale ;
+- un véhicule officiel généré avant la vue latérale doit être généré de nouveau depuis <Ui id="vehicles-tab-game" /> ;
+- certaines remorques ont une texture principale qui ne porte que la couleur de base, car leurs pièces sont peintes sur des textures d’accessoires ;
+- un projet ouvert sur un ordinateur où le paquet de son véhicule n’est pas installé a besoin de ce paquet.
+
 ## Le gabarit en surimpression
 
 Le gabarit est dessiné par-dessus votre motif comme un guide verrouillé : vous ne pouvez ni le sélectionner ni le déplacer, il n’apparaît pas dans l’onglet Calques, et il n’est **jamais exporté**. Appuyez sur G, ou choisissez <Ui id="menu-view" /> › <Ui id="cmd-show-template" />, pour le masquer ou l’afficher. Réglez son opacité (60 % par défaut) à côté du bouton <Ui id="status-template" /> de la barre d’état. Ces deux réglages sont conservés pour chaque texture.

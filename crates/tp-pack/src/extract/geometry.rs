@@ -4,6 +4,8 @@ use tp_scs::{Descriptor, Look, Model};
 
 #[derive(Debug, Clone)]
 pub struct Mesh {
+    /// One per vertex, in meters as stored by the game.
+    pub positions: Vec<[f32; 3]>,
     pub uv: Vec<[f64; 2]>,
     pub triangles: Vec<[usize; 3]>,
     pub shader: String,
@@ -144,7 +146,11 @@ pub fn painted(
         if triangles.iter().flatten().any(|i| *i >= uv.len()) {
             return Err("triangle index out of bounds".into());
         }
+        if piece.positions.len() != uv.len() {
+            return Err("positions and paint UVs differ in count".into());
+        }
         result.push(Mesh {
+            positions: piece.positions.clone(),
             uv,
             triangles,
             shader: effect.clone(),
@@ -155,6 +161,28 @@ pub fn painted(
         return Err("visible part references a missing piece".into());
     }
     Ok(result)
+}
+
+/// The preview mesh file of the meshes painted by texture `texture`: positions rounded to 1 mm.
+pub fn preview(meshes: &[Mesh], texture: &str) -> Result<Vec<u8>, String> {
+    let pieces = meshes
+        .iter()
+        .map(|m| tp_vehicles::PreviewPiece {
+            texture: texture.to_owned(),
+            positions: m.positions.iter().map(|p| p.map(millimeter)).collect(),
+            uv: m.uv.iter().map(|uv| uv.map(|v| v as f32)).collect(),
+            triangles: m.triangles.iter().map(|t| t.map(|i| i as u32)).collect(),
+        })
+        .collect();
+    let mesh = tp_vehicles::PreviewMesh {
+        format: tp_vehicles::PREVIEW_FORMAT,
+        pieces,
+    };
+    serde_json::to_vec(&mesh).map_err(|e| e.to_string())
+}
+
+fn millimeter(meters: f32) -> f32 {
+    (meters * 1000.0).round() / 1000.0
 }
 
 /// A template with no layout, for a texture that only carries a base colour.
@@ -218,6 +246,7 @@ mod tests {
         Model {
             pieces: vec![tp_scs::Piece {
                 material: 0,
+                positions: vec![[0.; 3]; 3],
                 streams,
                 triangles: vec![[0, 1, 2]],
             }],

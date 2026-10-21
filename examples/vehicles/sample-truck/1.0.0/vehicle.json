@@ -28,7 +28,8 @@
           "size": [4096, 4096],
           "template": "templates/standard_cabin.svg",
           "layout_version": 1
-        }
+        },
+        "preview_mesh": "preview/standard.json"
       },
       {
         "id": "high_roof",
@@ -40,7 +41,8 @@
           "size": [4096, 4096],
           "template": "templates/high_roof_cabin.svg",
           "layout_version": 1
-        }
+        },
+        "preview_mesh": "preview/high_roof.json"
       }
     ],
     "accessories": [

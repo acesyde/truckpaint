@@ -4,6 +4,8 @@
 use serde::{Deserialize, Serialize};
 use tp_ui::tokens::size;
 
+use crate::side_view::Direction;
+
 /// The three spaces of an open project. Not persisted: opening a project
 /// chooses the space.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -64,6 +66,11 @@ pub struct WorkspaceLayout {
     /// Hide Panels (focus mode): the left panel and the inspector are
     /// hidden.
     pub panels_hidden: bool,
+    /// The Side View panel under the canvas is shown.
+    pub side_view: bool,
+    /// The direction the Side View looks from.
+    pub side_direction: Direction,
+    pub side_height: f32,
     /// Bumped on reset so egui forgets remembered panel sizes.
     #[serde(skip)]
     pub generation: u32,
@@ -76,6 +83,9 @@ impl Default for WorkspaceLayout {
             left_width: size::LEFT_PANEL_DEFAULT,
             inspector_width: size::INSPECTOR_DEFAULT,
             panels_hidden: false,
+            side_view: false,
+            side_direction: Direction::default(),
+            side_height: size::SIDE_VIEW_DEFAULT,
             generation: 0,
         }
     }
@@ -96,6 +106,11 @@ impl WorkspaceLayout {
             size::INSPECTOR_MAX,
             size::INSPECTOR_DEFAULT,
         );
+        self.side_height = if self.side_height.is_finite() {
+            self.side_height.max(size::SIDE_VIEW_MIN)
+        } else {
+            size::SIDE_VIEW_DEFAULT
+        };
         self
     }
 
@@ -106,7 +121,7 @@ impl WorkspaceLayout {
     }
 
     /// Restores defaults: both panels shown at their default widths, with
-    /// the Textures tab.
+    /// the Textures tab and the Side View hidden.
     pub fn reset(&mut self) {
         let generation = self.generation.wrapping_add(1);
         *self = Self {
@@ -159,6 +174,26 @@ mod tests {
     }
 
     #[test]
+    fn the_side_view_defaults_and_height_are_repaired() {
+        let layout = WorkspaceLayout::default();
+        assert!(!layout.side_view);
+        assert_eq!(layout.side_direction, Direction::Left);
+        assert_eq!(layout.side_height, size::SIDE_VIEW_DEFAULT);
+        let layout = WorkspaceLayout {
+            side_height: 3.0,
+            ..WorkspaceLayout::default()
+        }
+        .sanitized();
+        assert_eq!(layout.side_height, size::SIDE_VIEW_MIN);
+        let layout = WorkspaceLayout {
+            side_height: f32::NAN,
+            ..WorkspaceLayout::default()
+        }
+        .sanitized();
+        assert_eq!(layout.side_height, size::SIDE_VIEW_DEFAULT);
+    }
+
+    #[test]
     fn showing_a_tab_shows_the_panels() {
         let mut layout = WorkspaceLayout {
             panels_hidden: true,
@@ -176,6 +211,9 @@ mod tests {
             left_width: 400.0,
             inspector_width: 420.0,
             panels_hidden: true,
+            side_view: true,
+            side_direction: Direction::Back,
+            side_height: 400.0,
             generation: 0,
         };
         layout.reset();

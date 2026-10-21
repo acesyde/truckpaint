@@ -44,6 +44,29 @@ Encima del lienzo, la barra de opciones de herramienta muestra el nombre de la h
 
 Para ganar espacio, elija <Ui id="menu-view" /> › <Ui id="cmd-hide-panels" /> (Tab): el panel izquierdo y el inspector desaparecen, y la barra de herramientas y las demás barras se quedan. Pulse Tab de nuevo para recuperarlos. <Ui id="menu-view" /> › <Ui id="cmd-reset-workspace" /> devuelve los paneles a su anchura predeterminada.
 
+## La vista lateral
+
+Una textura es plana, pero un vehículo no: las piezas de la textura están recortadas, giradas y repartidas por el modelo. La vista lateral muestra el vehículo con su diseño encima, para que pueda ver dónde cae cada parte de la textura.
+
+Elija <Ui id="menu-view" /> › <Ui id="cmd-show-side-view" /> para mostrarla u ocultarla. El panel se coloca debajo del lienzo, a todo su ancho. Arrastre su borde superior para hacerlo más alto o más bajo. Se recuerdan si está visible, su dirección y su altura, y <Ui id="cmd-hide-panels" /> (Tab) lo deja en su sitio.
+
+<Shot name="workshop/side-view" alt="La vista lateral debajo del lienzo, con la cabina Standard del camión de ejemplo vista desde la izquierda y el diseño Blue Wave Biarritz: la puerta blanca con el logotipo." />
+
+- **Cinco direcciones.** Elija <Ui id="side-view-left" />, <Ui id="side-view-right" />, <Ui id="side-view-front" />, <Ui id="side-view-back" /> o <Ui id="side-view-top" /> (vista desde arriba, útil para un techo decorado) arriba a la derecha del panel. El dibujo es plano, sin perspectiva, y siempre se ajusta al panel. No se puede girar ni ampliar.
+- **En directo.** Cada cambio que haga en el lienzo aparece en la vista un instante después. Mientras arrastra un objeto, el lienzo sigue el puntero y la vista se actualiza al soltar.
+- **Solo texturas principales.** En un camión, la vista muestra la cabina de la textura principal abierta. En un remolque, muestra la textura principal. Las texturas de accesorios (deflectores, faldones laterales, viseras, etc.) todavía no se dibujan: mientras una de ellas está abierta, la vista sigue mostrando la última textura principal en la que trabajó.
+- **Faltan las piezas montadas como accesorios.** En algunos camiones, piezas pintadas con la textura principal se montan como accesorios: las puertas, el parachoques, los guardabarros, los deflectores. Aparecen en la plantilla pero todavía no en la vista, que puede mostrar un hueco donde debería estar una puerta.
+- **Cambiar de textura.** Abra otra cabina, o una textura de otro vehículo, y la vista cambia con ella.
+
+La vista lateral es una guía mientras diseña. La comprobación final sigue siendo en el juego.
+
+Cuando no hay nada que dibujar, el panel explica por qué:
+
+- los vehículos personalizados no tienen vista lateral;
+- un vehículo oficial generado antes de la vista lateral debe generarse de nuevo desde <Ui id="vehicles-tab-game" />;
+- algunos remolques tienen una textura principal que solo lleva el color base, porque sus piezas se pintan en texturas de accesorios;
+- un proyecto abierto en un ordenador donde no está instalado el paquete de su vehículo necesita ese paquete.
+
 ## La superposición de la plantilla
 
 La plantilla se dibuja sobre su diseño como una guía bloqueada: no se puede seleccionar ni mover, no está en la pestaña Capas y **nunca se exporta**. Pulse G, o elija <Ui id="menu-view" /> › <Ui id="cmd-show-template" />, para ocultarla o mostrarla. Ajuste su opacidad (60 % por defecto) junto al interruptor <Ui id="status-template" /> de la barra de estado. Ambos ajustes se guardan por textura.

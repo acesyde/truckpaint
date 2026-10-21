@@ -10,6 +10,7 @@ pub mod canvas;
 pub mod inspector;
 pub mod left_panel;
 pub mod panels;
+pub mod side_view;
 pub mod spaces;
 pub mod status_bar;
 pub mod tool_options;
@@ -177,6 +178,11 @@ pub fn show(ui: &mut Ui, state: &mut AppState) {
             CentralPanel::no_frame()
                 .frame(Frame::new().fill(color::SURFACE_0))
                 .show(ui, |ui| {
+                    // The Side View sits under the canvas, whatever Hide Panels says.
+                    ws.side_view.note(&ws.project);
+                    if layout.side_view {
+                        side_view::show(ui, layout, &mut env!());
+                    }
                     canvas::show(ui, &mut cmds, ws);
                     breadcrumb::inlaid(ui, ws);
                 });

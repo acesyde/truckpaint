@@ -65,6 +65,7 @@ pub enum CommandId {
     ShowGuides,
     ClearGuides,
     Snapping,
+    ShowSideView,
     DesignGallery,
     // Vehicle
     VehicleLibrary,
@@ -315,6 +316,7 @@ impl CommandId {
             ShowGuides,
             ClearGuides,
             Snapping,
+            ShowSideView,
             DesignGallery,
             VehicleLibrary,
             AddVehicle,
@@ -802,6 +804,16 @@ impl CommandId {
                 const { &[sc(CMD_SHIFT, Key::Semicolon)] },
                 Workspace,
                 NeedsProject,
+            ),
+            ShowSideView => m(
+                "cmd-show-side-view",
+                None,
+                &[],
+                Workspace,
+                When(
+                    |c| c.space == Some(Space::Workshop),
+                    "reason-not-in-workshop",
+                ),
             ),
             DesignGallery => m("cmd-design-system-gallery", None, &[], App, Always),
 

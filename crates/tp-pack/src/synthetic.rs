@@ -119,6 +119,7 @@ pub fn write_game(folder: &Path, application: &str, version: &str, vehicles: &[V
         let piece = PieceSpec {
             material: 0,
             mask: 0,
+            positions: vec![[0., 0., 0.], [1., 0., 0.], [0., 1., 0.]],
             uv_sets: vec![vec![[0., 0.], second, [0., 1.]]],
             triangles: vec![[0, 1, 2]],
         };

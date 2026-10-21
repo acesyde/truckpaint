@@ -1,5 +1,5 @@
 //! Vehicle models: geometry (`.pmg`), descriptor (`.pmd`) and the effect of a material (`.mat`).
-//! Only what painted surfaces need is read; skeletons, locators, normals and weights are skipped.
+//! Only what painted surfaces and their preview need is read; skeletons, locators, normals and weights are skipped.
 
 const PMG_HEADER: usize = 112;
 const PMG_PART: usize = 24;
@@ -17,6 +17,8 @@ pub struct Stream {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Piece {
     pub material: usize,
+    /// One `[x, y, z]` per vertex, in meters.
+    pub positions: Vec<[f32; 3]>,
     pub streams: Vec<Stream>,
     pub triangles: Vec<[u32; 3]>,
 }
@@ -169,6 +171,7 @@ impl Model {
                 _ => Some(b.index(at + field)?),
             })
         };
+        let position = offset(64)?;
         let texcoord = offset(72)?;
         // Every present stream adds to the vertex stride, whatever is read from it.
         let mut stride = 0;
@@ -185,6 +188,17 @@ impl Model {
                 stride += size;
             }
         }
+        let first = position.ok_or_else(|| b.fail("piece has no position stream"))?;
+        let positions = (0..vertices)
+            .map(|v| {
+                let at = first + stride * v;
+                Ok([
+                    f32::from_bits(b.u32(at)?),
+                    f32::from_bits(b.u32(at + 4)?),
+                    f32::from_bits(b.u32(at + 8)?),
+                ])
+            })
+            .collect::<Result<Vec<_>, String>>()?;
         let mut streams = Vec::new();
         if let Some(first) = texcoord {
             for set in 0..width {
@@ -213,6 +227,7 @@ impl Model {
             .collect::<Result<Vec<_>, String>>()?;
         Ok(Piece {
             material,
+            positions,
             streams,
             triangles,
         })
@@ -336,18 +351,21 @@ mod tests {
                 PieceSpec {
                     material: 0,
                     mask: 0x10,
+                    positions: vec![[1.5, -2.0, 0.25], [0.0, 1.0, 2.0], [3.0, 4.0, 5.0]],
                     uv_sets: vec![other.clone(), quad.clone()],
                     triangles: vec![[0, 1, 2]],
                 },
                 PieceSpec {
                     material: 1,
                     mask: 0x10,
+                    positions: vec![],
                     uv_sets: vec![quad.clone(), other],
                     triangles: vec![],
                 },
                 PieceSpec {
                     material: 0,
                     mask: 0,
+                    positions: vec![],
                     uv_sets: vec![],
                     triangles: vec![[0, 1, 2]],
                 },
@@ -369,12 +387,28 @@ mod tests {
         assert_eq!(model.pieces.len(), 3);
         let first = &model.pieces[0];
         assert_eq!(first.triangles, [[0, 1, 2]]);
+        assert_eq!(first.positions[0], [1.5, -2.0, 0.25]);
+        assert_eq!(first.positions[2], [3.0, 4.0, 5.0]);
         // Mask 0x10: nibble 1 is set 1, so `_TEXCOORD1` aliases the second set whatever its position.
         assert_eq!(first.streams[0].aliases, [0, 2, 3, 4, 5, 6, 7]);
         assert_eq!(first.streams[1].aliases, [1]);
         assert_eq!(first.streams[0].uv[1][0].to_bits(), 0x3eaa_aaab);
         assert!(model.pieces[1].triangles.is_empty());
         assert!(model.pieces[2].streams.is_empty());
+    }
+
+    #[test]
+    fn truncated_position_stream_names_the_file() {
+        let mut data = sample();
+        // Point the first piece's position stream past the end of the file.
+        let piece = 112 + 24 * 2;
+        let past = (data.len() as i32 - 4).to_le_bytes();
+        data[piece + 64..piece + 68].copy_from_slice(&past);
+        let error = Model::parse("/m.pmg", &data).unwrap_err();
+        assert!(error.starts_with("/m.pmg: "), "{error}");
+        let mut absent = sample();
+        absent[piece + 64..piece + 68].copy_from_slice(&(-1i32).to_le_bytes());
+        assert!(Model::parse("/m.pmg", &absent).is_err());
     }
 
     #[test]

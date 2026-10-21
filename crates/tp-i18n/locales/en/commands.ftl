@@ -50,6 +50,7 @@ cmd-show-grid = Show Grid
 cmd-show-guides = Show Guides
 cmd-clear-guides = Clear Guides
 cmd-snapping = Snapping
+cmd-show-side-view = Show Side View
 cmd-design-system-gallery = Design System Gallery
 cmd-export-texture = Export Texture…
 cmd-export-mod = Export Mod…

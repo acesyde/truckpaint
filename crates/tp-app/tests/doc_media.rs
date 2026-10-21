@@ -859,6 +859,13 @@ fn section_workshop() {
         h.state_mut().workspace_mut().unwrap().selection = vec![side];
         shot(&mut h, language, "workshop/layers");
 
+        // The Side View: the Standard cab with the livery, seen from the left.
+        let mut h = harness(language);
+        livery(&mut h);
+        show_texture(&mut h, "standard");
+        h.state_mut().prefs.layout.side_view = true;
+        shot(&mut h, language, "workshop/side-view");
+
         // After Update Template: the objects to reposition are marked.
         let mut h = harness(language);
         outdated_truck_project(&mut h);

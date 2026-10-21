@@ -356,6 +356,55 @@ mod tests {
     }
 
     #[test]
+    fn the_side_view_round_trips_and_older_files_get_its_defaults() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = PrefsStore::new(dir.path());
+        // A file written before the Side View keeps its other preferences.
+        fs::write(
+            store.path(),
+            "(version: 1, ui_scale: 1.25, layout: (left_width: 300.0))",
+        )
+        .unwrap();
+        let loaded = store.load();
+        assert!(loaded.issue.is_none() && loaded.backup.is_none());
+        assert_eq!(loaded.prefs.ui_scale, 1.25);
+        let layout = &loaded.prefs.layout;
+        assert_eq!(layout.left_width, 300.0);
+        assert!(!layout.side_view);
+        assert_eq!(layout.side_direction, crate::side_view::Direction::Left);
+        assert_eq!(layout.side_height, tp_ui::tokens::size::SIDE_VIEW_DEFAULT);
+        let mut prefs = loaded.prefs;
+        prefs.layout.side_view = true;
+        prefs.layout.side_direction = crate::side_view::Direction::Front;
+        prefs.layout.side_height = 310.0;
+        store.save(&prefs).unwrap();
+        assert_eq!(store.load().prefs.layout, prefs.layout);
+    }
+
+    #[test]
+    fn an_unknown_side_view_direction_falls_back_to_left() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = PrefsStore::new(dir.path());
+        fs::write(
+            store.path(),
+            "(version: 1, ui_scale: 1.25, layout: (side_direction: Underneath))",
+        )
+        .unwrap();
+        let loaded = store.load();
+        assert!(loaded.issue.is_none() && loaded.backup.is_none());
+        assert_eq!(loaded.prefs.ui_scale, 1.25);
+        assert_eq!(
+            loaded.prefs.layout.side_direction,
+            crate::side_view::Direction::Left
+        );
+        fs::write(store.path(), "(version: 1, layout: (side_direction: Top))").unwrap();
+        assert_eq!(
+            store.load().prefs.layout.side_direction,
+            crate::side_view::Direction::Top
+        );
+    }
+
+    #[test]
     fn files_from_builds_with_the_3d_preview_load() {
         let dir = tempfile::tempdir().unwrap();
         let store = PrefsStore::new(dir.path());
@@ -410,6 +459,9 @@ mod tests {
             left_width: 320.0,
             inspector_width: 360.0,
             panels_hidden: true,
+            side_view: true,
+            side_direction: crate::side_view::Direction::Back,
+            side_height: 300.0,
             generation: 0,
         };
         prefs.recent.push(RecentProject {

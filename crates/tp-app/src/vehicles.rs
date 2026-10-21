@@ -127,6 +127,13 @@ pub fn package_error_reason(e: &PackageError) -> String {
             tr!("pkg-template-too-large", texture = texture.as_str())
         }
         PackageError::BadChangelog => tr("pkg-bad-changelog"),
+        PackageError::BadPreview { path, cause } => {
+            tr!(
+                "pkg-bad-preview",
+                path = path.as_str(),
+                cause = cause.as_str()
+            )
+        }
     }
 }
 

@@ -73,6 +73,8 @@ pub fn menus() -> Vec<Menu> {
         Item(ClearGuides),
         Toggle(Snapping),
         Separator,
+        Toggle(ShowSideView),
+        Separator,
         Item(ZoomIn),
         Item(ZoomOut),
         Item(FitToScreen),
@@ -238,7 +240,7 @@ pub fn menus_for(mac: bool) -> Vec<Menu> {
 }
 
 /// Whether toggle `id` is on: the space shown, the left tab, Hide Panels,
-/// the template, the grid, the guides and snapping. `layout` is `None` on
+/// the template, the grid, the guides, snapping and the Side View. `layout` is `None` on
 /// the home screen, where every toggle is off.
 pub fn is_checked(
     id: CommandId,
@@ -255,6 +257,7 @@ pub fn is_checked(
         CommandId::ShowGrid => open && aids.grid,
         CommandId::ShowGuides => open && aids.guides,
         CommandId::Snapping => open && aids.snapping,
+        CommandId::ShowSideView => layout.is_some_and(|l| l.side_view),
         _ => false,
     }
 }

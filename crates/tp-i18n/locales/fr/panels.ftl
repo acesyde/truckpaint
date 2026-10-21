@@ -431,3 +431,15 @@ shadow-blur = Flou
 undo-add-shadow = Ajouter une ombre
 undo-change-shadow = Modifier l’ombre
 undo-remove-shadow = Supprimer l’ombre
+
+side-view-title = Vue latérale
+side-view-left = Gauche
+side-view-right = Droite
+side-view-front = Avant
+side-view-back = Arrière
+side-view-top = Dessus
+side-view-custom = La vue latérale n’est pas disponible pour les véhicules personnalisés.
+side-view-regenerate = Générez de nouveau ce véhicule depuis Mon jeu pour obtenir la vue latérale.
+side-view-blank = Cette texture ne porte que la couleur de base. Ses pièces sont peintes sur des textures d’accessoires, que la vue latérale n’affiche pas encore.
+side-view-package = Le paquet du véhicule est nécessaire pour la vue latérale.
+side-view-none = La vue latérale n’est pas disponible pour ce véhicule.

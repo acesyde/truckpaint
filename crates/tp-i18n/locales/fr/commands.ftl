@@ -49,6 +49,7 @@ cmd-show-grid = Afficher la grille
 cmd-show-guides = Afficher les repères
 cmd-clear-guides = Effacer les repères
 cmd-snapping = Magnétisme
+cmd-show-side-view = Afficher la vue latérale
 cmd-design-system-gallery = Galerie du système de design
 cmd-export-texture = Exporter la texture…
 cmd-export-mod = Exporter le mod…

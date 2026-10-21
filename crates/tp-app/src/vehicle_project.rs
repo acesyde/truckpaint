@@ -809,6 +809,30 @@ mod tests {
         example("sample_truck", version)
     }
 
+    /// vehicle-packages "Project saved and shared": a project never embeds a preview mesh.
+    #[test]
+    fn a_saved_project_holds_no_preview_mesh() {
+        use std::io::Read;
+        let package = truck("1.1.0");
+        let mesh = package.preview("standard").expect("the sample has a mesh");
+        assert!(!mesh.pieces.is_empty());
+        let project =
+            fleet_project("Fleet", &[(&package, &default_textures(&package.manifest))]).unwrap();
+        let bytes = tp_file::to_bytes(&project).unwrap();
+        let mut zip = zip::ZipArchive::new(std::io::Cursor::new(bytes)).unwrap();
+        for i in 0..zip.len() {
+            let mut entry = zip.by_index(i).unwrap();
+            let mut data = Vec::new();
+            entry.read_to_end(&mut data).unwrap();
+            let text = String::from_utf8_lossy(&data);
+            assert!(
+                !entry.name().contains("preview") && !text.contains("positions"),
+                "{} holds game geometry",
+                entry.name()
+            );
+        }
+    }
+
     /// vehicle-packages "Rectangular texture": an [8192, 1024] base gives
     /// an 8192 × 1024 surface.
     #[test]

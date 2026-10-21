@@ -44,6 +44,29 @@ Von links nach rechts:
 
 Für mehr Platz wählen Sie <Ui id="menu-view" /> › <Ui id="cmd-hide-panels" /> (Tab): Das linke Bedienfeld und der Inspektor verschwinden, die Werkzeugleiste und die übrigen Leisten bleiben. Drücken Sie erneut Tab, um sie zurückzuholen. <Ui id="menu-view" /> › <Ui id="cmd-reset-workspace" /> stellt die Standardbreiten der Bedienfelder wieder her.
 
+## Die Seitenansicht
+
+Eine Textur ist flach, ein Fahrzeug nicht: Die Teile der Textur sind zerschnitten, gedreht und über das Modell verteilt. Die Seitenansicht zeigt das Fahrzeug mit Ihrer Lackierung, sodass Sie sehen, wo jeder Teil der Textur landet.
+
+Wählen Sie <Ui id="menu-view" /> › <Ui id="cmd-show-side-view" />, um sie ein- oder auszublenden. Das Bedienfeld liegt unter der Arbeitsfläche, über deren ganze Breite. Ziehen Sie seinen oberen Rand, um es höher oder niedriger zu machen. Ob es angezeigt wird, seine Richtung und seine Höhe werden gespeichert, und <Ui id="cmd-hide-panels" /> (Tab) lässt es stehen.
+
+<Shot name="workshop/side-view" alt="Die Seitenansicht unter der Arbeitsfläche: das Standard-Fahrerhaus des Beispiel-Lkw von links gesehen, mit der Lackierung Blue Wave Biarritz: die weiße Tür mit Logo." />
+
+- **Fünf Richtungen.** Wählen Sie <Ui id="side-view-left" />, <Ui id="side-view-right" />, <Ui id="side-view-front" />, <Ui id="side-view-back" /> oder <Ui id="side-view-top" /> (Ansicht von oben, praktisch für ein gestaltetes Dach) oben rechts im Bedienfeld. Die Darstellung ist flach, ohne Perspektive, und passt sich immer dem Bedienfeld an. Sie lässt sich weder drehen noch zoomen.
+- **Live.** Jede Änderung auf der Arbeitsfläche erscheint einen Moment später in der Ansicht. Während Sie ein Objekt ziehen, folgt die Arbeitsfläche Ihrem Zeiger, und die Ansicht holt beim Loslassen auf.
+- **Nur Haupttexturen.** Bei einem Lkw zeigt die Ansicht das Fahrerhaus der geöffneten Haupttextur. Bei einem Anhänger zeigt sie die Haupttextur. Die Zubehörtexturen (Deflektoren, Seitenverkleidungen, Sonnenblenden usw.) werden noch nicht gezeichnet: Solange eine davon geöffnet ist, zeigt die Ansicht weiter die letzte Haupttextur, an der Sie gearbeitet haben.
+- **Als Zubehör montierte Teile fehlen.** Bei manchen Lkw sind Teile, die mit der Haupttextur lackiert werden, als Zubehör montiert: die Türen, die Stoßstange, die Kotflügel, die Deflektoren. Sie stehen auf der Vorlage, aber noch nicht in der Ansicht, die deshalb eine Lücke zeigen kann, wo eine Tür sein sollte.
+- **Textur wechseln.** Öffnen Sie ein anderes Fahrerhaus oder eine Textur eines anderen Fahrzeugs, und die Ansicht wechselt mit.
+
+Die Seitenansicht ist eine Hilfe beim Gestalten. Die endgültige Prüfung bleibt im Spiel.
+
+Gibt es nichts zu zeichnen, nennt das Bedienfeld den Grund:
+
+- eigene Fahrzeuge haben keine Seitenansicht;
+- ein offizielles Fahrzeug, das vor der Seitenansicht erstellt wurde, muss über <Ui id="vehicles-tab-game" /> erneut erstellt werden;
+- manche Anhänger haben eine Haupttextur, die nur die Grundfarbe trägt, weil ihre Teile auf Zubehörtexturen gemalt werden;
+- ein Projekt, das auf einem Computer geöffnet wird, auf dem das Paket seines Fahrzeugs nicht installiert ist, braucht dieses Paket.
+
 ## Die Vorlagenüberlagerung
 
 Die Vorlage wird als gesperrte Hilfe über Ihre Grafik gezeichnet: Sie können sie weder auswählen noch verschieben, sie steht nicht auf der Registerkarte Ebenen und wird **nie exportiert**. Drücken Sie G oder wählen Sie <Ui id="menu-view" /> › <Ui id="cmd-show-template" />, um sie aus- oder einzublenden. Ihre Deckkraft (standardmäßig 60 %) stellen Sie neben dem Schalter <Ui id="status-template" /> in der Statusleiste ein. Beide Einstellungen werden pro Textur gespeichert.

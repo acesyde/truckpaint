@@ -126,6 +126,9 @@ pub fn describe(e: &PackageError) -> String {
             "the {texture} template is larger than {} px",
             tp_vehicles::MAX_IMAGE_SIDE
         ),
+        PackageError::BadPreview { path, cause } => {
+            format!("the preview mesh \"{path}\" is invalid: {cause}")
+        }
         PackageError::BadChangelog => format!(
             "the changelog is longer than {} characters",
             tp_vehicles::MAX_CHANGELOG
@@ -167,7 +170,7 @@ fn is_dds(path: &str) -> bool {
     path.to_ascii_lowercase().ends_with(".dds")
 }
 
-/// The files a manifest references (templates and preview), each with the
+/// The files a manifest references (templates, preview mesh and preview image), each with the
 /// name of the part it is first used by.
 fn referenced(manifest: &Manifest) -> BTreeMap<String, String> {
     let mut referenced: BTreeMap<String, String> = BTreeMap::new();
@@ -175,6 +178,11 @@ fn referenced(manifest: &Manifest) -> BTreeMap<String, String> {
         referenced
             .entry(part.texture.template.clone())
             .or_insert_with(|| part.name.clone());
+        if let Some(mesh) = &part.preview_mesh {
+            referenced
+                .entry(mesh.clone())
+                .or_insert_with(|| part.name.clone());
+        }
     }
     if let Some(preview) = &manifest.preview {
         referenced

@@ -509,3 +509,67 @@ fn diff_lists_layout_size_added_and_removed_parts() {
     assert_eq!(d.removed, ["Side skirts"]);
     assert!(d.added.is_empty());
 }
+
+fn with_preview(mesh: serde_json::Value, named: bool) -> Vec<u8> {
+    let textures = sample::truck_textures();
+    let mut m = sample::manifest("scs.sample.truck", "Sample Truck", "1.2.0", &textures);
+    m["paint_job"]["main"][0]["preview_mesh"] = json!("preview/cabin.json");
+    let mut files = sample::templates(&textures);
+    if named {
+        files.push(("preview/cabin.json".into(), mesh.to_string().into_bytes()));
+    }
+    sample::zip(&m, &files)
+}
+
+fn mesh(edit: impl FnOnce(&mut serde_json::Value)) -> serde_json::Value {
+    let mut m = json!({"format": 1, "pieces": [{
+        "texture": "cabin",
+        "positions": [[0, 0, 0], [1, 0, 0], [0, 1, 0]],
+        "uv": [[0, 0], [1, 0], [0, 1]],
+        "triangles": [[0, 1, 2]],
+    }]});
+    edit(&mut m);
+    m
+}
+
+#[test]
+fn reads_a_preview_mesh_and_accepts_packages_without_one() {
+    let p = Package::read(&with_preview(mesh(|_| {}), true)).unwrap();
+    assert_eq!(p.preview("cabin").unwrap().pieces[0].triangles, [[0, 1, 2]]);
+    assert!(Package::read(&ok_package()).unwrap().previews.is_empty());
+    let bytes = with_preview(mesh(|_| {}), true);
+    assert_eq!(
+        Package::read_preview(&bytes, "cabin").unwrap(),
+        p.preview("cabin").cloned()
+    );
+    assert_eq!(Package::read_preview(&bytes, "chassis").unwrap(), None);
+    assert_eq!(Package::read_preview(&ok_package(), "cabin").unwrap(), None);
+}
+
+#[test]
+fn broken_preview_meshes_are_refused_naming_the_file() {
+    let broken = [
+        with_preview(mesh(|_| {}), false),
+        with_preview(mesh(|m| m["pieces"][0]["texture"] = json!("nope")), true),
+        with_preview(mesh(|m| m["pieces"][0]["uv"] = json!([[0, 0]])), true),
+        with_preview(
+            mesh(|m| m["pieces"][0]["triangles"] = json!([[0, 1, 120]])),
+            true,
+        ),
+        with_preview(mesh(|m| m["format"] = json!(2)), true),
+        with_preview(
+            mesh(|m| m["pieces"][0]["positions"][0][0] = json!("x")),
+            true,
+        ),
+        with_preview(
+            mesh(|m| m["pieces"][0]["positions"][0][0] = json!(1e300)),
+            true,
+        ),
+    ];
+    for bytes in broken {
+        match err(&bytes) {
+            PackageError::BadPreview { path, .. } => assert_eq!(path, "preview/cabin.json"),
+            other => panic!("{other:?}"),
+        }
+    }
+}

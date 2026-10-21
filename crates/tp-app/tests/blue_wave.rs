@@ -183,3 +183,31 @@ fn every_listed_zone_is_painted() {
         assert!(any, "{} {} #{} is not painted", r.texture, r.zone, r.nth);
     }
 }
+
+#[test]
+fn the_side_view_draws_the_cab_with_the_livery() {
+    use tp_core::document::Rgba;
+    let (mut h, _) = open();
+    let standard = {
+        let ws = h.state_mut().workspace_mut().unwrap();
+        let standard = blue_wave::surface_of(ws, "standard").unwrap();
+        ws.set_active_surface(standard);
+        standard
+    };
+    h.state_mut().prefs.layout.side_view = true;
+    common::settle_renders(&mut h);
+    let ws = h.state().workspace().unwrap();
+    assert_eq!(ws.side_view.drawn(), Some(standard), "the cab is drawn");
+    // The left door is white (the livery), the rest of the side the plain surface.
+    let door = blue_wave::zone(ws, standard, "DOOR", 0).unwrap();
+    let at = |x: f64, y: f64| {
+        ws.side_view
+            .color_at(standard, [(x / 4096.0) as f32, (y / 4096.0) as f32])
+    };
+    assert_eq!(
+        at(door.center().x, door.y0 + 20.0),
+        Some(Rgba::rgb(255, 255, 255))
+    );
+    assert_ne!(at(200.0, 1500.0), Some(Rgba::rgb(255, 255, 255)));
+    assert!(at(200.0, 1500.0).is_some_and(|c| c.a == 255), "never blank");
+}

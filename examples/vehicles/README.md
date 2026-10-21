@@ -15,6 +15,8 @@ Two fictional vehicles let you try vehicle projects without game files. They are
 |---|---|---|
 | 1.0.0 | Base 2048 | Curtain body 13.6 m 4096, Curtain body 10.5 m 4096, Mudflaps 512 |
 
+Each main texture also has a hand-made preview mesh in `preview/` (boxes whose faces cover the labeled panels of its template), used by the Side View.
+
 The built packages sit next to their sources:
 
 ```
@@ -23,8 +25,10 @@ community.truckpaint.sample_truck-1.1.0.tpv
 community.truckpaint.sample_trailer-1.0.0.tpv
 sample-truck/<version>/vehicle.json
 sample-truck/<version>/templates/*.svg
+sample-truck/<version>/preview/*.json
 sample-trailer/<version>/vehicle.json
 sample-trailer/<version>/templates/*.svg
+sample-trailer/<version>/preview/*.json
 ```
 
 ## Trying Update Template

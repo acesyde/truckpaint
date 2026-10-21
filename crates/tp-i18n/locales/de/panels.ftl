@@ -430,3 +430,15 @@ shadow-blur = Unschärfe
 undo-add-shadow = Schatten hinzufügen
 undo-change-shadow = Schatten ändern
 undo-remove-shadow = Schatten entfernen
+
+side-view-title = Seitenansicht
+side-view-left = Links
+side-view-right = Rechts
+side-view-front = Vorne
+side-view-back = Hinten
+side-view-top = Oben
+side-view-custom = Die Seitenansicht ist für eigene Fahrzeuge nicht verfügbar.
+side-view-regenerate = Erstelle dieses Fahrzeug über „Mein Spiel“ erneut, um die Seitenansicht zu erhalten.
+side-view-blank = Diese Textur trägt nur die Grundfarbe. Ihre Teile werden auf Zubehörtexturen gemalt, die die Seitenansicht noch nicht zeigt.
+side-view-package = Für die Seitenansicht wird das Paket des Fahrzeugs benötigt.
+side-view-none = Die Seitenansicht ist für dieses Fahrzeug nicht verfügbar.

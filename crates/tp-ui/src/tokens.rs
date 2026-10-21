@@ -148,6 +148,11 @@ pub mod size {
     pub const INSPECTOR_DEFAULT: f32 = 280.0;
     pub const INSPECTOR_MIN: f32 = 220.0;
     pub const INSPECTOR_MAX: f32 = 480.0;
+    /// Height of the Workshop's Side View panel; at most this share of the
+    /// canvas column.
+    pub const SIDE_VIEW_DEFAULT: f32 = 220.0;
+    pub const SIDE_VIEW_MIN: f32 = 140.0;
+    pub const SIDE_VIEW_MAX_SHARE: f32 = 0.6;
 }
 
 /// Typographic scale (points at 100% text size). Weights: title and heading
