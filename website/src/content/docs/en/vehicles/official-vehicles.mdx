@@ -42,13 +42,19 @@ When the game moves to a new series of versions (for example from 1.61 to 1.62),
 
 If a template did not change, projects that use the vehicle are not affected. If the game changed one, projects see "template updated": see [The Vehicle Library](../library/). A vehicle that did not change is reported as up to date, and nothing is installed.
 
+The one exception is a package made before the Side View existed. It has no model for the [Side View](../../workshop/overview/), so generating it again installs a new package with the next patch version (1.61.1 becomes 1.61.2). The templates stay the same, so your projects are not flagged.
+
 A patch that keeps the same series (1.61.1 then 1.61.2) is not flagged. To refresh a vehicle after such a patch, check it and generate it again.
+
+The same goes for the Side View. If you made an official vehicle before the Side View existed, its row does not show <Ui id="game-status-updated" />. Check it yourself in the <Ui id="vehicles-tab-game" /> tab and generate it again.
 
 ## What is made
 
 Each truck package holds all the cabins and painted accessories of the truck. Truck and cabin names are the game's English names. Cabin templates are 4096 × 4096; accessory sizes come from the game's paint definitions.
 
 A trailer package has one main texture for every painted body, chassis and part that the game does not paint from its own region, and accessory textures shared by the whole trailer. Parts that the game paints from the same region in every paint job share one texture, so you paint them once. Trailers have no variants. SCS's own trailers are named "SCS" followed by their game name, such as "SCS Box". Trailers whose paint jobs only set a plain colour, such as the SCS flatbed, have no livery to paint, so they are not listed.
+
+Each package also holds a simple model of each main texture, which the Side View draws. It covers the cabin only: parts mounted as accessories, such as the doors or bumpers of some trucks, are not in it. A trailer whose main texture only carries the base color has no model.
 
 Templates trace the model's paint layout; they do not prove that a livery looks right in the game, so check new work in game.
 

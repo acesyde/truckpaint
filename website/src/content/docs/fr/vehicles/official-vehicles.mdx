@@ -42,13 +42,19 @@ Quand le jeu passe à une nouvelle série de versions (par exemple de 1.61 à 1.
 
 Si un gabarit n’a pas changé, les projets qui utilisent le véhicule ne sont pas touchés. Si le jeu en a modifié un, les projets voient « gabarit mis à jour » : voir [La bibliothèque de véhicules](../library/). Un véhicule inchangé est signalé à jour, et rien n’est installé.
 
+L’unique exception est un paquet créé avant l’existence de la [vue latérale](../../workshop/overview/). Il n’a pas de modèle pour elle : le générer de nouveau installe donc un nouveau paquet avec la version de correctif suivante (1.61.1 devient 1.61.2). Les gabarits restent les mêmes, vos projets ne sont donc pas signalés.
+
 Un correctif qui garde la même série (1.61.1 puis 1.61.2) n’est pas signalé. Pour actualiser un véhicule après un tel correctif, cochez-le et générez-le de nouveau.
+
+Il en va de même pour la vue latérale. Si vous avez créé un véhicule officiel avant la vue latérale, sa ligne n’affiche pas <Ui id="game-status-updated" />. Vérifiez-le vous-même dans l’onglet <Ui id="vehicles-tab-game" /> et générez-le de nouveau.
 
 ## Ce qui est créé
 
 Chaque paquet de camion contient toutes les cabines et tous les accessoires peints du camion. Les noms des camions et des cabines sont les noms anglais du jeu. Les gabarits de cabine font 4096 × 4096 ; les tailles des accessoires viennent des définitions de peinture du jeu.
 
 Un paquet de remorque a une texture principale pour chaque caisse, châssis et pièce peints que le jeu ne peint pas depuis sa propre zone, et des textures d’accessoires communes à toute la remorque. Les pièces que le jeu peint depuis la même zone dans toutes les peintures partagent une texture : vous les peignez une seule fois. Les remorques n’ont pas de variantes. Les remorques propres à SCS sont nommées « SCS » suivi de leur nom dans le jeu, comme « SCS Box ». Les remorques dont les peintures ne définissent qu’une couleur unie, comme le plateau SCS, n’ont pas de livrée à peindre : elles ne sont donc pas listées.
+
+Chaque paquet contient aussi un modèle simple de chaque texture principale, que dessine la vue latérale. Il ne couvre que la cabine : les pièces montées comme accessoires, comme les portières ou les pare-chocs de certains camions, n’en font pas partie. Une remorque dont la texture principale ne porte que la couleur de base n’a pas de modèle.
 
 Les gabarits suivent la disposition de peinture du modèle ; ils ne prouvent pas qu’une livrée rend bien en jeu : vérifiez le nouveau travail dans le jeu.
 

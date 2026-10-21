@@ -17,6 +17,8 @@ A package is a ZIP file with the `.tpv` extension:
 volvo_fh16-1.3.0.tpv
 ├── vehicle.json          the manifest (below)
 ├── preview.png           optional picture shown in the library
+├── preview/
+│   └── globetrotter.json optional simple model for the Side View
 └── templates/
     ├── globetrotter.png  one template per texture (PNG or SVG)
     ├── globetrotter_xl.png
@@ -205,9 +207,9 @@ When a trailer's main template also covers its body, the game can paint the body
 | `name` | yes | Shown in the sidebar and the dialogs. |
 | `game_ids` | see below | What the game calls the things this part covers, as words of `a`–`z`, `0`–`9` and `_` separated by dots. |
 | `also_paints` | no (`[]`) | Main texture only: accessory ids the game paints with this same texture, for a template that covers both, like a trailer body (`["body.reefer", "body.reef_13ct"]`). |
+| `preview_mesh` | no | Main texture only: path of a JSON file inside the package with a simple model of the vehicle, for the Side View. See [Preview mesh](#preview-mesh). |
 | `texture.size` | yes | The texture's width and height in pixels, as `[width, height]`: `[4096, 4096]` for a square texture, `[8192, 1024]` or `[2048, 256]` for a rectangular one. Each side is a power of two from 64 to 8192. A single number (`4096`) is refused. Use the size of the game's texture: the game maps it by its UV coordinates, whatever its shape. |
 | `texture.template` | yes | Path of the template image inside the package, PNG or SVG. |
-| `preview_mesh` | no | Main texture only: path of a JSON file inside the package with a simple model of the vehicle, for the Side View. See [Preview mesh](#preview-mesh). |
 | `texture.layout_version` | yes | Positive integer. **Increase it whenever the texture's layout changes**, for example after a game update. Projects updated to your new version flag this texture so painters check their artwork. |
 
 The rules for `game_ids`:
@@ -227,12 +229,12 @@ Unknown fields are ignored, so a package can already carry data for later TruckP
 
 A main texture can name a `preview_mesh`: a JSON file with a simple model of the vehicle's painted surfaces. TruckPaint draws it in the Side View, painted with the livery being edited. A package without one stays valid; the Side View then says it is not available for that vehicle. Official packages generated from the player's game carry one for each main texture, and the sample vehicles carry hand-made ones (`examples/vehicles/*/<version>/preview/`).
 
-```json title="preview/highline.json"
+```json title="preview/globetrotter.json"
 {
   "format": 1,
   "pieces": [
     {
-      "texture": "highline",
+      "texture": "globetrotter",
       "positions": [[-1.25, 3.5, -2.4], [-1.25, 3.5, 0.0], [-1.25, 0.9, 0.0], [-1.25, 0.9, -2.4]],
       "uv": [[0.03, 0.1], [0.49, 0.1], [0.49, 0.4], [0.03, 0.4]],
       "triangles": [[0, 1, 2], [0, 2, 3]]
@@ -250,7 +252,7 @@ A main texture can name a `preview_mesh`: a JSON file with a simple model of the
 | `uv` | One `[u, v]` per vertex, in texture coordinates: `[0, 0]` is the top left corner of the texture and `[1, 1]` its bottom right corner, as the template is drawn. It has as many entries as `positions`. |
 | `triangles` | Vertex indices, three per triangle. |
 
-A package is refused, with the file named, when the mesh file is missing or unreadable, names a texture the package does not have, has `positions` and `uv` of different lengths, has an index out of range, or holds a number that is not finite. A project never copies the mesh: it is read from the installed package. The mesh counts towards the package's size limit, so keep it light: a few boxes are enough to tell the directions apart.
+A package is refused, with the file named, when the mesh file is missing or unreadable, names a texture the package does not have, has `positions` and `uv` of different lengths, has a `format` other than `1`, has an index out of range, holds a number that is not finite, or gives a path that is unsafe (absolute, or with `..`). A project never copies the mesh: it is read from the installed package. The mesh counts towards the package's size limit, so keep it light: a few boxes are enough to tell the directions apart.
 
 ## Limits
 
@@ -269,7 +271,7 @@ mise run pack my-truck/ -o my-truck.tpv
 cargo run -p tp-pack --bin tpv -- check my-truck.tpv
 ```
 
-- **Only referenced files are packed:** the manifest, each part's `texture.template` and the `preview`. Other files in the folder (notes, `.psd` sources) are listed as ignored. Hidden files are skipped silently.
+- **Only referenced files are packed:** the manifest, each part's `texture.template`, the `preview` and each `preview_mesh`. Other files in the folder (notes, `.psd` sources) are listed as ignored. Hidden files are skipped silently.
 - **DDS templates are converted to PNG.** Point `template` at the DDS file as SCS distributes it (`templates/cabin.dds`). The package gets `templates/cabin.png` with the same pixels, and its manifest is updated. Your folder is never modified.
   - Supported: BC1, BC2 and BC3 (DXT1/3/5, also with a DX10 header), and uncompressed 24 or 32-bit RGB(A).
   - Other formats are refused, and the message names the texture.
