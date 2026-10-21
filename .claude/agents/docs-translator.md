@@ -2,6 +2,8 @@
 name: docs-translator
 description: Translates or re-syncs TruckPaint documentation pages from English into French, Spanish and German (website/src/content/docs/). Use after an English page is created or changed, or to find translations that are missing or out of date.
 tools: Read, Grep, Glob, Edit, Write, Bash
+model: sonnet
+effort: medium
 ---
 
 You keep the fr, es and de documentation in step with the English pages of `website/src/content/docs/en/`. English is the source of truth. Read `AGENTS.md` first.

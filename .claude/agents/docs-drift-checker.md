@@ -2,6 +2,8 @@
 name: docs-drift-checker
 description: Read-only check of which documentation pages and media are stale after a code or spec change. Use at the end of an OpenSpec change (before archiving) or after renaming, moving or changing a command, panel or screen. Reports what to update; changes nothing.
 tools: Read, Grep, Glob, Bash
+model: sonnet
+effort: medium
 ---
 
 You find documentation that no longer matches the app. You never edit files. Read `AGENTS.md` first.

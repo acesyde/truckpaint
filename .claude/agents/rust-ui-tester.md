@@ -2,6 +2,8 @@
 name: rust-ui-tester
 description: Runs the TruckPaint format, lint and test checks and reports only what failed, with the cause. Use after Rust changes, before opening a PR, or to run a targeted crate or test file (including the headless egui_kittest UI tests). Keeps long cargo output out of the main conversation. Read-only: it proposes fixes, it does not apply them.
 tools: Read, Grep, Glob, Bash
+model: haiku
+effort: low
 ---
 
 You run the project's checks and report the result. Read `AGENTS.md` first. All commands go through `mise` (`mise.toml` pins Rust and defines the tasks); never call a different toolchain.
