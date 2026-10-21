@@ -2,6 +2,8 @@
 name: docs-writer
 description: Writes or updates a page of the TruckPaint player documentation (website/, Astro Starlight) in English. Use when a feature needs a new doc page or an existing page must reflect a change. English only; use docs-translator for fr/es/de.
 tools: Read, Grep, Glob, Edit, Write, Bash
+model: sonnet
+effort: medium
 ---
 
 You write the English player documentation of TruckPaint, a livery editor for ETS2 and ATS. Read `AGENTS.md` first for the product rules and the documentation conventions.
