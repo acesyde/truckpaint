@@ -21,7 +21,7 @@ On macOS:
 - a shortcut shown in the menu SHALL run its command once, whether the key or the menu item is used;
 - while a text is being typed in a field or on the canvas, Edit › Undo, Redo, Cut, Copy, Paste and Select All and their shortcuts SHALL act on that text, as they do without the system menu.
 
-The View menu SHALL list, in groups: Command Palette… (see the command-palette capability); the spaces Project, Workshop and Brand; the left tabs Textures, Layers and Resources; Hide Panels; then Show Template, Show Grid, Show Guides, Clear Guides and Snapping; then Zoom In, Zoom Out, Fit to Screen and Actual Size; then Reset Workspace. Toggles SHALL show their state with a check mark. The Vehicle menu SHALL NOT have a Vehicle Information item, and the View menu SHALL NOT have Sidebar nor panel items: the spaces and the left tabs replace them.
+The View menu SHALL list, in groups: Command Palette… (see the command-palette capability); the spaces Project, Workshop and Brand; the left tabs Textures, Layers and Resources; Hide Panels; then Show Template, Show Grid, Show Guides, Clear Guides and Snapping; then Show Side View (see the side-view capability); then Zoom In, Zoom Out, Fit to Screen and Actual Size; then Reset Workspace. Toggles SHALL show their state with a check mark. The Vehicle menu SHALL NOT have a Vehicle Information item, and the View menu SHALL NOT have Sidebar nor panel items: the spaces and the left tabs replace them.
 
 The menus' structure (their items, submenus and groups) SHALL be the one the command palette uses to show each command's menu path, so that a command's path in the palette always names the menu, and submenu, where the command is.
 
@@ -35,7 +35,7 @@ The menus' structure (their items, submenus and groups) SHALL be the one the com
 
 #### Scenario: View menu
 - **WHEN** the user opens the View menu in the Workshop with the Layers tab shown
-- **THEN** it lists Command Palette… with its shortcut, then Project, Workshop (checked) and Brand, then Textures, Layers (checked) and Resources, then Hide Panels, then the template, grid, guides and snapping items, then the zoom commands, then Reset Workspace
+- **THEN** it lists Command Palette… with its shortcut, then Project, Workshop (checked) and Brand, then Textures, Layers (checked) and Resources, then Hide Panels, then the template, grid, guides and snapping items, then Show Side View, then the zoom commands, then Reset Workspace
 
 #### Scenario: Command Palette from the View menu on the home screen
 - **WHEN** no project is open and the user chooses View › Command Palette…
@@ -93,7 +93,7 @@ The Workshop SHALL show a vertical tool rail, 48 px wide, on the left, with, in 
 - **THEN** a tooltip shows its French name and the shortcut Shift+G
 
 ### Requirement: Canvas area
-The canvas area SHALL occupy, in the Workshop, all space not used by the bars, the tool rail, the left panel and the inspector, SHALL show rulers along its top and left edges (see `canvas-guides`), and SHALL display the project's active texture surface as an artboard framed against a neutral pasteboard background, with the breadcrumb inlaid (see the workspace-spaces capability). When a project is opened, the view SHALL be fitted so the whole artboard is centered and visible; afterwards the view is controlled by the user (see `canvas-navigation`). Resizing the canvas area, including by resizing, hiding or showing the left panel or the inspector, SHALL keep the document point at the center of the canvas area fixed and SHALL NOT change the zoom level, unless the user has not navigated since the last fit, in which case the view is refitted.
+The canvas area SHALL occupy, in the Workshop, all space not used by the bars, the tool rail, the left panel, the inspector and the Side View panel when it is shown (see the side-view capability), SHALL show rulers along its top and left edges (see `canvas-guides`), and SHALL display the project's active texture surface as an artboard framed against a neutral pasteboard background, with the breadcrumb inlaid (see the workspace-spaces capability). When a project is opened, the view SHALL be fitted so the whole artboard is centered and visible; afterwards the view is controlled by the user (see `canvas-navigation`). Resizing the canvas area, including by resizing, hiding or showing the left panel, the inspector or the Side View panel, SHALL keep the document point at the center of the canvas area fixed and SHALL NOT change the zoom level, unless the user has not navigated since the last fit, in which case the view is refitted.
 
 #### Scenario: Artboard visible
 - **WHEN** a new 4096×4096 project is opened and the Workshop is shown

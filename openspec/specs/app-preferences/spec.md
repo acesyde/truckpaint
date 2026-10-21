@@ -9,7 +9,7 @@ Remembers the user's interface preferences and workspace layout between sessions
 ### Requirement: Persisted preferences
 The application SHALL persist, in the operating system's standard per-user configuration directory, at least: UI scale, text size, the workspace layout, window size/position/maximized state, the recent projects list, the interface language when the user has chosen one, whether the first launch is done, the installation folder and the mod folder of each game, whether the grid and guides are shown, whether snapping is on, the grid spacing, on Windows and Linux whether the system title bar is used.
 
-The workspace layout SHALL be: the active tab of the left panel (Textures, Layers or Resources), the width of the left panel, the width of the inspector, and whether the panels are hidden (Hide Panels). The active space (Project, Workshop or Brand) SHALL NOT be persisted: opening a project always shows the Project space.
+The workspace layout SHALL be: the active tab of the left panel (Textures, Layers or Resources), the width of the left panel, the width of the inspector, whether the panels are hidden (Hide Panels), and the Side View panel's visibility, direction and height (see the side-view capability). The active space (Project, Workshop or Brand) SHALL NOT be persisted: opening a project always shows the Project space.
 
 A preferences file written by a build with the 3D preview, which also stores a view mode and the width of the 3D panel, SHALL load with all its other preferences. The view mode and the panel width are ignored.
 
@@ -62,6 +62,14 @@ Old template pack folder fields SHALL be ignored when loading preferences and SH
 #### Scenario: Older preferences with a games list
 - **WHEN** the application starts with a preferences file that lists the games played
 - **THEN** all its other preferences load, the list is ignored, and no message about the preferences appears
+
+#### Scenario: Side View survives restart
+- **WHEN** the user shows the Side View, picks the Front direction, makes the panel taller, quits and restarts, then opens a texture in the Workshop
+- **THEN** the Side View is shown, from the front, at the height it had
+
+#### Scenario: Preferences without the Side View
+- **WHEN** the application loads a preferences file written before the Side View, with the UI scale 125%
+- **THEN** the UI scale is 125%, the Side View is hidden with its default direction (Left) and height, and no message about the preferences appears
 
 ### Requirement: Preferences dialog
 The application SHALL provide a Preferences dialog (Edit > Preferences, shortcut `⌘,` on macOS and `Ctrl+,` elsewhere) to change UI scale and text size with a live preview, the grid spacing (texture pixels, 4 to 1024) and the interface language, and a "Reset to defaults" action that restores UI scale, text size and grid spacing. The Language setting SHALL list "System default" followed by English, Français, Español and Deutsch, each named in its own language. "System default" follows the operating system's language, and choosing a language applies it immediately. "Reset to defaults" SHALL NOT change the language. On Windows and Linux, the dialog SHALL also offer **Use the system title bar** (see the window-title-bar capability), applied at once; "Reset to defaults" SHALL NOT change it.
