@@ -50,13 +50,32 @@ Une texture est plate, mais un véhicule ne l’est pas : les morceaux de la tex
 
 Choisissez <Ui id="menu-view" /> › <Ui id="cmd-show-side-view" /> pour l’afficher ou la masquer. Le panneau se place sous la zone de travail, sur toute sa largeur. Faites glisser son bord supérieur pour l’agrandir ou le réduire. Son affichage, sa direction et sa hauteur sont mémorisés, et <Ui id="cmd-hide-panels" /> (Tab) le laisse en place.
 
-<Shot name="workshop/side-view" alt="La vue latérale sous la zone de travail, montrant la cabine Standard du camion d’exemple vue de la gauche avec la livrée Blue Wave Biarritz : la portière blanche avec le logo." />
+<Shot name="workshop/side-view" alt="La vue latérale sous la zone de travail, montrant la cabine Standard du camion d’exemple avec ses jupes latérales, vue de la gauche, avec la livrée Blue Wave Biarritz : la portière blanche avec le logo, la jupe bleue avec son trait bleu clair." />
 
+- **Le véhicule entier.** La vue dessine la cabine de la texture principale ouverte et tous les accessoires qui lui sont montés : les portières, le pare-chocs, les ailes, les déflecteurs, les jupes latérales. Chaque pièce montre le motif de sa propre texture : une bande sur la texture des jupes latérales apparaît donc sur les jupes, sous la cabine. Une remorque montre son châssis et sa caisse. Si vous ouvrez une texture d’accessoire, la vue garde la cabine sur laquelle vous avez travaillé en dernier.
+- **Seulement les pièces peintes.** Les vitres, les feux, les pièces en plastique ou en chrome et les rétroviseurs qui ne reçoivent pas de peinture sont laissés de côté. La vue montre où va votre livrée, pas tous les objets qui pourraient la cacher. Une pièce dont la texture n’est pas dans votre projet est dessinée en gris uni.
 - **Cinq directions.** Choisissez <Ui id="side-view-left" />, <Ui id="side-view-right" />, <Ui id="side-view-front" />, <Ui id="side-view-back" /> ou <Ui id="side-view-top" /> (vu du dessus, pratique pour un toit décoré) en haut à droite du panneau. Le dessin est plat, sans perspective, et s’ajuste toujours au panneau. Vous ne pouvez ni le faire tourner ni le zoomer.
-- **En direct.** Chaque modification faite sur la zone de travail apparaît dans la vue un instant plus tard. Pendant que vous faites glisser un objet, la zone de travail suit votre pointeur et la vue rattrape son retard quand vous relâchez.
-- **Textures principales seulement.** Pour un camion, la vue montre la cabine de la texture principale ouverte. Pour une remorque, elle montre la texture principale. Les textures d’accessoires (déflecteurs, jupes latérales, pare-soleil, etc.) ne sont pas encore dessinées : tant que l’une d’elles est ouverte, la vue continue d’afficher la dernière texture principale sur laquelle vous avez travaillé.
-- **Les pièces montées en accessoires manquent.** Sur certains camions, des pièces peintes avec la texture principale sont montées comme des accessoires : les portières, le pare-chocs, les ailes, les déflecteurs. Elles figurent sur le gabarit mais pas encore dans la vue, qui peut donc montrer un trou à la place d’une portière.
-- **Changer de texture.** Ouvrez une autre cabine, ou une texture d’un autre véhicule, et la vue change avec elle.
+- **En direct.** Chaque modification faite sur la zone de travail, sur la texture principale comme sur une texture d’accessoire, apparaît dans la vue un instant plus tard. Pendant que vous faites glisser un objet, la zone de travail suit votre pointeur et la vue rattrape son retard quand vous relâchez.
+- **Changer de texture.** Ouvrez une autre cabine, ou une texture d’un autre véhicule, et la vue change avec elle. Vos choix d’accessoires restent attachés au véhicule.
+
+### Choisir les accessoires
+
+Cliquez sur <Ui id="side-view-accessories" /> dans l’en-tête du panneau pour lister les emplacements du véhicule où l’on peut monter un accessoire, comme la portière, le déflecteur de toit ou le pare-chocs. Chaque ligne a une liste déroulante avec <Ui id="side-view-accessory-none" /> et les options de cet emplacement. Une seule option par emplacement est dessinée à la fois. Le châssis en a toujours une : il n’a donc pas de choix <Ui id="side-view-accessory-none" />.
+
+<Shot name="workshop/side-view-accessories" alt="La vue latérale avec la liste Accessoires ouverte sur la zone de travail : une ligne pour les jupes latérales du camion d’exemple, avec sa liste déroulante." />
+
+- **La configuration du jeu d’abord.** Un véhicule commence avec les accessoires que le jeu monte sur un véhicule neuf. Un emplacement où le jeu ne monte rien de peint commence à <Ui id="side-view-accessory-none" />.
+- **Enregistré avec le projet.** Vos choix sont conservés pour chaque véhicule et reviennent à la réouverture du projet. Ils ne forment pas une étape d’annulation : <Ui id="menu-edit" /> › <Ui id="cmd-undo" /> ne les modifie pas.
+- **Même forme, une seule option.** Les options qui ont le même aspect extérieur, comme des portières qui ne diffèrent qu’à l’intérieur, ne sont listées qu’une fois.
+- **Véhicules officiels générés plus tôt.** Un véhicule généré depuis <Ui id="vehicles-tab-game" /> avant que les accessoires soient dessinés montre sa cabine seule, et la liste vous invite à le générer de nouveau.
+
+### Les remorques
+
+Une remorque montre son châssis et la caisse que vous choisissez dans la liste, chacun avec sa propre texture.
+
+<Shot name="workshop/side-view-trailer" alt="La vue latérale montrant la remorque d’exemple de la gauche : le cadre du châssis et la caisse à rideaux de 13,6 m avec la livrée Blue Wave Biarritz, le logo et les vagues." />
+
+Seule une remorque simple est dessinée, pas les doubles ni les B-doubles.
 
 La vue latérale est un guide pendant la conception. La vérification finale reste dans le jeu.
 
@@ -64,7 +83,6 @@ Quand il n’y a rien à dessiner, le panneau en donne la raison :
 
 - les véhicules personnalisés n’ont pas de vue latérale ;
 - un véhicule officiel généré avant la vue latérale doit être généré de nouveau depuis <Ui id="vehicles-tab-game" /> ;
-- certaines remorques ont une texture principale qui ne porte que la couleur de base, car leurs pièces sont peintes sur des textures d’accessoires ;
 - un projet ouvert sur un ordinateur où le paquet de son véhicule n’est pas installé a besoin de ce paquet ;
 - un paquet de la communauté ou d’exemple sans modèle pour la vue latérale affiche <Ui id="side-view-none" />.
 

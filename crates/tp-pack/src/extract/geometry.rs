@@ -1,6 +1,9 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
-use tp_scs::{Descriptor, Look, Model};
+use tp_scs::{Descriptor, Locator, Look, Model};
+
+/// Attachment points by name.
+pub type Locators = BTreeMap<String, Vec<Locator>>;
 
 #[derive(Debug, Clone)]
 pub struct Mesh {
@@ -65,6 +68,50 @@ fn selected<T: PartialEq>(
     only(matches, &format!("missing or ambiguous {kind}: {name}"))
 }
 
+/// The parts of `model` the variant `variant` shows, by index.
+fn visible_parts(
+    model: &Model,
+    descriptor: &Descriptor,
+    variant: &str,
+) -> Result<Vec<usize>, String> {
+    let variant = selected(
+        "Variant",
+        variant,
+        descriptor
+            .variants
+            .iter()
+            .filter(|v| v.name.eq_ignore_ascii_case(variant))
+            .map(|v| Ok(&v.parts)),
+    )?;
+    if variant.len() != model.parts.len() {
+        return Err("variant and model have different part counts".into());
+    }
+    let mut shown = Vec::new();
+    for (index, attributes) in variant.iter().enumerate() {
+        let (_, visible) = only(
+            attributes.iter().filter(|(tag, _)| tag == "visible"),
+            "missing or ambiguous part visibility",
+        )?;
+        match visible {
+            1 => shown.push(index),
+            0 => {}
+            _ => return Err("invalid part visibility".into()),
+        }
+    }
+    Ok(shown)
+}
+
+/// The attachment points of the parts the variant shows, by name.
+pub fn locators(model: &Model, descriptor: &Descriptor, variant: &str) -> Result<Locators, String> {
+    let mut result = Locators::new();
+    for part in visible_parts(model, descriptor, variant)? {
+        for l in &model.parts[part].locators {
+            result.entry(l.name.clone()).or_default().push(l.clone());
+        }
+    }
+    Ok(result)
+}
+
 /// The painted meshes of one look and variant of a model. `effects` gives the effect of
 /// each material slot of a look.
 pub fn painted(
@@ -84,29 +131,9 @@ pub fn painted(
             .filter(|l| l.name.eq_ignore_ascii_case(look))
             .map(&mut effects),
     )?;
-    let variant = selected(
-        "Variant",
-        variant,
-        descriptor
-            .variants
-            .iter()
-            .filter(|v| v.name.eq_ignore_ascii_case(variant))
-            .map(|v| Ok(&v.parts)),
-    )?;
-    if variant.len() != model.parts.len() {
-        return Err("variant and model have different part counts".into());
-    }
     let mut allowed = BTreeSet::new();
-    for (part, attributes) in model.parts.iter().zip(variant) {
-        let (_, visible) = only(
-            attributes.iter().filter(|(tag, _)| tag == "visible"),
-            "missing or ambiguous part visibility",
-        )?;
-        match visible {
-            1 => allowed.extend(part.pieces.iter().copied()),
-            0 => {}
-            _ => return Err("invalid part visibility".into()),
-        }
+    for part in visible_parts(model, descriptor, variant)? {
+        allowed.extend(model.parts[part].pieces.iter().copied());
     }
     let mut result = Vec::new();
     for (index, piece) in model.pieces.iter().enumerate() {
@@ -163,9 +190,9 @@ pub fn painted(
     Ok(result)
 }
 
-/// The preview mesh file of the meshes painted by texture `texture`: positions rounded to 1 mm.
-pub fn preview(meshes: &[Mesh], texture: &str) -> Result<Vec<u8>, String> {
-    let pieces = meshes
+/// The preview pieces of the meshes painted by texture `texture`: positions rounded to 1 mm.
+pub fn preview_pieces(meshes: &[Mesh], texture: &str) -> Vec<tp_vehicles::PreviewPiece> {
+    meshes
         .iter()
         .map(|m| tp_vehicles::PreviewPiece {
             texture: texture.to_owned(),
@@ -173,12 +200,16 @@ pub fn preview(meshes: &[Mesh], texture: &str) -> Result<Vec<u8>, String> {
             uv: m.uv.iter().map(|uv| uv.map(|v| v as f32)).collect(),
             triangles: m.triangles.iter().map(|t| t.map(|i| i as u32)).collect(),
         })
-        .collect();
-    let mesh = tp_vehicles::PreviewMesh {
-        format: tp_vehicles::PREVIEW_FORMAT,
-        pieces,
-    };
-    serde_json::to_vec(&mesh).map_err(|e| e.to_string())
+        .collect()
+}
+
+/// A locator as the preview file stores it: position rounded to 1 mm.
+pub fn preview_locator(l: &Locator) -> tp_vehicles::PreviewLocator {
+    tp_vehicles::PreviewLocator {
+        position: l.position.map(millimeter),
+        rotation: l.rotation,
+        scale: l.scale,
+    }
 }
 
 fn millimeter(meters: f32) -> f32 {
@@ -253,6 +284,7 @@ mod tests {
             parts: vec![Part {
                 name: "body".into(),
                 pieces: vec![0],
+                locators: vec![],
             }],
         }
     }

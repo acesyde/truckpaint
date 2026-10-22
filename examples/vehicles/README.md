@@ -15,7 +15,7 @@ Two fictional vehicles let you try vehicle projects without game files. They are
 |---|---|---|
 | 1.0.0 | Base 2048 | Curtain body 13.6 m 4096, Curtain body 10.5 m 4096, Mudflaps 512 |
 
-Each main texture also has a hand-made preview mesh in `preview/` (boxes whose faces cover the labeled panels of its template), used by the Side View.
+Each main texture also has a hand-made preview mesh in `preview/` (boxes whose faces cover the labeled panels of its template), used by the Side View. The truck's 1.1.0 meshes also hold a `sideskirt` slot (the Side skirts texture), and the trailer's mesh a `body` slot with its two curtain bodies, to show how accessories are written.
 
 The built packages sit next to their sources:
 

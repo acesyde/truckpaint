@@ -377,6 +377,10 @@ pub struct Project {
     /// The game versions the mod is made for, as the game writes them
     /// (`1.56.*`): the manifest's `compatible_versions`.
     pub game_versions: Vec<String>,
+    /// The accessory chosen in each slot of the Side View, by vehicle (package id) and slot id; `None`
+    /// is "None". Only what differs from the game's default configuration is kept. A plain setting:
+    /// not in the undo history.
+    pub side_view: BTreeMap<String, BTreeMap<String, Option<String>>>,
     next_id: u64,
 }
 
@@ -408,6 +412,7 @@ impl Project {
             editing_symbol: None,
             mod_settings,
             game_versions: Vec::new(),
+            side_view: BTreeMap::new(),
             next_id: 1,
         }
     }
@@ -1523,6 +1528,19 @@ mod tests {
         assert!(!before.same_document(&p.snapshot(&[])));
         p.restore(&before);
         assert!(p.game_versions.is_empty());
+    }
+
+    #[test]
+    fn side_view_choices_are_not_part_of_the_history() {
+        let mut p = Project::new("ACE", TextureResolution::R2048);
+        let before = p.snapshot(&[]);
+        p.side_view
+            .entry("official.ets2.daf.xd".into())
+            .or_default()
+            .insert("r_deflector".into(), None);
+        assert!(before.same_document(&p.snapshot(&[])));
+        p.restore(&before);
+        assert_eq!(p.side_view["official.ets2.daf.xd"]["r_deflector"], None);
     }
 
     #[test]

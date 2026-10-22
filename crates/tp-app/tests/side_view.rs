@@ -16,11 +16,11 @@ type H = Harness<'static, AppState>;
 
 const STANDARD: &str = "standard";
 
-/// The sample truck with both cabins and the chassis, in the Workshop on the Standard cab.
+/// The sample truck with both cabins, the chassis and the side skirts, in the Workshop on the Standard cab.
 fn open() -> H {
     let mut h = common::harness();
     let package = Package::read(tp_app::vehicles::SAMPLES[0].bytes).unwrap();
-    let textures = ["standard", "high_roof", "chassis"].map(String::from);
+    let textures = ["standard", "high_roof", "chassis", "side_skirts"].map(String::from);
     let mut project =
         tp_app::vehicle_project::fleet_project(common::SAMPLE, &[(&package, &textures)]).unwrap();
     for surface in &mut project.surfaces {
@@ -36,6 +36,10 @@ fn open() -> H {
 
 fn ws(h: &H) -> &tp_app::workspace::Workspace {
     h.state().workspace().expect("project open")
+}
+
+fn ws_mut(h: &mut H) -> &mut tp_app::workspace::Workspace {
+    h.state_mut().workspace_mut().expect("project open")
 }
 
 fn surface(h: &H, texture: &str) -> usize {
@@ -270,14 +274,15 @@ fn an_official_package_without_a_mesh_says_to_generate_it_again() {
 }
 
 #[test]
-fn a_blank_main_texture_says_its_parts_have_their_own_textures() {
+fn a_blank_official_trailer_without_a_mesh_says_to_generate_it_again() {
+    // Trailers made before accessories were drawn have no mesh for their blank main texture.
     let h = open_vehicle(
         "official.ets2.test.box",
         "trailer",
         tex("trailer", 64),
         true,
     );
-    says(&h, "side-view-blank");
+    says(&h, "side-view-regenerate");
 }
 
 #[test]
@@ -293,16 +298,19 @@ fn another_package_without_a_mesh_says_it_is_not_available() {
 }
 
 #[test]
-fn the_sample_trailer_is_drawn() {
+fn the_sample_trailer_is_drawn_with_its_curtain_body() {
     let mut h = common::harness();
     let package = Package::read(tp_app::vehicles::SAMPLES[1].bytes).unwrap();
-    let textures = vec!["base".to_owned()];
+    let textures = vec!["base".to_owned(), "body_13_6".to_owned()];
     let project =
         tp_app::vehicle_project::fleet_project("Trailer", &[(&package, &textures)]).unwrap();
     common::open_project(&mut h, project);
     h.state_mut().prefs.layout.side_view = true;
     common::settle_renders(&mut h);
     assert_eq!(ws(&h).side_view.drawn(), Some(0));
+    // The chassis and the long curtain body, each with its own texture; the body is rendered too.
+    assert_eq!(ws(&h).side_view.drawn_textures(), ["base", "body_13_6"]);
+    assert!(ws(&h).side_view.texture(1).is_some());
 }
 
 /// The header fits the narrowest canvas (the smallest window with both panels at their minimum)
@@ -333,15 +341,25 @@ fn the_header_fits_the_narrowest_canvas_in_every_language() {
         common::open_project(&mut h, project);
         common::settle_renders(&mut h);
         let canvas = ws(&h).canvas_rect.unwrap();
-        let title = h.get_by_label(&tr("side-view-title")).rect();
-        let mut previous = title.right();
+        let button = h
+            .get_by_role_and_label(Role::Button, &tr("side-view-accessories"))
+            .rect();
+        // The title gives way to the controls when the canvas is too narrow for both.
+        if let Some(title) = h.query_by_label(&tr("side-view-title")) {
+            assert!(
+                title.rect().right() <= button.left(),
+                "{language:?}: title overlaps"
+            );
+        }
+        let mut previous = button.right();
         for direction in tp_app::side_view::Direction::ALL {
             let rect = h
                 .get_by_role_and_label(Role::RadioButton, &tr(direction.label()))
                 .rect();
             assert!(
                 rect.left() >= previous,
-                "{language:?} {direction:?} overlaps"
+                "{language:?} {direction:?} overlaps: {} < {previous}",
+                rect.left()
             );
             previous = rect.right();
         }
@@ -350,5 +368,214 @@ fn the_header_fits_the_narrowest_canvas_in_every_language() {
             "{language:?}: {previous} > {}",
             canvas.right()
         );
+        assert!(
+            button.left() >= canvas.left(),
+            "{language:?}: button leaves the canvas"
+        );
     }
+}
+
+fn drawn(h: &H) -> Vec<String> {
+    ws(h).side_view.drawn_textures().to_vec()
+}
+
+/// Opens the Accessories list and picks `option` in the row of `slot`.
+fn pick(h: &mut H, slot: &str, option: &str) {
+    // The list stays open between picks.
+    if h.query_by_role_and_label(Role::ComboBox, slot).is_none() {
+        h.get_by_role_and_label(Role::Button, "Accessories").click();
+        h.run();
+    }
+    h.get_by_role_and_label(Role::ComboBox, slot).click();
+    h.run();
+    common::last(h, option).click();
+    common::settle_renders(h);
+}
+
+#[test]
+fn the_default_configuration_draws_the_cab_with_its_side_skirts() {
+    let mut h = open();
+    show_side_view(&mut h);
+    assert_eq!(drawn(&h), ["standard", "side_skirts"]);
+    // Each texture the view draws is rendered, the other accessories are not.
+    assert!(
+        ws(&h)
+            .side_view
+            .texture(surface(&h, "side_skirts"))
+            .is_some()
+    );
+    assert!(ws(&h).side_view.texture(surface(&h, "chassis")).is_none());
+    // Switching cabins keeps the skirts; opening the accessory texture keeps the cab.
+    activate(&mut h, "high_roof");
+    assert_eq!(drawn(&h), ["high_roof", "side_skirts"]);
+    activate(&mut h, "side_skirts");
+    assert_eq!(ws(&h).side_view.drawn(), Some(surface(&h, "high_roof")));
+    assert_eq!(drawn(&h), ["high_roof", "side_skirts"]);
+}
+
+#[test]
+fn picking_none_removes_a_piece_and_marks_the_project_changed() {
+    let mut h = open();
+    show_side_view(&mut h);
+    ws_mut(&mut h).mark_saved(std::path::PathBuf::from("x.truckpaint"));
+    assert!(!ws(&h).has_unsaved_changes());
+    pick(&mut h, "Side skirts", "None");
+    assert_eq!(drawn(&h), ["standard"]);
+    assert!(ws(&h).has_unsaved_changes());
+    // The choice belongs to the vehicle: the other cabin shows no skirts either.
+    activate(&mut h, "high_roof");
+    assert_eq!(drawn(&h), ["high_roof"]);
+    activate(&mut h, "standard");
+    // Back to the only option: the default again, nothing recorded.
+    pick(&mut h, "Side skirts", "Side skirts");
+    assert_eq!(drawn(&h), ["standard", "side_skirts"]);
+    assert!(ws(&h).project.side_view.is_empty());
+}
+
+#[test]
+fn a_choice_is_not_an_undo_step() {
+    use tp_core::document::{Frame, ShapeKind};
+    use tp_core::kurbo::{Point, Size};
+    let mut h = open();
+    show_side_view(&mut h);
+    let frame = Frame::new(Point::new(500.0, 500.0), Size::new(300.0, 300.0), 0.0);
+    ws_mut(&mut h).create_shape(ShapeKind::rectangle(), frame, 1.0);
+    pick(&mut h, "Side skirts", "None");
+    ws_mut(&mut h).undo();
+    common::settle_renders(&mut h);
+    assert!(
+        ws(&h).project.surface().objects.is_empty(),
+        "the shape is undone"
+    );
+    assert_eq!(drawn(&h), ["standard"], "the skirts stay at None");
+}
+
+#[test]
+fn an_edit_of_the_accessory_texture_shows_on_the_vehicle() {
+    use tp_core::document::{Frame, Paint, Rgba, ShapeKind};
+    use tp_core::kurbo::{Point, Size};
+    let mut h = open();
+    show_side_view(&mut h);
+    activate(&mut h, "side_skirts");
+    let skirts = surface(&h, "side_skirts");
+    let frame = Frame::new(Point::new(512.0, 512.0), Size::new(1024.0, 1024.0), 0.0);
+    let id = ws_mut(&mut h).create_shape(ShapeKind::rectangle(), frame, 1.0);
+    ws_mut(&mut h).edit_object(id, "undo-change-fill", 0.0, |o| {
+        o.fill = Paint::Solid(Rgba::rgb(0, 128, 0));
+    });
+    common::settle_renders(&mut h);
+    assert_eq!(
+        ws(&h).side_view.color_at(skirts, [0.5, 0.2]),
+        Some(Rgba::rgb(0, 128, 0))
+    );
+}
+
+#[test]
+fn a_package_made_before_accessories_is_drawn_with_an_empty_list() {
+    let mut h = common::harness();
+    let old = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../examples/vehicles/community.truckpaint.sample_truck-1.0.0.tpv"
+    );
+    let bytes = std::fs::read(old).unwrap();
+    h.state_mut().vehicles.install_bytes(&bytes).unwrap();
+    let package = Package::read(&bytes).unwrap();
+    let textures = vec!["standard".to_owned()];
+    let project =
+        tp_app::vehicle_project::fleet_project(common::SAMPLE, &[(&package, &textures)]).unwrap();
+    common::open_project(&mut h, project);
+    h.state_mut().prefs.layout.side_view = true;
+    common::settle_renders(&mut h);
+    assert_eq!(drawn(&h), ["standard"], "the cab alone, as before");
+    h.get_by_role_and_label(Role::Button, "Accessories").click();
+    h.run();
+    assert!(
+        h.query_by_label(&tr("side-view-accessories-empty"))
+            .is_some()
+    );
+}
+
+#[test]
+fn the_button_is_disabled_when_there_is_no_vehicle_to_draw() {
+    let h = open_vehicle("custom.mine", "truck", tex("cabin", 4096), true);
+    let button = h.get_by_role_and_label(Role::Button, "Accessories");
+    assert!(button.accesskit_node().is_disabled());
+}
+
+/// A truck with a roof deflector slot (two options) on its cabin and a chassis of two lengths.
+fn fitted_truck() -> H {
+    use serde_json::json;
+    let mut h = common::harness();
+    let textures = sample::truck_textures();
+    let mut manifest = sample::manifest("official.ets2.test.fit", "Fit", "1.0.0", &textures);
+    manifest["paint_job"]["main"][0]["preview_mesh"] = json!("preview/cabin.json");
+    let piece = |x: f64| {
+        json!({"texture": "cabin", "positions": [[x, 0, 0], [x + 1.0, 0, 0], [x, 1, 0]],
+               "uv": [[0, 0], [1, 0], [0, 1]], "triangles": [[0, 1, 2]]})
+    };
+    let at = |x: f64| json!([{"position": [x, 0, 0], "rotation": [1, 0, 0, 0], "scale": 1}]);
+    let mesh = json!({
+    "format": 1, "pieces": [piece(0.0)], "locators": {"r_deflector": at(0.5)},
+    "slots": [
+        {"id": "chassis", "options": [
+            {"id": "short", "name": "Short", "default": true, "pieces": [piece(10.0)]},
+            {"id": "long", "name": "Long", "pieces": [piece(20.0)]}]},
+        {"id": "r_deflector", "parent": "cabin", "options": [
+            {"id": "stock", "name": "Stock", "default": true, "pieces": [piece(30.0)]},
+            {"id": "long", "name": "Long", "pieces": [piece(40.0)]}]},
+    ]});
+    let mut files = sample::templates(&textures);
+    files.push(("preview/cabin.json".into(), mesh.to_string().into_bytes()));
+    let bytes = sample::zip(&manifest, &files);
+    h.state_mut().vehicles.install_bytes(&bytes).unwrap();
+    let package = Package::read(&bytes).unwrap();
+    let project =
+        tp_app::vehicle_project::fleet_project("Fit", &[(&package, &["cabin".to_owned()])])
+            .unwrap();
+    common::open_project(&mut h, project);
+    h.state_mut().prefs.layout.side_view = true;
+    common::settle_renders(&mut h);
+    h
+}
+
+#[test]
+fn each_slot_shows_one_option_and_the_chassis_has_no_none() {
+    let mut h = fitted_truck();
+    let choices = |h: &H| {
+        ws(h)
+            .project
+            .side_view
+            .get("official.ets2.test.fit")
+            .cloned()
+    };
+    assert_eq!(
+        choices(&h),
+        None,
+        "the game's configuration records nothing"
+    );
+    // The rows are in the order of the preview mesh, with the slots' names.
+    h.get_by_role_and_label(Role::Button, "Accessories").click();
+    h.run();
+    let chassis = h.get_by_role_and_label(Role::ComboBox, "Chassis").rect();
+    let deflector = h
+        .get_by_role_and_label(Role::ComboBox, "Roof deflector")
+        .rect();
+    assert!(chassis.top() < deflector.top());
+    // The chassis offers its options only; the deflector offers None as well.
+    h.get_by_role_and_label(Role::ComboBox, "Chassis").click();
+    h.run();
+    assert!(h.query_by_label("None").is_none());
+    assert!(h.query_all_by_label("Long").count() > 0);
+    common::last(&h, "Long").click();
+    h.run();
+    h.get_by_role_and_label(Role::ComboBox, "Roof deflector")
+        .click();
+    h.run();
+    assert!(h.query_by_label("None").is_some());
+    common::last(&h, "Long").click();
+    h.run();
+    let chosen = choices(&h).unwrap();
+    assert_eq!(chosen["chassis"].as_deref(), Some("long"));
+    assert_eq!(chosen["r_deflector"].as_deref(), Some("long"));
+    assert_eq!(chosen.len(), 2);
 }

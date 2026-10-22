@@ -164,6 +164,10 @@ pub struct FileVehicle {
     /// recorded).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub game_data: Option<FileGameData>,
+    /// The accessory chosen in each slot of the Side View (`null`: none), for the slots whose
+    /// choice differs from the game's default.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub side_view: BTreeMap<String, Option<String>>,
 }
 
 /// What a vehicle is in the game, recorded from its package.
@@ -1011,6 +1015,11 @@ pub fn from_project(project: &Project) -> FileProject {
                         .collect(),
                     main_count: g.main_count,
                 }),
+                side_view: project
+                    .side_view
+                    .get(&v.package_id)
+                    .cloned()
+                    .unwrap_or_default(),
             })
             .collect(),
         mod_settings: mod_settings_to_file(project),
@@ -1397,6 +1406,12 @@ pub fn into_document(
     // instances are expanded from their symbols.
     project.relink();
     project.vehicles = vehicles_from_file(file);
+    project.side_view = file
+        .vehicles
+        .iter()
+        .filter(|v| !v.side_view.is_empty())
+        .map(|v| (v.package_id.clone(), v.side_view.clone()))
+        .collect();
     project.mod_settings = mod_settings_from_file(file, &project)?;
     project.game_versions = file.game_versions.clone();
     Ok(project)

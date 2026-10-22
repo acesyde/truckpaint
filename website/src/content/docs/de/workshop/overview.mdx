@@ -46,26 +46,44 @@ Für mehr Platz wählen Sie <Ui id="menu-view" /> › <Ui id="cmd-hide-panels" /
 
 ## Die Seitenansicht
 
-Eine Textur ist flach, ein Fahrzeug nicht: Die Teile der Textur sind zerschnitten, gedreht und über das Modell verteilt. Die Seitenansicht zeigt das Fahrzeug mit Ihrer Lackierung, sodass Sie sehen, wo jeder Teil der Textur landet.
+Eine Textur ist flach, ein Fahrzeug aber nicht: Die Teile der Textur werden zugeschnitten, gedreht und über das Modell verteilt. Die Seitenansicht zeigt das Fahrzeug mit Ihrer Lackierung, damit Sie sehen, wo jeder Teil der Textur landet.
 
 Wählen Sie <Ui id="menu-view" /> › <Ui id="cmd-show-side-view" />, um sie ein- oder auszublenden. Das Bedienfeld liegt unter der Arbeitsfläche, über deren ganze Breite. Ziehen Sie seinen oberen Rand, um es höher oder niedriger zu machen. Ob es angezeigt wird, seine Richtung und seine Höhe werden gespeichert, und <Ui id="cmd-hide-panels" /> (Tab) lässt es stehen.
 
-<Shot name="workshop/side-view" alt="Die Seitenansicht unter der Arbeitsfläche: das Standard-Fahrerhaus des Beispiel-Lkw von links gesehen, mit der Lackierung Blue Wave Biarritz: die weiße Tür mit Logo." />
+<Shot name="workshop/side-view" alt="Die Seitenansicht unter der Arbeitsfläche: das Standard-Fahrerhaus des Beispiel-Lkw mit seinen Seitenverkleidungen von links gesehen, mit der Lackierung Blue Wave Biarritz: die weiße Tür mit Logo, die blaue Verkleidung mit hellblauem Strich." />
 
+- **Das ganze Fahrzeug.** Die Ansicht zeichnet das Fahrerhaus der geöffneten Haupttextur und alle daran montierten Zubehörteile: die Türen, die Stoßstange, die Kotflügel, die Spoiler, die Seitenverkleidungen. Jedes Teil zeigt das Motiv seiner eigenen Textur: Ein Streifen auf der Textur der Seitenverkleidungen erscheint also auf den Verkleidungen unter dem Fahrerhaus. Ein Anhänger zeigt sein Fahrgestell und seinen Aufbau. Öffnen Sie eine Zubehörtextur, behält die Ansicht das Fahrerhaus, an dem Sie zuletzt gearbeitet haben.
+- **Nur lackierte Teile.** Scheiben, Leuchten, Teile aus Kunststoff oder Chrom und Spiegel ohne Lack bleiben weg. Die Ansicht zeigt, wohin Ihre Lackierung kommt, nicht jedes Objekt, das sie verdecken könnte. Ein Teil, dessen Textur nicht in Ihrem Projekt ist, wird einfarbig grau gezeichnet.
 - **Fünf Richtungen.** Wählen Sie <Ui id="side-view-left" />, <Ui id="side-view-right" />, <Ui id="side-view-front" />, <Ui id="side-view-back" /> oder <Ui id="side-view-top" /> (Ansicht von oben, praktisch für ein gestaltetes Dach) oben rechts im Bedienfeld. Die Darstellung ist flach, ohne Perspektive, und passt sich immer dem Bedienfeld an. Sie lässt sich weder drehen noch zoomen.
-- **Live.** Jede Änderung auf der Arbeitsfläche erscheint einen Moment später in der Ansicht. Während Sie ein Objekt ziehen, folgt die Arbeitsfläche Ihrem Zeiger, und die Ansicht holt beim Loslassen auf.
-- **Nur Haupttexturen.** Bei einem Lkw zeigt die Ansicht das Fahrerhaus der geöffneten Haupttextur. Bei einem Anhänger zeigt sie die Haupttextur. Die Zubehörtexturen (Deflektoren, Seitenverkleidungen, Sonnenblenden usw.) werden noch nicht gezeichnet: Solange eine davon geöffnet ist, zeigt die Ansicht weiter die letzte Haupttextur, an der Sie gearbeitet haben.
-- **Als Zubehör montierte Teile fehlen.** Bei manchen Lkw sind Teile, die mit der Haupttextur lackiert werden, als Zubehör montiert: die Türen, die Stoßstange, die Kotflügel, die Deflektoren. Sie stehen auf der Vorlage, aber noch nicht in der Ansicht, die deshalb eine Lücke zeigen kann, wo eine Tür sein sollte.
-- **Textur wechseln.** Öffnen Sie ein anderes Fahrerhaus oder eine Textur eines anderen Fahrzeugs, und die Ansicht wechselt mit.
+- **Live.** Jede Änderung auf der Arbeitsfläche, an der Haupttextur wie an einer Zubehörtextur, erscheint einen Moment später in der Ansicht. Während Sie ein Objekt ziehen, folgt die Arbeitsfläche Ihrem Zeiger, und die Ansicht holt auf, wenn Sie loslassen.
+- **Textur wechseln.** Öffnen Sie ein anderes Fahrerhaus oder eine Textur eines anderen Fahrzeugs, und die Ansicht wechselt mit. Ihre Zubehörauswahl bleibt beim Fahrzeug.
+
+### Zubehör auswählen
+
+Klicken Sie im Kopf des Bedienfelds auf <Ui id="side-view-accessories" />, um die Stellen des Fahrzeugs aufzulisten, an denen Zubehör montiert werden kann, etwa die Tür, der Dachspoiler oder die Stoßstange. Jede Zeile hat eine Auswahlliste mit <Ui id="side-view-accessory-none" /> und den Optionen dieser Stelle. Pro Stelle wird immer nur eine Option gezeichnet. Das Fahrgestell hat immer eine, deshalb gibt es dort kein <Ui id="side-view-accessory-none" />.
+
+<Shot name="workshop/side-view-accessories" alt="Die Seitenansicht mit der geöffneten Zubehörliste über der Arbeitsfläche: eine Zeile für die Seitenverkleidungen des Beispiel-Lkw mit ihrer Auswahlliste." />
+
+- **Zuerst die Ausstattung des Spiels.** Ein Fahrzeug beginnt mit dem Zubehör, das das Spiel an einem neuen Fahrzeug montiert. Eine Stelle, an der das Spiel nichts Lackiertes montiert, beginnt bei <Ui id="side-view-accessory-none" />.
+- **Mit dem Projekt gespeichert.** Ihre Auswahl wird für jedes Fahrzeug gespeichert und kommt beim erneuten Öffnen des Projekts zurück. Sie ist kein Schritt im Rückgängig-Verlauf: <Ui id="menu-edit" /> › <Ui id="cmd-undo" /> ändert sie nicht.
+- **Gleiche Form, eine Option.** Optionen, die von außen gleich aussehen, etwa Türen, die sich nur innen unterscheiden, werden nur einmal aufgeführt.
+- **Früher erzeugte offizielle Fahrzeuge.** Ein Fahrzeug, das über <Ui id="vehicles-tab-game" /> erzeugt wurde, bevor Zubehör gezeichnet wurde, zeigt nur sein Fahrerhaus, und die Liste fordert Sie auf, es erneut zu erzeugen.
+
+### Anhänger
+
+Ein Anhänger zeigt sein Fahrgestell und den Aufbau, den Sie in der Liste wählen, jeweils mit eigener Textur.
+
+<Shot name="workshop/side-view-trailer" alt="Die Seitenansicht mit dem Beispiel-Anhänger von links: der Rahmen des Fahrgestells und der 13,6 m lange Planenaufbau mit der Lackierung Blue Wave Biarritz, dem Logo und den Wellen." />
+
+Gezeichnet wird nur ein einzelner Anhänger, keine Gliederzüge oder B-Doubles.
 
 Die Seitenansicht ist eine Hilfe beim Gestalten. Die endgültige Prüfung bleibt im Spiel.
 
-Gibt es nichts zu zeichnen, nennt das Bedienfeld den Grund:
+Wenn es nichts zu zeichnen gibt, nennt das Bedienfeld den Grund:
 
 - eigene Fahrzeuge haben keine Seitenansicht;
-- ein offizielles Fahrzeug, das vor der Seitenansicht erstellt wurde, muss über <Ui id="vehicles-tab-game" /> erneut erstellt werden;
-- manche Anhänger haben eine Haupttextur, die nur die Grundfarbe trägt, weil ihre Teile auf Zubehörtexturen gemalt werden;
-- ein Projekt, das auf einem Computer geöffnet wird, auf dem das Paket seines Fahrzeugs nicht installiert ist, braucht dieses Paket;
+- ein offizielles Fahrzeug, das vor der Seitenansicht erzeugt wurde, muss über <Ui id="vehicles-tab-game" /> erneut erzeugt werden;
+- ein Projekt, das auf einem Rechner geöffnet wird, auf dem das Paket seines Fahrzeugs nicht installiert ist, braucht dieses Paket;
 - ein Community- oder Beispielpaket ohne Modell für die Seitenansicht zeigt <Ui id="side-view-none" />.
 
 ## Die Vorlagenüberlagerung

@@ -222,6 +222,23 @@ pub const LAYOUT: &[Row] = &[
         [0.0, 0.88, 1.0, 0.04],
     ),
     row("body_13_6", "ROOF", 0, Fill(White), ALL),
+    // Truck, Side skirts: Blue with a Light blue rule.
+    row("side_skirts", "SIDE SKIRT", 0, Fill(Blue), ALL),
+    row(
+        "side_skirts",
+        "SIDE SKIRT",
+        0,
+        Rule(LightBlue),
+        [0.04, 0.45, 0.92, 0.10],
+    ),
+    row("side_skirts", "SIDE SKIRT", 1, Fill(Blue), ALL),
+    row(
+        "side_skirts",
+        "SIDE SKIRT",
+        1,
+        Rule(LightBlue),
+        [0.04, 0.45, 0.92, 0.10],
+    ),
     // Trailer, Base: the chassis frames in Blue.
     row("base", "CHASSIS FRAME", 0, Fill(Blue), ALL),
     row("base", "CHASSIS FRAME", 1, Fill(Blue), ALL),
@@ -263,9 +280,9 @@ pub struct Zone {
     pub rect: Rect,
 }
 
-/// The labeled zones of a template SVG, in order: every `<rect>` followed
-/// by a `<text>` label with no other text in between. The border drawn
-/// around the whole texture is not a zone.
+/// The labeled zones of a template SVG, in order: every `<rect>` or `<polygon>` (its bounding box)
+/// followed by a `<text>` label with no other text in between. The border drawn around the whole
+/// texture is not a zone.
 pub fn zones(svg: &str, size: Size) -> Vec<Zone> {
     fn attr(tag: &str, name: &str) -> f64 {
         let key = format!(" {name}=\"");
@@ -284,6 +301,24 @@ pub fn zones(svg: &str, size: Size) -> Vec<Zone> {
             let (x, y) = (attr(tag, "x"), attr(tag, "y"));
             let (w, h) = (attr(tag, "width"), attr(tag, "height"));
             last = (w < size.width - 100.0).then(|| Rect::new(x, y, x + w, y + h));
+        } else if tag.starts_with("<polygon ") {
+            let points = tag
+                .split("points=\"")
+                .nth(1)
+                .and_then(|t| t.split('"').next())
+                .expect("points");
+            let numbers: Vec<f64> = points
+                .split([' ', ','])
+                .filter_map(|n| n.parse().ok())
+                .collect();
+            let (xs, ys): (Vec<f64>, Vec<f64>) = numbers.chunks(2).map(|p| (p[0], p[1])).unzip();
+            let fold = |v: &[f64], f: fn(f64, f64) -> f64, init| v.iter().copied().fold(init, f);
+            last = Some(Rect::new(
+                fold(&xs, f64::min, f64::MAX),
+                fold(&ys, f64::min, f64::MAX),
+                fold(&xs, f64::max, f64::MIN),
+                fold(&ys, f64::max, f64::MIN),
+            ));
         } else if tag.starts_with("<text ") {
             let close = rest.find("</text>").expect("closed text");
             if let Some(rect) = last.take() {

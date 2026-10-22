@@ -8,7 +8,13 @@ use std::io::{Cursor, Read};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+mod preview;
 pub mod sample;
+
+pub use preview::{
+    CHASSIS_SLOT, PREVIEW_FORMAT, PreviewLocator, PreviewMesh, PreviewOption, PreviewPiece,
+    PreviewSlot, SlotParent,
+};
 
 /// Highest package format this version understands.
 pub const FORMAT: u32 = 1;
@@ -152,28 +158,6 @@ pub struct Part {
     /// Path of the preview mesh inside the package (main textures only).
     #[serde(default)]
     pub preview_mesh: Option<String>,
-}
-
-/// Highest preview mesh format this version understands.
-pub const PREVIEW_FORMAT: u32 = 1;
-
-/// A simple model of a vehicle's painted surfaces, used by the Side View.
-/// Positions are in meters (x right, y up, z towards the back), UVs in
-/// texture coordinates with `[0, 0]` at the top left.
-#[derive(Clone, Debug, Default, PartialEq, Deserialize, Serialize)]
-pub struct PreviewMesh {
-    pub format: u32,
-    pub pieces: Vec<PreviewPiece>,
-}
-
-/// Triangles painted by one texture of the package.
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct PreviewPiece {
-    /// Id of the package part whose texture paints the piece.
-    pub texture: String,
-    pub positions: Vec<[f32; 3]>,
-    pub uv: Vec<[f32; 2]>,
-    pub triangles: Vec<[u32; 3]>,
 }
 
 /// Whether a part is a main texture or an accessory.
@@ -698,33 +682,8 @@ fn parse_preview(zip: &mut Zip<'_>, path: &str, m: &Manifest) -> Result<PreviewM
     if mesh.format != PREVIEW_FORMAT {
         return Err(bad(format!("unknown preview mesh format {}", mesh.format)));
     }
-    for piece in &mesh.pieces {
-        if m.paint_job.part(&piece.texture).is_none() {
-            return Err(bad(format!("unknown texture \"{}\"", piece.texture)));
-        }
-        let vertices = piece.positions.len();
-        if piece.uv.len() != vertices {
-            return Err(bad("positions and uv have different lengths".into()));
-        }
-        if piece
-            .triangles
-            .iter()
-            .flatten()
-            .any(|i| *i as usize >= vertices)
-        {
-            return Err(bad(format!(
-                "a triangle uses a vertex beyond the {vertices} of its piece"
-            )));
-        }
-        let finite = piece
-            .positions
-            .iter()
-            .flatten()
-            .chain(piece.uv.iter().flatten());
-        if finite.into_iter().any(|n| !n.is_finite()) {
-            return Err(bad("a number is not finite".into()));
-        }
-    }
+    mesh.validate(|texture| m.paint_job.part(texture).is_some())
+        .map_err(bad)?;
     Ok(mesh)
 }
 

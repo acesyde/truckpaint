@@ -227,7 +227,7 @@ Unknown fields are ignored, so a package can already carry data for later TruckP
 
 ### Preview mesh
 
-A main texture can name a `preview_mesh`: a JSON file with a simple model of the vehicle's painted surfaces. TruckPaint draws it in the Side View, painted with the livery being edited. A package without one stays valid; the Side View then says it is not available for that vehicle. Official packages generated from the player's game carry one for each main texture, and the sample vehicles carry hand-made ones (`examples/vehicles/*/<version>/preview/`).
+A main texture can name a `preview_mesh`: a JSON file with a simple model of the vehicle's painted surfaces. TruckPaint draws it in the Side View, painted with the livery being edited. A package without one stays valid; the Side View then says it is not available for that vehicle. Official packages generated from the player's game carry one for each main texture, with the accessories the player can choose, and the sample vehicles carry hand-made ones (`examples/vehicles/*/<version>/preview/`).
 
 ```json title="preview/globetrotter.json"
 {
@@ -247,12 +247,47 @@ A main texture can name a `preview_mesh`: a JSON file with a simple model of the
 |---|---|
 | `format` | The preview mesh format: `1`. |
 | `pieces` | One or more pieces. Each one holds the triangles painted by one texture. |
-| `texture` | The `id` of the part whose texture paints the piece. TruckPaint draws only the pieces of the texture it shows and ignores the others. |
+| `texture` | The `id` of the part whose texture paints the piece, a main texture or an accessory texture. Each piece is drawn with the artwork of its own texture. |
 | `positions` | One `[x, y, z]` per vertex, in meters: x towards the vehicle's right, y up, z towards its back (the front of the vehicle is towards negative z). |
 | `uv` | One `[u, v]` per vertex, in texture coordinates: `[0, 0]` is the top left corner of the texture and `[1, 1]` its bottom right corner, as the template is drawn. It has as many entries as `positions`. |
 | `triangles` | Vertex indices, three per triangle. |
 
-A package is refused, with the file named, when the mesh file is missing or unreadable, names a texture the package does not have, has `positions` and `uv` of different lengths, has a `format` other than `1`, has an index out of range, holds a number that is not finite, or gives a path that is unsafe (absolute, or with `..`). A project never copies the mesh: it is read from the installed package. The mesh counts towards the package's size limit, so keep it light: a few boxes are enough to tell the directions apart.
+#### Accessories
+
+A mesh can also hold accessories that the player chooses in the Side View. The `pieces` above are always drawn. The two optional fields below add the rest:
+
+```json title="preview/standard.json"
+{
+  "format": 1,
+  "pieces": [ … ],
+  "locators": {
+    "sideskirt": [{ "position": [0, 0, 0], "rotation": [1, 0, 0, 0], "scale": 1 }]
+  },
+  "slots": [
+    {
+      "id": "sideskirt",
+      "parent": "cabin",
+      "options": [
+        { "id": "skirt", "name": "Side skirts", "default": true, "pieces": [ … ] }
+      ]
+    }
+  ]
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `locators` | The attachment points of the model the pieces belong to (the cabin, or a trailer's chassis), by name. Each name holds a list, because an accessory can be fitted at several places. A locator has a `position` in the same axes as the pieces, a `rotation` that is a unit quaternion `[w, x, y, z]` as stored in the game, and a `scale`. |
+| `slots` | The places where one accessory is fitted, in the order they are listed. |
+| `id` (slot) | The slot's name, the same as its locator: `cab_door`, `r_deflector`, `body`… The slot `chassis` holds the chassis options. |
+| `parent` | `cabin`: the locator is in `locators`. `chassis`: it is in the `locators` of the chosen option of the `chassis` slot. The `chassis` slot has no `parent` and is drawn where it is modeled. |
+| `options` | The choices of the slot. Each one has an `id`, a `name` shown in the list, `default` (true for the option fitted on a new vehicle; at most one per slot) and its `pieces`. |
+| `pieces` (option) | Like the pieces above, but in the accessory's own space: they are drawn at every locator of the slot's name, moved and turned by it. |
+| `locators` (option) | For an option of the `chassis` slot only: its own attachment points. |
+
+A slot with no `default` starts at None, except the chassis, which always shows one option. Because a locator moves the pieces, the same door can be fitted on both sides, and a bumper follows the length of the chassis the player picks.
+
+A package is refused, with the file named, when the mesh file is missing or unreadable, names a texture the package does not have, has `positions` and `uv` of different lengths, has a `format` other than `1`, has an index out of range, holds a number that is not finite, repeats a slot or an option, has two defaults in one slot, has a slot with no locator of its name on its parent, hangs a slot on the chassis when there is no `chassis` slot, or gives a path that is unsafe (absolute, or with `..`). A project never copies the mesh: it is read from the installed package. The mesh counts towards the package's size limit, so keep it light: a few boxes are enough to tell the directions apart.
 
 ## Limits
 

@@ -50,13 +50,32 @@ A texture is flat, but a vehicle is not: the pieces of the texture are cut, turn
 
 Choose <Ui id="menu-view" /> › <Ui id="cmd-show-side-view" /> to show or hide it. The panel sits under the canvas, across its width. Drag its top edge to make it taller or shorter. Whether it is shown, its direction and its height are remembered, and <Ui id="cmd-hide-panels" /> (Tab) leaves it in place.
 
-<Shot name="workshop/side-view" alt="The Side View under the canvas, showing the sample truck's Standard cab from the left with the Blue Wave Biarritz livery: the white door with the logo." />
+<Shot name="workshop/side-view" alt="The Side View under the canvas, showing the sample truck's Standard cab with its side skirts from the left, in the Blue Wave Biarritz livery: the white door with the logo, the blue skirt with its light blue line." />
 
+- **The whole vehicle.** The view draws the cabin of the main texture you have open and every accessory fitted to it: the doors, the bumper, the fenders, the deflectors, the side skirts. Each part shows the artwork of its own texture, so a stripe on the Side skirts texture appears on the skirts, under the cab. A trailer shows its chassis and its body. If you open an accessory texture, the view keeps the cabin you worked on last.
+- **Only painted parts.** Glass, lights, plastic and chrome parts, and mirrors that take no paint are left out. The view shows where your livery goes, not every object that could hide it. A part whose texture is not in your project is drawn in plain gray.
 - **Five directions.** Pick <Ui id="side-view-left" />, <Ui id="side-view-right" />, <Ui id="side-view-front" />, <Ui id="side-view-back" /> or <Ui id="side-view-top" /> (seen from above, handy for a decorated roof) at the top right of the panel. The drawing is flat, with no perspective, and always fits the panel. You can't turn it or zoom it.
-- **Live.** Each change you make on the canvas shows in the view a moment later. While you drag an object, the canvas follows your pointer and the view catches up when you let go.
-- **Main textures only.** For a truck, the view shows the cabin of the main texture you have open. For a trailer, it shows the main texture. The accessory textures (deflectors, side skirts, sun visors and so on) are not drawn yet: while one of them is open, the view keeps showing the last main texture you worked on.
-- **Parts mounted as accessories are missing.** On some trucks, parts painted with the main texture are mounted as accessories: the doors, the bumper, the fenders, the deflectors. They appear on the template but not in the view yet, so the view can show a gap where a door should be.
-- **Switching texture.** Open another cabin, or a texture of another vehicle, and the view changes with it.
+- **Live.** Each change you make on the canvas, on the main texture or on an accessory texture, shows in the view a moment later. While you drag an object, the canvas follows your pointer and the view catches up when you let go.
+- **Switching texture.** Open another cabin, or a texture of another vehicle, and the view changes with it. Your accessory choices stay with the vehicle.
+
+### Choosing the accessories
+
+Click <Ui id="side-view-accessories" /> in the panel's header to list the places of the vehicle where an accessory can be fitted, such as the door, the roof deflector or the bumper. Each row has a drop-down with <Ui id="side-view-accessory-none" /> and the options of that place. Only one option of a place is drawn at a time. The chassis always has one, so it has no <Ui id="side-view-accessory-none" />.
+
+<Shot name="workshop/side-view-accessories" alt="The Side View with the Accessories list open over the canvas: one row for the Side skirts of the sample truck with its drop-down." />
+
+- **The game's own setup first.** A vehicle starts with the accessories the game fits on a new vehicle. A place where the game fits nothing painted starts at <Ui id="side-view-accessory-none" />.
+- **Saved with the project.** Your choices are kept for each vehicle and come back when you reopen the project. They are not an undo step: <Ui id="menu-edit" /> › <Ui id="cmd-undo" /> does not change them.
+- **Same shape, one option.** Options that look the same from the outside, such as doors that differ only inside, are listed once.
+- **Official vehicles generated earlier.** A vehicle generated from <Ui id="vehicles-tab-game" /> before accessories were drawn shows its cabin alone, and the list tells you to generate it again.
+
+### Trailers
+
+A trailer shows its chassis and the body you choose in the list, each with its own texture.
+
+<Shot name="workshop/side-view-trailer" alt="The Side View showing the sample trailer from the left: the chassis frame and the 13.6 m curtain body in the Blue Wave Biarritz livery, with the logo and the waves." />
+
+Only a single trailer is drawn, not doubles or B-doubles.
 
 The Side View is a guide while you design. The final check is still in the game.
 
@@ -64,7 +83,6 @@ When there is nothing to draw, the panel says why:
 
 - custom vehicles have no Side View;
 - an official vehicle generated before the Side View needs to be generated again from <Ui id="vehicles-tab-game" />;
-- some trailers have a main texture that only carries the base color, because their parts are painted on accessory textures;
 - a project opened on a computer where its vehicle's package is not installed needs that package;
 - a community or sample package without a model for the Side View shows <Ui id="side-view-none" />.
 

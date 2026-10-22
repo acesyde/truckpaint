@@ -1,6 +1,7 @@
 //! Extracts official truck and owned trailer definitions and painted geometry from ETS2.
 
 mod geometry;
+mod preview;
 mod source;
 mod syntax;
 
@@ -154,8 +155,21 @@ struct Painted {
     name: String,
     cabins: BTreeSet<String>,
     mesh: Vec<geometry::Mesh>,
+    /// How many of `mesh` come from the EU models (they come first); the Side View draws only those.
+    eu: usize,
+    /// The EU attachment points of the parts the EU variant shows.
+    locators: geometry::Locators,
     selection: Vec<Value>,
     source: String,
+}
+
+/// What the Side View needs to know of a definition, painted or not.
+struct Unit {
+    /// The game's English name.
+    name: String,
+    source: String,
+    /// The units it fits (`cabin.sl`, `interior.sl_hex`...), without the vehicle's id.
+    suitable: Vec<String>,
 }
 
 #[derive(Default)]
@@ -181,7 +195,7 @@ fn model_geometry(
     look: &str,
     variant: &str,
     alt_uv: Option<bool>,
-) -> Result<(Vec<geometry::Mesh>, Value), String> {
+) -> Result<(Vec<geometry::Mesh>, geometry::Locators, Value), String> {
     let stem = model.trim_end_matches(".pmd");
     let (pmd, pmg) = (format!("{stem}.pmd"), format!("{stem}.pmg"));
     let descriptor = tp_scs::Descriptor::parse(&pmd, &sources.bytes(&pmd)?)?;
@@ -197,6 +211,8 @@ fn model_geometry(
     };
     let mesh = geometry::painted(&geometry, &descriptor, effects, look, variant, alt_uv)
         .map_err(|e| format!("{model}, {look}/{variant}: {e}"))?;
+    let locators = geometry::locators(&geometry, &descriptor, variant)
+        .map_err(|e| format!("{model}, {look}/{variant}: {e}"))?;
     let surfaces = mesh.iter().map(|m| {
         let min = std::array::from_fn::<_, 2, _>(|axis| m.uv.iter().map(|uv| uv[axis]).fold(f64::INFINITY, f64::min));
         let max = std::array::from_fn::<_, 2, _>(|axis| m.uv.iter().map(|uv| uv[axis]).fold(f64::NEG_INFINITY, f64::max));
@@ -205,7 +221,7 @@ fn model_geometry(
     }).collect::<Vec<_>>();
     let selection =
         json!({"model": model, "look": look, "variant": variant, "painted_surfaces": surfaces});
-    Ok((mesh, selection))
+    Ok((mesh, locators, selection))
 }
 
 /// Refusal of a trailer whose paint jobs only set plain colours: reported as
@@ -218,8 +234,8 @@ type Masks = BTreeMap<String, BTreeMap<String, BTreeSet<String>>>;
 
 const MODEL_FIELDS: [&str; 3] = ["model", "detail_model", "exterior_model"];
 
-/// The (model, look, variant) triples a unit paints: EU models first, then UK ones.
-fn model_selections(unit: &Section, path: &str) -> Result<Vec<[String; 3]>, String> {
+/// The (model, look, variant) triples a unit paints: EU models first, then UK ones, and how many are EU.
+fn model_selections(unit: &Section, path: &str) -> Result<(Vec<[String; 3]>, usize), String> {
     let has = |name: &str| unit.fields.contains_key(name);
     // A UK variant may reuse the EU model rather than provide a model_uk field.
     let uk_reuses_eu = has("variant_uk") && MODEL_FIELDS.iter().all(|f| !has(&format!("{f}_uk")));
@@ -233,6 +249,7 @@ fn model_selections(unit: &Section, path: &str) -> Result<Vec<[String; 3]>, Stri
         unit.field(key).unwrap_or("default").to_owned()
     };
     let mut result: Vec<[String; 3]> = Vec::new();
+    let mut eu = 0;
     for uk in [false, true] {
         for base in MODEL_FIELDS {
             let field = if uk && !uk_reuses_eu {
@@ -252,8 +269,11 @@ fn model_selections(unit: &Section, path: &str) -> Result<Vec<[String; 3]>, Stri
                 result.push(selection);
             }
         }
+        if !uk {
+            eu = result.len();
+        }
     }
-    Ok(result)
+    Ok((result, eu))
 }
 
 /// What the game defines a vehicle as: where its definitions live and how
@@ -329,8 +349,28 @@ fn accessory_groups(
     groups
 }
 
+/// What the game fits, and for a trailer what it can be bought with.
+#[derive(Default)]
+struct Fitted {
+    /// Per main texture, the definition files fitted on a new vehicle.
+    defaults: BTreeMap<String, BTreeSet<String>>,
+    /// The chassis and body files of the trailer's single configurations, when it has any.
+    allowed: Option<BTreeSet<String>>,
+}
+
+struct UnitGeometry {
+    mesh: Vec<geometry::Mesh>,
+    eu: usize,
+    locators: geometry::Locators,
+    selections: Vec<Value>,
+}
+
 struct Parts {
     painted: BTreeMap<String, Painted>,
+    /// Chassis with nothing painted: only the Side View uses them, for their locators.
+    bare: BTreeMap<String, Painted>,
+    /// Every definition read, by `group.name`.
+    units: BTreeMap<String, Unit>,
     cabins: BTreeMap<String, String>,
     seen: BTreeSet<String>,
     /// Defined accessories whose definition names no exterior model.
@@ -345,9 +385,9 @@ struct Textures {
     coverage: Vec<Value>,
     /// A template is new, different or gone compared with the previous package.
     changed: bool,
-    /// A main texture gains a preview mesh the previous package did not have: a new
-    /// package, but no template change.
-    preview_added: bool,
+    /// A preview mesh is new or differs from the previous package's: a new package, but no
+    /// template change.
+    preview_changed: bool,
 }
 
 /// One truck's extraction; what it gathered stays readable after a failure.
@@ -485,19 +525,17 @@ impl<'a> Build<'a> {
         Ok(masks)
     }
 
-    fn unit_geometry(
-        &mut self,
-        unit: &Section,
-        path: &str,
-    ) -> Result<(Vec<geometry::Mesh>, Vec<Value>), String> {
+    fn unit_geometry(&mut self, unit: &Section, path: &str) -> Result<UnitGeometry, String> {
         let (mut mesh, mut selections) = (Vec::new(), Vec::new());
-        for [model, look, variant] in model_selections(unit, path)? {
+        let (mut eu, mut locators) = (0, geometry::Locators::new());
+        let (models, eu_models) = model_selections(unit, path)?;
+        for (index, [model, look, variant]) in models.into_iter().enumerate() {
             // The descriptor is the model's recorded source.
             self.evidence.insert(model.clone());
             self.stage = "geometry-selection";
             // Always the ordinary paint UVs, as the game's colour paint jobs and the
             // community templates use; `.altuv` materials also carry them.
-            let (found, selection) =
+            let (found, found_locators, selection) =
                 model_geometry(self.sources, &model, &look, &variant, Some(false))
                     // A missing file keeps its message: the report lists it as a dependency.
                     .map_err(|e| {
@@ -507,21 +545,36 @@ impl<'a> Build<'a> {
                             format!("{path}: {e}")
                         }
                     })?;
+            if index < eu_models {
+                eu += found.len();
+                for (name, list) in found_locators {
+                    locators.entry(name).or_default().extend(list);
+                }
+            }
             mesh.extend(found);
             selections.push(selection);
         }
-        Ok((mesh, selections))
+        Ok(UnitGeometry {
+            mesh,
+            eu,
+            locators,
+            selections,
+        })
     }
 
     fn painted_parts(&mut self, paths: &[String]) -> Result<Parts, String> {
         let root = self.root.clone();
         let mut parts = Parts {
             painted: BTreeMap::new(),
+            bare: BTreeMap::new(),
+            units: BTreeMap::new(),
             cabins: BTreeMap::new(),
             seen: BTreeSet::new(),
             modelless: BTreeSet::new(),
         };
-        let groups = self.kind.painted_groups();
+        // Interiors are not painted, but doors are suitable for them, not for the cabin.
+        let groups = self.kind.painted_groups().into_iter().chain(["interior/"]);
+        let groups = groups.collect::<Vec<_>>();
         for path in paths.iter().filter(|p| {
             groups
                 .iter()
@@ -553,11 +606,38 @@ impl<'a> Build<'a> {
                         name.unwrap_or_else(|_| unit_name.to_owned()),
                     );
                 }
-                let (mesh, selection) = self.unit_geometry(unit, path)?;
+                let vehicle = format!(".{}.", self.vehicle);
+                let strip = |ids: Vec<String>| {
+                    ids.iter()
+                        .filter_map(|s| s.split_once(&vehicle))
+                        .map(|(name, group)| format!("{group}.{name}"))
+                        .collect::<Vec<_>>()
+                };
+                parts.units.insert(
+                    id.clone(),
+                    Unit {
+                        name: unit
+                            .field("name")
+                            .map_or_else(|_| unit_name.to_owned(), |n| label(n, self.names)),
+                        source: path.clone(),
+                        suitable: strip(array(unit, "suitable_for[]")),
+                    },
+                );
+                if group == "interior" {
+                    continue;
+                }
+                let UnitGeometry {
+                    mesh,
+                    eu,
+                    locators,
+                    selections: selection,
+                } = self.unit_geometry(unit, path)?;
                 if selection.is_empty() {
                     parts.modelless.insert(id.clone());
                 }
-                if mesh.is_empty() {
+                let bare = mesh.is_empty();
+                // An unpainted chassis is still where accessories hang.
+                if bare && group != "chassis" {
                     continue;
                 }
                 let suffix = format!(".{}.cabin", self.vehicle);
@@ -565,21 +645,115 @@ impl<'a> Build<'a> {
                     .into_iter()
                     .filter_map(|s| s.strip_suffix(&suffix).map(str::to_owned))
                     .collect();
-                parts.painted.insert(
-                    id.clone(),
-                    Painted {
-                        id,
-                        group: group.to_owned(),
-                        name: unit_name.to_owned(),
-                        cabins,
-                        mesh,
-                        selection,
-                        source: path.clone(),
-                    },
-                );
+                let found = Painted {
+                    id: id.clone(),
+                    group: group.to_owned(),
+                    name: unit_name.to_owned(),
+                    cabins,
+                    mesh,
+                    eu,
+                    locators,
+                    selection,
+                    source: path.clone(),
+                };
+                if bare {
+                    parts.bare.insert(id, found);
+                } else {
+                    parts.painted.insert(id, found);
+                }
             }
         }
         Ok(parts)
+    }
+
+    /// What the game fits on a new vehicle, for the Side View: per main texture, the definition
+    /// files reached from the cabin (or the trailer's first chassis and body) through `defaults[]`.
+    fn fitted(&mut self, parts: &Parts, paths: &[String]) -> Result<Fitted, String> {
+        let mut fitted = Fitted::default();
+        if self.kind == Kind::Truck {
+            for cabin in parts.cabins.keys() {
+                let start = parts
+                    .units
+                    .get(&format!("cabin.{cabin}"))
+                    .map(|u| u.source.clone());
+                fitted
+                    .defaults
+                    .insert(cabin.clone(), self.reached(start.into_iter().collect()));
+            }
+            return Ok(fitted);
+        }
+        // A trailer is bought as a single configuration (chassis) with a body set (bodies). The game
+        // fits nothing by itself: the first configuration's chassis and the first body by name are
+        // the default (the first configuration's own bodies can be a short one for a double).
+        let prefix = format!("{}configurations/", self.root);
+        let (mut allowed, mut chassis, mut bodies) = (BTreeSet::new(), None, BTreeSet::new());
+        let mut sorted = paths
+            .iter()
+            .filter(|p| p.starts_with(&prefix))
+            .collect::<Vec<_>>();
+        sorted.sort();
+        for path in &sorted {
+            let rest = &path[prefix.len()..];
+            if rest.contains('/') {
+                continue;
+            }
+            let data = self.definition(path)?;
+            let Some(config) = units(&data)
+                .iter()
+                .find(|u| u.header.starts_with("trailer_configuration :"))
+            else {
+                continue;
+            };
+            if config.field("chain_type").ok() != Some("single") {
+                continue;
+            }
+            // Body sets sit in a folder named after the configuration (`single_3` for `single_3.dlc_x.sii`).
+            let folder = format!("{prefix}{}/", rest.split('.').next().unwrap_or(rest));
+            let mut sets = Vec::new();
+            for set in sorted.iter().filter(|p| p.starts_with(&folder)) {
+                let data = self.definition(set)?;
+                for unit in units(&data)
+                    .iter()
+                    .filter(|u| u.header.starts_with("trailer_body_set :"))
+                {
+                    sets.extend(array(unit, "body[]"));
+                }
+            }
+            let own = array(config, "chassis[]");
+            if chassis.is_none() {
+                chassis = own.first().cloned();
+            }
+            allowed.extend(own);
+            bodies.extend(sets);
+        }
+        // A trailer with no single configuration shows all its chassis and bodies.
+        if let (Some(chassis), Some(body)) = (chassis, bodies.first().cloned()) {
+            fitted
+                .defaults
+                .insert("trailer".to_owned(), self.reached(vec![chassis, body]));
+            allowed.extend(bodies);
+            fitted.allowed = Some(allowed);
+        }
+        Ok(fitted)
+    }
+
+    /// The definition files reachable from `start` through `defaults[]`; a file the game does not
+    /// have (a DLC not installed) ends its branch.
+    fn reached(&mut self, start: Vec<String>) -> BTreeSet<String> {
+        let mut seen = BTreeSet::new();
+        let mut queue = start;
+        while let Some(path) = queue.pop() {
+            if !seen.insert(path.clone()) {
+                continue;
+            }
+            let Ok(data) = self.definition(&path) else {
+                continue;
+            };
+            for unit in units(&data) {
+                queue.extend(array(unit, "defaults[]"));
+            }
+        }
+        seen
     }
 
     /// Texture size of every accessory with its own sized paint mask.
@@ -663,8 +837,14 @@ impl<'a> Build<'a> {
         sizes: &BTreeMap<String, [u32; 2]>,
         masks: &Masks,
         previous: Option<&tp_vehicles::Package>,
+        fitted: &Fitted,
     ) -> Result<Textures, String> {
         let groups = accessory_groups(kind, sizes, masks);
+        // The part id of the texture of each accessory that has its own.
+        let texture_of = groups
+            .iter()
+            .flat_map(|g| g.iter().map(|id| (id.clone(), g[0].replace('.', "_"))))
+            .collect::<BTreeMap<_, _>>();
         let mut out = Textures::default();
         let mut part_ids = BTreeSet::new();
         let mut covered = BTreeSet::new();
@@ -752,29 +932,31 @@ impl<'a> Build<'a> {
             let (texture, edges) = add(&mut out, &id, size, rendered)?;
             let mut main =
                 json!({"id": id, "name": name, "game_ids": game_ids, "texture": texture});
-            // The preview mesh is made of the very meshes the template draws, so they match. Accessories
-            // sit at locators the preview does not read yet, so a truck shows its cabin alone and a
-            // trailer its first painted definition: one configuration, never several on top of each other.
-            let shown = match kind {
-                Kind::Truck => contributors
-                    .iter()
-                    .find(|p| p.group == "cabin" && p.name == id),
-                Kind::Trailer => contributors.first(),
+            // The preview mesh is made of the very meshes the template draws, so they match.
+            let none = BTreeSet::new();
+            let allowed = |p: &Painted| match (&fitted.allowed, p.group.as_str()) {
+                (Some(allowed), "body" | "chassis") => allowed.contains(&p.source),
+                _ => true,
             };
-            let preview = if let Some(shown) = shown {
+            let scope = preview::Scope {
+                parts,
+                main: &id,
+                cabin: (kind == Kind::Truck).then_some(id.as_str()),
+                textures: &texture_of,
+                defaults: fitted.defaults.get(&id).unwrap_or(&none),
+                allowed: &allowed,
+            };
+            let preview = if let Some((mesh, entry)) = preview::build(&scope)? {
                 let path = format!("preview/{id}.json");
-                out.templates
-                    .insert(path.clone(), geometry::preview(&shown.mesh, &id)?);
+                out.templates.insert(
+                    path.clone(),
+                    serde_json::to_vec(&mesh).map_err(|e| e.to_string())?,
+                );
                 main["preview_mesh"] = json!(path);
-                out.preview_added |= previous.is_some_and(|p| {
-                    p.manifest
-                        .paint_job
-                        .part(&id)
-                        .is_none_or(|(_, part)| part.preview_mesh.is_none())
-                });
-                json!({"configuration": shown.id, "pieces": shown.mesh.len()})
+                out.preview_changed |= previous.is_some_and(|p| p.preview(&id) != Some(&mesh));
+                entry
             } else {
-                json!({"configuration": null, "reason": "blank template: its parts have their own textures"})
+                json!({"configuration": null, "reason": "nothing painted to draw"})
             };
             out.main.push(main);
             covered.extend(contributors.iter().map(|p| p.id.clone()));
@@ -826,13 +1008,14 @@ impl<'a> Build<'a> {
             return Err(NOT_PAINTABLE.into());
         }
         let sizes = self.accessory_sizes(&parts, &masks);
-        let textures = Self::textures(self.kind, &parts, &sizes, &masks, self.previous)?;
+        let fitted = self.fitted(&parts, &paths)?;
+        let textures = Self::textures(self.kind, &parts, &sizes, &masks, self.previous, &fitted)?;
         let game = info.semver()?;
         let next = game.minor.checked_add(1).ok_or("invalid game version")?;
         let mut version = semver::Version::new(game.major, game.minor, game.patch);
         if let Some(previous) = self.previous {
             if !textures.changed
-                && !textures.preview_added
+                && !textures.preview_changed
                 && previous.manifest.game.versions.matches(&version)
             {
                 return Ok((Outcome::UpToDate, json!(textures.coverage)));
