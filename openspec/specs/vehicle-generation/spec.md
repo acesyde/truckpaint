@@ -77,7 +77,7 @@ It SHALL offer **Cancel**: a cancel stops before the next vehicle, and keeps tho
 - **THEN** Generate and the checkboxes are unavailable until it ends or is cancelled
 
 ### Requirement: Package versions follow the game
-A generated package's version SHALL be set from the game's version without any input from the player: the first three numbers of the game's version (game 1.61.1.9 gives 1.61.1). The package's supported game versions SHALL be the game's minor series (1.61 gives from 1.61 up to, not including, 1.62). When the vehicle already has an installed package, the new package SHALL keep the template version of every texture whose template did not change, and give the next template version to each one that changed. When the installed newest version is not lower than the new one and any template changed, the new package SHALL take the version after the installed newest one (the next patch number), so a package that was installed is never replaced by a different one under the same version. A main texture that gains a preview mesh it did not have SHALL count as a change for the package version, but not for its template version. When no template changed, no preview mesh was added and the installed package already covers the game's version, nothing SHALL be installed and the vehicle SHALL be reported as skipped (up to date).
+A generated package's version SHALL be set from the game's version without any input from the player: the first three numbers of the game's version (game 1.61.1.9 gives 1.61.1). The package's supported game versions SHALL be the game's minor series (1.61 gives from 1.61 up to, not including, 1.62). When the vehicle already has an installed package, the new package SHALL keep the template version of every texture whose template did not change, and give the next template version to each one that changed. When the installed newest version is not lower than the new one and any template changed, the new package SHALL take the version after the installed newest one (the next patch number), so a package that was installed is never replaced by a different one under the same version. A package whose preview meshes differ from the installed package's (a preview mesh gained, or accessory slots added) SHALL count as a change for the package version, but not for its template version. When no template changed, the preview meshes are the same and the installed package already covers the game's version, nothing SHALL be installed and the vehicle SHALL be reported as skipped (up to date).
 
 #### Scenario: Version from the game
 - **WHEN** the game's version is 1.61.1.9 and a truck is generated for the first time
@@ -102,6 +102,10 @@ A generated package's version SHALL be set from the game's version without any i
 #### Scenario: Package made before the Side View
 - **WHEN** the player regenerates a truck whose installed package covers the game's version, has the same templates and no preview mesh
 - **THEN** a package with the next patch version is installed with the same template versions and a preview mesh per main texture, and projects using the truck are not flagged
+
+#### Scenario: Package made before accessories were drawn
+- **WHEN** the player regenerates a truck whose installed package covers the game's version, has the same templates and preview meshes without accessory slots
+- **THEN** a package with the next patch version is installed with the same template versions and preview meshes with their accessory slots, and projects using the truck are not flagged
 
 ### Requirement: My Game status
 The My Game tab SHALL show, for each vehicle found, its name, brand, kind and a status, as text with an icon and never by color alone:
