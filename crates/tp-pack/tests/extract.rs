@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use serde_json::Value;
-use tp_scs::synthetic::{ArchiveBuilder, PieceSpec, mat, pmd, pmg};
+use tp_scs::synthetic::{ArchiveBuilder, LocatorSpec, PieceSpec, mat, pmd, pmg, pmg_located};
 
 fn write(root: &Path, path: &str, bytes: impl AsRef<[u8]>) {
     let path = root.join(path);
@@ -1062,10 +1062,13 @@ fn a_trailer_whose_parts_all_have_their_own_region_gets_a_plain_main_texture() {
     assert!(main.game_ids.is_empty());
     assert_eq!(entry["textures"][0]["edges"], 0);
     assert_eq!(manifest.paint_job.accessories.len(), 2);
-    // A blank main texture gets no preview mesh and the report says why.
-    assert!(main.preview_mesh.is_none());
-    let reason = entry["textures"][0]["preview_mesh"]["reason"].as_str();
-    assert!(reason.unwrap().contains("blank"), "{entry:#}");
+    // A blank main texture still gets a preview mesh: the parts have their own textures.
+    assert!(main.preview_mesh.is_some());
+    let package_mesh = entry["textures"][0]["preview_mesh"]["slots"].as_array();
+    assert!(
+        package_mesh.is_some_and(|slots| !slots.is_empty()),
+        "{entry:#}"
+    );
 }
 
 /// preview-mesh: each cabin's mesh holds its own pieces, drawn on the lines of its template.
@@ -1292,4 +1295,382 @@ fn concurrent_builds_match_single_vehicle_batches() {
             "{vehicle}"
         );
     }
+}
+
+/// A body of one piece moved `x` meters, with locators at the given positions (no rotation).
+fn located(x: f32, locators: &[(&'static str, [f32; 3])]) -> Vec<u8> {
+    let piece = PieceSpec {
+        material: 0,
+        mask: 0,
+        positions: vec![[x, 0., 0.], [x + 1., 0., 0.], [x, 1., 0.]],
+        uv_sets: vec![CORNERS.to_vec()],
+        triangles: vec![[0, 1, 2]],
+    };
+    let locators = locators
+        .iter()
+        .map(|(name, position)| LocatorSpec {
+            name,
+            position: *position,
+            scale: 1.,
+            rotation: [1., 0., 0., 0.],
+        })
+        .collect();
+    pmg_located(&[("body", 0, 1)], &[piece], &[locators])
+}
+
+/// A unit of the owned `kind` folder of `vehicle`: `group/name.sii` holding one unit.
+fn unit(source: &Path, vehicle: &str, folder: &str, group: &str, name: &str, body: &str) {
+    let data = match group {
+        "cabin" => "accessory_cabin_data",
+        "chassis" => "accessory_chassis_data",
+        _ => "accessory_addon_data",
+    };
+    write(
+        source,
+        &format!("def/vehicle/{folder}/{vehicle}/{}", file_of(group, name)),
+        format!("SiiNunit\n{{\n{data} : {name}.{vehicle}.{group} {{\n{body}\n}}\n}}\n"),
+    );
+}
+
+fn file_of(group: &str, name: &str) -> String {
+    match group {
+        "cabin" | "chassis" => format!("{group}/{name}.sii"),
+        _ => format!("accessory/{group}/{name}.sii"),
+    }
+}
+
+/// A truck whose cabin carries a `cab_door` locator and whose unpainted chassis carries `f_bumper`.
+fn fitted_truck(root: &Path) {
+    let source = root.join("game/version.scs.files");
+    let id = "example.fit";
+    write(
+        &source,
+        &format!("def/vehicle/truck/{id}/data.sii"),
+        format!(
+            "SiiNunit\n{{\naccessory_truck_data : vehicle.{id} {{\ninfo[]: \"Example\"\ninfo[]: \"Fit\"\n}}\n}}\n"
+        ),
+    );
+    let path =
+        |group: &str, name: &str| format!("/def/vehicle/truck/{id}/{}", file_of(group, name));
+    // The cabin fits the long chassis and the door `b`; the chassis fits the painted bumper.
+    unit(
+        &source,
+        id,
+        "truck",
+        "cabin",
+        "high",
+        &format!(
+            "name: \"High\"\nmodel: \"/vehicle/shared/fit_cabin.pmd\"\ndefaults[]: \"{}\"\ndefaults[]: \"{}\"",
+            path("chassis", "long"),
+            path("cab_door", "b")
+        ),
+    );
+    unit(
+        &source,
+        id,
+        "truck",
+        "chassis",
+        "long",
+        &format!(
+            "name: \"Long\"\nmodel: \"/vehicle/shared/fit_chassis.pmd\"\nsuitable_for[]: high.{id}.cabin\ndefaults[]: \"{}\"",
+            path("f_bumper", "paint")
+        ),
+    );
+    write_model(
+        &source,
+        "fit_cabin",
+        &located(0., &[("cab_door", [1., 0., 0.]), ("r_light", [0., 0., 1.])]),
+        "eut2.truckpaint.tsnmapuv",
+    );
+    write_model(
+        &source,
+        "fit_chassis",
+        &located(0., &[("f_bumper", [0., 0.5, -3.])]),
+        "eut2.dif",
+    );
+    // Two doors with the same painted shape and one with another; a bumper; a mirror that is not painted;
+    // a deflector for which no model has a locator.
+    for (group, name, model, x, effect) in [
+        ("cab_door", "a", "door_a", 2., "eut2.truckpaint.tsnmapuv"),
+        ("cab_door", "b", "door_b", 2., "eut2.truckpaint.tsnmapuv"),
+        ("cab_door", "c", "door_c", 3., "eut2.truckpaint.tsnmapuv"),
+        (
+            "f_bumper",
+            "paint",
+            "bumper",
+            4.,
+            "eut2.truckpaint.tsnmapuv",
+        ),
+        ("mirror", "plain", "mirror", 5., "eut2.dif"),
+        (
+            "r_deflector",
+            "long",
+            "deflector",
+            6.,
+            "eut2.truckpaint.tsnmapuv",
+        ),
+    ] {
+        write_model(&source, model, &located(x, &[]), effect);
+        unit(
+            &source,
+            id,
+            "truck",
+            group,
+            name,
+            &format!("name: \"{name}\"\nexterior_model: \"/vehicle/shared/{model}.pmd\""),
+        );
+    }
+}
+
+#[test]
+fn accessories_become_slots_at_the_locators_of_their_parent() {
+    let fixture = fixture();
+    let root = fixture.path();
+    fitted_truck(root);
+    let (entry, package) = extract_package(root, "example.fit");
+    let mesh = package.preview("high").unwrap();
+    // The cabin is drawn as it is and its door locator is kept, with the one no slot uses left out.
+    assert_eq!(mesh.pieces.len(), 1);
+    assert_eq!(mesh.locators.keys().collect::<Vec<_>>(), ["cab_door"]);
+    let ids = mesh.slots.iter().map(|s| s.id.as_str()).collect::<Vec<_>>();
+    assert_eq!(ids, ["chassis", "cab_door", "f_bumper"]);
+    let slot = |id: &str| mesh.slot(id).unwrap();
+    assert_eq!(
+        slot("cab_door").parent,
+        Some(tp_vehicles::SlotParent::Cabin)
+    );
+    assert_eq!(
+        slot("f_bumper").parent,
+        Some(tp_vehicles::SlotParent::Chassis)
+    );
+    // The unpainted chassis is an option without pieces that holds the bumper locator.
+    let chassis = &slot("chassis").options[0];
+    assert!(chassis.pieces.is_empty() && chassis.default);
+    assert_eq!(chassis.locators["f_bumper"][0].position, [0., 0.5, -3.]);
+    // The pieces of an option stay in the model's space and keep the main texture.
+    let bumper = &slot("f_bumper").options[0];
+    assert!(bumper.default);
+    assert_eq!(bumper.pieces[0].positions[0], [4., 0., 0.]);
+    assert_eq!(bumper.pieces[0].texture, "high");
+    // The report names the slots and what was left out and why.
+    let shown = &entry["textures"][0]["preview_mesh"];
+    let left = shown["left_out"].as_array().unwrap();
+    let reason = |slot: &str| {
+        left.iter()
+            .find(|l| l["slot"] == slot)
+            .map(|l| l["reason"].as_str().unwrap().to_owned())
+    };
+    assert!(
+        reason("r_deflector").unwrap().contains("no locator"),
+        "{shown:#}"
+    );
+    assert_eq!(reason("mirror").as_deref(), Some("no painted piece"));
+    assert!(
+        shown["slots"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|s| s["id"] == "cab_door")
+    );
+}
+
+#[test]
+fn options_with_one_painted_shape_merge_and_the_default_names_them() {
+    let fixture = fixture();
+    let root = fixture.path();
+    fitted_truck(root);
+    let (_, package) = extract_package(root, "example.fit");
+    let doors = &package
+        .preview("high")
+        .unwrap()
+        .slot("cab_door")
+        .unwrap()
+        .options;
+    // a and b are one door (b is the one the cabin fits); c has another shape.
+    assert_eq!(
+        doors.iter().map(|o| o.id.as_str()).collect::<Vec<_>>(),
+        ["b", "c"]
+    );
+    assert_eq!(
+        doors.iter().map(|o| o.default).collect::<Vec<_>>(),
+        [true, false]
+    );
+}
+
+/// The package `bytes` with every preview mesh cut down to its pieces, as packages made before accessories were drawn.
+fn without_slots(bytes: &[u8]) -> Vec<u8> {
+    use std::io::{Cursor, Read, Write};
+    let mut zip = zip::ZipArchive::new(Cursor::new(bytes)).unwrap();
+    let mut out = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    for i in 0..zip.len() {
+        let mut file = zip.by_index(i).unwrap();
+        let name = file.name().to_owned();
+        let mut data = Vec::new();
+        file.read_to_end(&mut data).unwrap();
+        if name.starts_with("preview/") {
+            let mut mesh: Value = serde_json::from_slice(&data).unwrap();
+            mesh.as_object_mut()
+                .unwrap()
+                .retain(|k, _| k == "format" || k == "pieces");
+            data = serde_json::to_vec(&mesh).unwrap();
+        }
+        out.start_file(name, zip::write::SimpleFileOptions::default())
+            .unwrap();
+        out.write_all(&data).unwrap();
+    }
+    out.finish().unwrap().into_inner()
+}
+
+#[test]
+fn a_package_made_before_accessories_is_regenerated_as_a_patch_with_the_same_templates() {
+    let fixture = fixture();
+    let root = fixture.path();
+    fitted_truck(root);
+    let (entry, package) = extract_package(root, "example.fit");
+    let first = batches(root).pop().unwrap();
+    let old = root.join("old");
+    std::fs::create_dir_all(&old).unwrap();
+    let bytes = std::fs::read(first.join(entry["package"].as_str().unwrap())).unwrap();
+    std::fs::write(
+        old.join("official.ets2.example.fit-1.61.1.tpv"),
+        without_slots(&bytes),
+    )
+    .unwrap();
+    let again = |previous: &Path| {
+        let mut command = command(root);
+        command
+            .args(["--vehicle", "example.fit", "--previous"])
+            .arg(previous);
+        assert!(command.output().unwrap().status.success());
+        let batch = batches(root).pop().unwrap();
+        let written = files(&batch)
+            .into_iter()
+            .find(|p| p.extension().is_some_and(|e| e == "tpv"));
+        (
+            batch,
+            written.map(|p| tp_vehicles::Package::read(&std::fs::read(p).unwrap()).unwrap()),
+        )
+    };
+    let (batch, regenerated) = again(&old);
+    let regenerated = regenerated.expect("a patch is installed");
+    assert_eq!(regenerated.manifest.version.to_string(), "1.61.2");
+    // The templates did not change: their layout versions stay.
+    let layout = |p: &tp_vehicles::Package| p.manifest.paint_job.main[0].texture.layout_version;
+    assert_eq!(layout(&regenerated), layout(&package));
+    assert!(regenerated.preview("high").unwrap().slots.len() > 1);
+    // The new package is up to date: nothing more to install.
+    assert!(again(&batch).1.is_none());
+}
+
+/// An owned trailer whose chassis and bodies carry the locators of the game: bodies hang on `body`.
+fn fitted_trailer(root: &Path, id: &str) {
+    let source = root.join("game/version.scs.files");
+    let def = format!("def/vehicle/trailer_owned/{id}");
+    write(
+        &source,
+        &format!("{def}/data.sii"),
+        format!(
+            "SiiNunit\n{{\naccessory_trailer_data : vehicle.{id} {{\ninfo[]: \"\"\ninfo[]: \"@@series_trailer@@\"\n}}\n}}\n"
+        ),
+    );
+    write_model(
+        &source,
+        "tr_chassis",
+        &located(0., &[("body", [0., 1., 0.])]),
+        "eut2.truckpaint.tsnmapuv",
+    );
+    write_model(
+        &source,
+        "tr_curtain",
+        &located(5., &[]),
+        "eut2.truckpaint.tsnmapuv",
+    );
+    write_model(
+        &source,
+        "tr_box",
+        &located(6., &[]),
+        "eut2.truckpaint.tsnmapuv",
+    );
+    for (group, name, model, data) in [
+        ("chassis", "ch_3", "tr_chassis", "accessory_chassis_data"),
+        ("chassis", "ch_hook", "tr_chassis", "accessory_chassis_data"),
+        (
+            "body",
+            "curtain",
+            "tr_curtain",
+            "accessory_trailer_body_data",
+        ),
+        ("body", "box", "tr_box", "accessory_trailer_body_data"),
+        ("body", "double", "tr_box", "accessory_trailer_body_data"),
+    ] {
+        write(
+            &source,
+            &format!("{def}/{group}/{name}.sii"),
+            format!(
+                "SiiNunit\n{{\n{data} : {name}.{id}.{group} {{\nmodel: \"/vehicle/shared/{model}.pmd\"\n}}\n}}\n"
+            ),
+        );
+    }
+    let all = format!("/{def}");
+    // A single and a double configuration: only the single one's chassis and bodies are drawn.
+    write(
+        &source,
+        &format!("{def}/configurations/single_3.sii"),
+        format!(
+            "SiiNunit\n{{\ntrailer_configuration : .single_3 {{\nchain_type: single\nchassis[]: \"{all}/chassis/ch_3.sii\"\n}}\n}}\n"
+        ),
+    );
+    write(
+        &source,
+        &format!("{def}/configurations/single_3/all.sii"),
+        format!(
+            "SiiNunit\n{{\ntrailer_body_set : .all {{\nbody[]: \"{all}/body/curtain.sii\"\nbody[]: \"{all}/body/box.sii\"\n}}\n}}\n"
+        ),
+    );
+    write(
+        &source,
+        &format!("{def}/configurations/double_3_1.sii"),
+        format!(
+            "SiiNunit\n{{\ntrailer_configuration : .double_3_1 {{\nchain_type: double\nchassis[]: \"{all}/chassis/ch_hook.sii\"\n}}\n}}\n"
+        ),
+    );
+    write(
+        &source,
+        &format!("{def}/configurations/double_3_1/all.sii"),
+        format!(
+            "SiiNunit\n{{\ntrailer_body_set : .all {{\nbody[]: \"{all}/body/double.sii\"\n}}\n}}\n"
+        ),
+    );
+    write(
+        &source,
+        &format!("{def}/paint_job/default.sii"),
+        format!(
+            "SiiNunit\n{{\naccessory_paint_job_data : default.{id}.paint_job {{\npaint_job_mask: \"/trailer/pjm_at_0x0_size_4x4.tobj\"\n}}\n}}\n"
+        ),
+    );
+}
+
+#[test]
+fn a_trailer_chassis_is_the_root_and_its_body_hangs_on_it() {
+    let fixture = fixture();
+    let root = fixture.path();
+    fitted_trailer(root, "example.box");
+    let (_, package) = extract_package(root, "example.box");
+    let mesh = package.preview("trailer").unwrap();
+    assert!(mesh.pieces.is_empty() && mesh.locators.is_empty());
+    let chassis = mesh.slot("chassis").unwrap();
+    assert_eq!(chassis.parent, None);
+    // Only the single configuration is drawn, not the double's hook chassis or body.
+    assert_eq!(chassis.options.len(), 1);
+    assert!(chassis.options[0].default && chassis.options[0].locators.contains_key("body"));
+    let body = mesh.slot("body").unwrap();
+    assert_eq!(body.parent, Some(tp_vehicles::SlotParent::Chassis));
+    // Bodies are told apart by name, and the first one is the default.
+    assert_eq!(
+        body.options
+            .iter()
+            .map(|o| (o.id.as_str(), o.default))
+            .collect::<Vec<_>>(),
+        [("box", true), ("curtain", false)]
+    );
 }

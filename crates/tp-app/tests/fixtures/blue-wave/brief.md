@@ -36,6 +36,7 @@ The wave mark (`mark.svg`, an image), the words "Blue Wave" ("Blue" in Blue, "Wa
 - Waves rise from the lower front toward the rear and end in the coast at the rear of the trailer.
 - The logo is large on the trailer, small on the cab doors, centered on the rear.
 - The tagline goes under the logo wherever a zone is large enough to read it; it is left out of small zones.
+- The truck's side skirts are Blue with a Light blue rule, so the Side View shows a finished cab.
 - Left and right sides use the same table; waves and coast are mirrored so they stay at the rear, the logo and text never are.
 
 The placement of each element in each template zone is the layout table in `tests/common/blue_wave.rs`.

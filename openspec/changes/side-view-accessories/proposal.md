@@ -8,7 +8,7 @@ The game places every accessory at an attachment point (a locator) of the cabin 
 
 - **The Side View draws the whole vehicle:** the cabin (or a trailer's chassis) and every painted accessory chosen for it, each with its own texture's artwork. Main and accessory textures appear together, whichever texture is open.
 - **Only painted parts are drawn.** Glass, lights, plastic and chrome parts, unpainted mirrors and the like are left out, so the view shows where the livery goes, not every object that might hide it.
-- **One choice per accessory slot, made in the panel:** an Accessories list in the Side View shows each slot that has painted options (Door, Roof deflector, Bumper, Body…) with "None" and its options. Options of one slot never show together. Options whose painted shape is the same (the six DAF XD doors, which only differ inside) are one option.
+- **One choice per accessory slot, made in the panel:** an Accessories list in the Side View shows each slot that has painted options (Door, Roof deflector, Bumper, Body…) with "None" and its options. Options of one slot never show together. Options whose painted shape is the same (the DAF XD doors that only differ inside) are one option.
 - **The game's default configuration first:** a vehicle starts with the accessories the game fits on a new vehicle (the `defaults` of its cabin and chassis); a slot with no painted default starts at "None".
 - **The choices are saved in the project,** per vehicle, and reopen as they were.
 - **Trailers use the same model:** the chassis and the body are slots like the others, so a trailer shows its chosen body with its livery. Only a single trailer is drawn (no doubles or B-doubles).

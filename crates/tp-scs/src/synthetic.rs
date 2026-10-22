@@ -216,8 +216,26 @@ pub struct PieceSpec {
     pub triangles: Vec<[u16; 3]>,
 }
 
+/// A locator of a synthetic `.pmg`.
+pub struct LocatorSpec {
+    pub name: &'static str,
+    pub position: [f32; 3],
+    pub scale: f32,
+    /// `[w, x, y, z]`.
+    pub rotation: [f32; 4],
+}
+
 /// A version 0x15 `.pmg`: parts as `(name, first piece, piece count)`, no skeleton or locators.
 pub fn pmg(parts: &[(&str, i32, i32)], pieces: &[PieceSpec]) -> Vec<u8> {
+    pmg_located(parts, pieces, &[])
+}
+
+/// A `.pmg` whose part `i` also owns the locators `locators[i]` (none when the list is shorter).
+pub fn pmg_located(
+    parts: &[(&str, i32, i32)],
+    pieces: &[PieceSpec],
+    locators: &[Vec<LocatorSpec>],
+) -> Vec<u8> {
     let parts_at = 112;
     let pieces_at = parts_at + 24 * parts.len();
     let mut data = vec![0u8; pieces_at + 100 * pieces.len()];
@@ -235,6 +253,13 @@ pub fn pmg(parts: &[(&str, i32, i32)], pieces: &[PieceSpec]) -> Vec<u8> {
         data[at..at + 8].copy_from_slice(&token_of(name).to_le_bytes());
         put(&mut data, at + 8, *count);
         put(&mut data, at + 12, *first);
+        let before: usize = locators.iter().take(i).map(Vec::len).sum();
+        put(
+            &mut data,
+            at + 16,
+            locators.get(i).map_or(0, Vec::len) as i32,
+        );
+        put(&mut data, at + 20, before as i32);
     }
     for (i, piece) in pieces.iter().enumerate() {
         let at = pieces_at + 100 * i;
@@ -265,6 +290,19 @@ pub fn pmg(parts: &[(&str, i32, i32)], pieces: &[PieceSpec]) -> Vec<u8> {
         for triangle in &piece.triangles {
             triangle.iter().for_each(|i| data.extend(i.to_le_bytes()));
         }
+    }
+    // The locator table ends the file: 44 bytes each, the hookup string offset unused.
+    let table: Vec<&LocatorSpec> = locators.iter().flatten().collect();
+    put(&mut data, 20, table.len() as i32);
+    let at = data.len();
+    put(&mut data, 80, at as i32);
+    for locator in table {
+        data.extend(token_of(locator.name).to_le_bytes());
+        let floats = locator.position.into_iter().chain([locator.scale]);
+        floats
+            .chain(locator.rotation)
+            .for_each(|f| data.extend(f.to_le_bytes()));
+        data.extend((-1i32).to_le_bytes());
     }
     data
 }

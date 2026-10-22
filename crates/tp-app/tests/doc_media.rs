@@ -866,6 +866,21 @@ fn section_workshop() {
         h.state_mut().prefs.layout.side_view = true;
         shot(&mut h, language, "workshop/side-view");
 
+        // The Accessories list: one choice per slot of the truck.
+        h.get_by_role_and_label(
+            egui::accesskit::Role::Button,
+            &tp_i18n::tr("side-view-accessories"),
+        )
+        .click();
+        h.run();
+        shot(&mut h, language, "workshop/side-view-accessories");
+
+        // The sample trailer: its chassis and its curtain body, with their own textures.
+        let mut h = harness(language);
+        livery(&mut h);
+        h.state_mut().prefs.layout.side_view = true;
+        shot(&mut h, language, "workshop/side-view-trailer");
+
         // After Update Template: the objects to reposition are marked.
         let mut h = harness(language);
         outdated_truck_project(&mut h);

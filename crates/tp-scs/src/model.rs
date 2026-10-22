@@ -1,8 +1,9 @@
 //! Vehicle models: geometry (`.pmg`), descriptor (`.pmd`) and the effect of a material (`.mat`).
-//! Only what painted surfaces and their preview need is read; skeletons, locators, normals and weights are skipped.
+//! Only what painted surfaces and their preview need is read; skeletons, normals and weights are skipped.
 
 const PMG_HEADER: usize = 112;
 const PMG_PART: usize = 24;
+const PMG_LOCATOR: u64 = 44;
 const PMG_PIECE: usize = 100;
 const PMD_HEADER: usize = 64;
 
@@ -23,10 +24,21 @@ pub struct Piece {
     pub triangles: Vec<[u32; 3]>,
 }
 
+/// An attachment point: where an accessory of the same name is mounted.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Locator {
+    pub name: String,
+    pub position: [f32; 3],
+    pub scale: f32,
+    /// A unit quaternion `[w, x, y, z]`, as stored (the game applies its inverse; see `tp-vehicles`).
+    pub rotation: [f32; 4],
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Part {
     pub name: String,
     pub pieces: Vec<usize>,
+    pub locators: Vec<Locator>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -136,6 +148,7 @@ impl Model {
         }
         let (piece_count, part_count) = (b.index(4)?, b.index(8)?);
         let (parts_at, pieces_at) = (b.index(76)?, b.index(84)?);
+        let (locator_count, locators_at) = (b.index(20)?, b.index(80)?);
         let mut parts = Vec::new();
         for i in 0..part_count {
             let at = parts_at + i * PMG_PART as u64;
@@ -145,9 +158,16 @@ impl Model {
             }
             // An empty part may carry any first index.
             let first = if count == 0 { 0 } else { b.index(at + 12)? };
+            let (locators, first_locator) = (b.index(at + 16)?, b.index(at + 20)?);
+            if locators > 0 && first_locator + locators > locator_count {
+                return Err(b.fail("part lists more locators than the model has"));
+            }
             parts.push(Part {
                 name: token(b.u64(at)?),
                 pieces: (first..first + count).map(|p| p as usize).collect(),
+                locators: (first_locator..first_locator + locators)
+                    .map(|l| Self::locator(&b, locators_at + l * PMG_LOCATOR))
+                    .collect::<Result<_, _>>()?,
             });
         }
         let mut pieces = Vec::new();
@@ -155,6 +175,21 @@ impl Model {
             pieces.push(Self::piece(&b, pieces_at + i * PMG_PIECE as u64)?);
         }
         Ok(Self { pieces, parts })
+    }
+
+    fn locator(b: &Bytes, at: u64) -> Result<Locator, String> {
+        let float = |at| b.u32(at).map(f32::from_bits);
+        Ok(Locator {
+            name: token(b.u64(at)?),
+            position: [float(at + 8)?, float(at + 12)?, float(at + 16)?],
+            scale: float(at + 20)?,
+            rotation: [
+                float(at + 24)?,
+                float(at + 28)?,
+                float(at + 32)?,
+                float(at + 36)?,
+            ],
+        })
     }
 
     fn piece(b: &Bytes, at: u64) -> Result<Piece, String> {
@@ -328,7 +363,7 @@ pub fn material_effect(path: &str, data: &[u8]) -> Result<String, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::synthetic::{PieceSpec, pmd, pmg, token_of};
+    use crate::synthetic::{LocatorSpec, PieceSpec, pmd, pmg, pmg_located, token_of};
 
     #[test]
     fn tokens_decode_to_their_names() {
@@ -380,7 +415,8 @@ mod tests {
             model.parts[0],
             Part {
                 name: "body".into(),
-                pieces: vec![0, 1]
+                pieces: vec![0, 1],
+                locators: vec![]
             }
         );
         assert_eq!(model.parts[1].pieces, [2]);
@@ -395,6 +431,38 @@ mod tests {
         assert_eq!(first.streams[0].uv[1][0].to_bits(), 0x3eaa_aaab);
         assert!(model.pieces[1].triangles.is_empty());
         assert!(model.pieces[2].streams.is_empty());
+    }
+
+    #[test]
+    fn locators_belong_to_their_part_and_a_cut_table_names_the_file() {
+        let locator = |name, x| LocatorSpec {
+            name,
+            position: [x, 2.0, -3.0],
+            scale: 1.5,
+            rotation: [0.5, 0.5, -0.5, 0.5],
+        };
+        let data = pmg_located(
+            &[("a", 0, 0), ("b", 0, 0), ("c", 0, 0)],
+            &[],
+            &[
+                vec![locator("cab_door", 1.0), locator("r_deflector", 2.0)],
+                vec![],
+                vec![locator("f_bumper", 3.0)],
+            ],
+        );
+        let model = Model::parse("/m.pmg", &data).unwrap();
+        assert!(model.parts[1].locators.is_empty());
+        assert_eq!(model.parts[0].locators[1].name, "r_deflector");
+        assert_eq!(model.parts[0].locators[1].position, [2.0, 2.0, -3.0]);
+        assert_eq!(model.parts[0].locators[0].scale, 1.5);
+        assert_eq!(model.parts[0].locators[0].rotation, [0.5, 0.5, -0.5, 0.5]);
+        assert_eq!(model.parts[2].locators[0].name, "f_bumper");
+        // The table ends the file: cutting it, or counting more than it holds, fails the file.
+        let error = Model::parse("/m.pmg", &data[..data.len() - 10]).unwrap_err();
+        assert!(error.starts_with("/m.pmg: "), "{error}");
+        let mut more = data.clone();
+        more[16 + 112 + 24..][..4].copy_from_slice(&9i32.to_le_bytes());
+        assert!(Model::parse("/m.pmg", &more).is_err());
     }
 
     #[test]

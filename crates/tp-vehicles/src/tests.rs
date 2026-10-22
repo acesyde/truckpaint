@@ -573,3 +573,107 @@ fn broken_preview_meshes_are_refused_naming_the_file() {
         }
     }
 }
+
+fn piece(x0: f64, x1: f64) -> serde_json::Value {
+    json!({
+        "texture": "cabin",
+        "positions": [[x0, 0, 0], [x1, 0, 0], [x0, 1, 0]],
+        "uv": [[0, 0], [1, 0], [0, 1]],
+        "triangles": [[0, 1, 2]],
+    })
+}
+
+fn locator(x: f64) -> serde_json::Value {
+    json!({"position": [x, 0, 0], "rotation": [1, 0, 0, 0], "scale": 1})
+}
+
+/// A cab with a door slot on the cabin and a bumper slot on the chassis.
+fn slotted(edit: impl FnOnce(&mut serde_json::Value)) -> serde_json::Value {
+    mesh(|m| {
+        m["locators"] = json!({"cab_door": [locator(1.075)]});
+        m["slots"] = json!([
+            {"id": "chassis", "options": [
+                {"id": "4x2", "name": "4x2", "default": true, "pieces": [piece(0.0, 1.0)],
+                 "locators": {"f_bumper": [locator(0.5)]}},
+            ]},
+            {"id": "cab_door", "parent": "cabin", "options": [
+                {"id": "std", "name": "Standard", "default": true, "pieces": [piece(-2.32, 0.17)]},
+                {"id": "alt", "name": "Alternate", "pieces": [piece(-2.0, 0.0)]},
+            ]},
+            {"id": "f_bumper", "parent": "chassis", "options": [
+                {"id": "std", "name": "Standard", "pieces": [piece(0.0, 1.0)]},
+            ]},
+        ]);
+        edit(m);
+    })
+}
+
+#[test]
+fn reads_slots_and_refuses_each_broken_one() {
+    let p = Package::read(&with_preview(slotted(|_| {}), true)).unwrap();
+    let mesh = p.preview("cabin").unwrap();
+    assert_eq!(mesh.slots.len(), 3);
+    assert_eq!(mesh.slots[0].parent, None);
+    assert_eq!(mesh.slots[1].parent, Some(SlotParent::Cabin));
+    assert!(mesh.slots[1].options[0].default && !mesh.slots[1].options[1].default);
+    // Only a slot with no recorded parent is drawn as it is; the others need the right locators.
+    let door = mesh.slot("cab_door").unwrap();
+    assert_eq!(mesh.mounts(door, None).len(), 1);
+    let chassis = &mesh.slot("chassis").unwrap().options[0];
+    let bumper = mesh.slot("f_bumper").unwrap();
+    assert_eq!(mesh.mounts(bumper, Some(chassis))[0].position[0], 0.5);
+    assert!(mesh.mounts(bumper, None).is_empty());
+    // Two locators of one name place two copies.
+    let twin = slotted(|m| m["locators"]["cab_door"] = json!([locator(1.0), locator(-1.0)]));
+    let twin = Package::read(&with_preview(twin, true)).unwrap();
+    let mesh = twin.preview("cabin").unwrap();
+    assert_eq!(mesh.mounts(mesh.slot("cab_door").unwrap(), None).len(), 2);
+
+    let broken = [
+        slotted(|m| m["slots"][1]["id"] = json!("chassis")),
+        slotted(|m| m["slots"][1]["options"][1]["id"] = json!("std")),
+        slotted(|m| m["slots"][1]["options"][1]["default"] = json!(true)),
+        slotted(|m| m["locators"] = json!({})),
+        slotted(|m| drop(m["slots"].as_array_mut().unwrap().remove(0))),
+        slotted(|m| m["slots"][1]["options"][0]["pieces"][0]["texture"] = json!("nope")),
+        slotted(|m| m["locators"]["cab_door"][0]["scale"] = json!(1e300)),
+    ];
+    for mesh in broken {
+        match err(&with_preview(mesh, true)) {
+            PackageError::BadPreview { path, .. } => assert_eq!(path, "preview/cabin.json"),
+            other => panic!("{other:?}"),
+        }
+    }
+}
+
+#[test]
+fn a_locator_places_the_model_of_its_accessory() {
+    // The DAF XD door spans x -2.32 to 0.17 in its model and sits at x 1.075 in the cab.
+    let at = PreviewLocator {
+        position: [1.075, 0.0, 0.0],
+        ..PreviewLocator::IDENTITY
+    };
+    let x = [-2.32, 0.17].map(|x| at.place([x, 0.0, 0.0])[0]);
+    assert!(
+        (x[0] + 1.245).abs() < 1e-5 && (x[1] - 1.245).abs() < 1e-5,
+        "{x:?}"
+    );
+    // The left chassis locator of a trailer, as stored: a tool box (long in x, thin in +z) must
+    // lie along the vehicle and stick out to the left.
+    let half = std::f32::consts::FRAC_1_SQRT_2;
+    let left = PreviewLocator {
+        position: [-1.285, 0.6, -0.7],
+        rotation: [half, 0.0, half, 0.0],
+        scale: 1.0,
+    };
+    let close = |a: [f32; 3], b: [f32; 3]| a.iter().zip(b).all(|(a, b)| (a - b).abs() < 1e-5);
+    assert!(close(left.place([0.0, 0.0, 0.5]), [-1.785, 0.6, -0.7]));
+    assert!(close(left.place([1.0, 0.0, 0.0]), [-1.285, 0.6, 0.3]));
+    // A rear locator turns the model around.
+    let rear = PreviewLocator {
+        rotation: [0.0, 0.0, 1.0, 0.0],
+        scale: 2.0,
+        ..PreviewLocator::IDENTITY
+    };
+    assert!(close(rear.place([1.0, 1.0, 1.0]), [-2.0, 2.0, -2.0]));
+}

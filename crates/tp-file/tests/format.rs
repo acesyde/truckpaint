@@ -556,6 +556,24 @@ fn game_versions_round_trip() {
 }
 
 #[test]
+fn side_view_choices_round_trip_per_vehicle() {
+    let mut p = plain_project();
+    p.side_view.insert(
+        "scs.volvo.fh16_2012".into(),
+        [
+            ("r_deflector".to_owned(), None),
+            ("f_bumper".to_owned(), Some("robust".to_owned())),
+        ]
+        .into(),
+    );
+    let opened = tp_file::from_bytes(&tp_file::to_bytes(&p).unwrap()).unwrap();
+    assert_eq!(opened.project.side_view, p.side_view);
+    // A project without any choice writes no key.
+    let text = ron::to_string(&tp_file::current::from_project(&plain_project())).unwrap();
+    assert!(!text.contains("side_view"), "{text}");
+}
+
+#[test]
 fn library_origins_round_trip() {
     let key = |n: u8| tp_core::LibraryKey(format!("{n:032x}"));
     let mut p = rich_project();

@@ -20,6 +20,13 @@ Facts read from the installed DAF XD (ETS2 1.61):
 
 Placed at their locators, the door spans exactly the cabin's width and the bumper sits just in front of the cabin, with the cabin model drawn as is. So the cabin model is already in the chassis's space; the chassis's `cabin` locator is a pivot (cab tilt), not an offset.
 
+Spike (task 1.1), read on the installed game (ETS2 1.61):
+
+- Trailer bodies hang on the chassis. The `scs.box` chassis `ch_3` (and `ch_2`) has a `body` locator at (0, 1.3, 0) with no rotation; `curtain_sider_136` spans x ±1.291, y −0.264 to 2.721, z −6.777 to 7.053 in its own space, so placed at `body` it covers y 1.04 to 4.02 (the definition's `total_size` is 4.0 high), centred on the chassis. Side accessories use `chs_f_l`/`chs_f_r` (one per side, rotated), `r_bumper`, `r_banner`, `markers`, `r_mudflap`…
+- Quaternion order is `[w, x, y, z]` (identity is stored as 1, 0, 0, 0; a rear locator as 0, 0, 1, 0). Side locators are 90° yaws: left `(0.7071, 0, 0.7071, 0)`, right `(0.7071, 0, −0.7071, 0)`. The trailer side boxes and skirts (`chrome_box`, `sideskirt_paint`: x ±1.6 along the vehicle, z 0.03 to 0.71 thick) only sit outside the chassis if the model's +z goes to −x on the left locator, so the game's rotation is the inverse of the usual one: apply the conjugate (negate x, y, z) of the stored quaternion with the usual rotation formula. The DAF XD lights on the chassis sides follow the same pattern.
+- A cabin's locators are split by part: `defaultpart` (32 locators), `eu` (17) and `uk` (17); `cab_door` is in `eu`/`uk`, so the visible parts of the EU variant decide.
+- An owned trailer has no `defaults[]` chain from a root: its chassis come from `configurations/<single_n>.sii` (`chassis[]`) and its bodies from `configurations/<single_n>/<body set>.sii` (`body[]`); a chassis lists only its own defaults (bumper, paint). The trailer's default chassis and body are therefore not given by the game (see tasks 4.4).
+
 ## Goals / Non-Goals
 
 **Goals:**
@@ -38,13 +45,13 @@ Each option's pieces stay as read from its model; the preview file carries the c
 - *Alternative: pieces already placed by the extractor.* Simpler to draw, but a chassis-mounted accessory's place depends on the chosen chassis (side skirts, fenders, bumpers move with the wheelbase), so the file would need one copy per chassis option. Rejected.
 
 **2. Parent of a slot: the cabin first, then the chassis.**
-The extractor looks for a locator named after the slot (the last word of the accessory unit name: `std_a.daf.xd.cab_door` → `cab_door`) in the cabin's visible parts for the EU variant, then in the chassis models. A slot found in neither is left out and reported. For a trailer, the chassis is the root (no parent) and every other slot, the body included, hangs on it. Trailer bodies are expected to use a `body` locator on the chassis; the first task checks it on `scs.box` and the design is updated if the game uses something else.
+The extractor looks for a locator named after the slot (the last word of the accessory unit name: `std_a.daf.xd.cab_door` → `cab_door`) in the cabin's visible parts for the EU variant, then in the chassis models. A slot found in neither is left out and reported. For a trailer, the chassis is the root (no parent) and every other slot, the body included, hangs on it. Trailer bodies use a `body` locator on the chassis (checked on `scs.box` in the spike, see Context).
 
 **3. The chassis is a slot without None.**
 A truck's chassis options are the chassis definitions suitable for the cabin; a trailer's are its chassis definitions. The default is the cabin's (or the trailer's) default chassis. Making it a slot reuses the list, the saved choice and the placement of chassis-mounted slots, instead of a separate chassis picker.
 
 **4. Options merged by painted shape.**
-Two options of a slot merge when their painted pieces (positions, UVs, triangles, texture) are identical after millimetre rounding. The six DAF XD doors (interior colours) become one; three roof deflectors stay three.
+Two options of a slot merge when their painted pieces (positions, UVs, triangles, texture) are identical after millimetre rounding. The DAF XD doors become two options: the three standard doors merge, and the three safety-window doors merge (their painted shape differs); three roof deflectors stay three.
 
 **5. Defaults from the game's `defaults[]`.**
 Starting from the cabin definition (a trailer's root definition), follow `defaults[]` recursively (the cabin lists the chassis, which lists its own defaults) and mark, per slot, the option whose definition is reached. When the reached definition is unpainted (a plastic fender), the slot has no default and starts at None.
@@ -66,7 +73,7 @@ The Side View asks `SurfaceThumbnails::update_only` for every surface its config
 
 ## Risks / Trade-offs
 
-- [Quaternion component order or handedness wrong] → most exterior locators have no rotation, so a mistake shows only on the few rotated ones (rear lights, exhausts); a unit test with a 90° yaw locator and a check on a rotated chassis accessory pin it.
+- [Quaternion component order or handedness wrong] → most exterior locators have no rotation, so a mistake shows only on the few rotated ones (rear lights, exhausts); the spike found the order `[w, x, y, z]` and the inverse rotation (see Context); a unit test with a 90° yaw locator pins it.
 - [Trailer body mounting differs from the truck pattern] → the first task inspects `scs.box`'s chassis locators before any trailer code; if bodies are not on a `body` locator, design decision 2 is updated with the user before going on.
 - [Package size with every option of every slot] → measure on the DAF XD and `scs.box` (25 bodies); if a package grows beyond a few MB zipped, merge options more aggressively or drop the interior-only variants earlier.
 - [Painter's algorithm across many separate models] → more interpenetrating pieces (fenders over wheels, deflectors over the roof) than with the cabin alone; acceptable for a guide, wgpu depth stays the fallback named in `livery-side-view`.

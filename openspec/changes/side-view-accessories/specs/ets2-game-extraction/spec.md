@@ -28,7 +28,7 @@ Each successful vehicle package SHALL carry a preview mesh (see the vehicle-pack
 
 #### Scenario: Door mounted as an accessory
 - **WHEN** the DAF XD `sl` cabin texture is extracted
-- **THEN** its preview mesh has a `cab_door` slot with parent `cabin` and a single option merging the six door definitions, which is the default, and an `f_bumper` slot with parent `chassis`
+- **THEN** its preview mesh has a `cab_door` slot with parent `cabin` and two options (the three standard doors merged, the default, and the three safety-window doors merged, whose painted shape differs) and an `f_bumper` slot with parent `chassis`
 
 #### Scenario: Unpainted accessory
 - **WHEN** a slot's options are all unpainted (mirrors with no paint material, for example)

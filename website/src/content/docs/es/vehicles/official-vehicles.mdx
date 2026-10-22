@@ -42,7 +42,7 @@ Cuando el juego pasa a una nueva serie de versiones (por ejemplo de 1.61 a 1.62)
 
 Si una plantilla no cambió, los proyectos que usan el vehículo no se ven afectados. Si el juego cambió alguna, los proyectos ven «plantilla actualizada»: consulte [La biblioteca de vehículos](../library/). Un vehículo sin cambios se indica como al día y no se instala nada.
 
-La única excepción es un paquete creado antes de que existiera la [vista lateral](../../workshop/overview/). No tiene modelo para ella, así que al generarlo de nuevo se instala un paquete nuevo con la siguiente versión de parche (1.61.1 pasa a 1.61.2). Cada paquete también contiene un modelo sencillo de cada textura principal, que dibuja la vista lateral. Cubre solo la cabina: las piezas montadas como accesorios, como las puertas o los parachoques de algunos camiones, no están en él. Un remolque cuya textura principal solo lleva el color base no tiene modelo. Las plantillas siguen siendo las mismas, así que sus proyectos no se señalan.
+La única excepción es un paquete creado antes de que existieran la [vista lateral](../../workshop/overview/) o sus accesorios. No tiene modelo para ella, o solo el de la cabina, así que al generarlo de nuevo se instala un paquete nuevo con la siguiente versión de parche (1.61.1 pasa a 1.61.2). Las plantillas siguen siendo las mismas, así que sus proyectos no se señalan.
 
 Un parche que mantiene la misma serie (1.61.1 y luego 1.61.2) no se señala. Para actualizar un vehículo tras un parche así, márquelo y vuelva a generarlo.
 
@@ -54,7 +54,7 @@ Cada paquete de camión contiene todas las cabinas y accesorios pintados del cam
 
 Un paquete de remolque tiene una textura principal para cada carrocería, chasis y pieza pintados que el juego no pinta desde su propia región, y texturas de accesorios compartidas por todo el remolque. Las piezas que el juego pinta desde la misma región en todas las pinturas comparten una textura, así que las pinta una sola vez. Los remolques no tienen variantes. Los remolques propios de SCS se llaman «SCS» seguido de su nombre en el juego, como «SCS Box». Los remolques cuyas pinturas solo fijan un color liso, como la plataforma SCS, no tienen librea que pintar, por lo que no aparecen en la lista.
 
-Cada paquete también contiene un modelo sencillo de cada textura principal, que dibuja la vista lateral. Cubre solo la cabina: las piezas montadas como accesorios, como las puertas o los parachoques de algunos camiones, no están en él. Un remolque cuya textura principal solo lleva el color base no tiene modelo.
+Cada paquete también contiene un modelo sencillo de cada textura principal, que dibuja la vista lateral. Contiene la cabina (o el chasis del remolque) y todos los accesorios pintados, como las puertas, el parachoques, los deflectores o las carrocerías de un remolque, cada uno ligado a la textura que lo pinta. Los cristales, las luces y las demás piezas que no reciben pintura no están en él. Los accesorios se eligen en la vista lateral.
 
 Las plantillas siguen la disposición de pintura del modelo; no demuestran que una librea se vea bien en el juego, así que compruebe el trabajo nuevo en el juego.
 

@@ -46,25 +46,43 @@ Para ganar espacio, elija <Ui id="menu-view" /> › <Ui id="cmd-hide-panels" /> 
 
 ## La vista lateral
 
-Una textura es plana, pero un vehículo no: las piezas de la textura están recortadas, giradas y repartidas por el modelo. La vista lateral muestra el vehículo con su diseño encima, para que pueda ver dónde cae cada parte de la textura.
+Una textura es plana, pero un vehículo no: las piezas de la textura se cortan, se giran y se reparten sobre el modelo. La vista lateral muestra el vehículo con su diseño, para que vea dónde cae cada parte de la textura.
 
 Elija <Ui id="menu-view" /> › <Ui id="cmd-show-side-view" /> para mostrarla u ocultarla. El panel se coloca debajo del lienzo, a todo su ancho. Arrastre su borde superior para hacerlo más alto o más bajo. Se recuerdan si está visible, su dirección y su altura, y <Ui id="cmd-hide-panels" /> (Tab) lo deja en su sitio.
 
-<Shot name="workshop/side-view" alt="La vista lateral debajo del lienzo, con la cabina Standard del camión de ejemplo vista desde la izquierda y el diseño Blue Wave Biarritz: la puerta blanca con el logotipo." />
+<Shot name="workshop/side-view" alt="La vista lateral debajo del lienzo, con la cabina Standard del camión de ejemplo y sus faldones laterales vista desde la izquierda y el diseño Blue Wave Biarritz: la puerta blanca con el logotipo, el faldón azul con su línea azul claro." />
 
+- **El vehículo entero.** La vista dibuja la cabina de la textura principal abierta y todos los accesorios montados en ella: las puertas, el parachoques, los guardabarros, los deflectores, los faldones laterales. Cada pieza muestra el diseño de su propia textura, así que una franja en la textura de los faldones laterales aparece en los faldones, bajo la cabina. Un remolque muestra su chasis y su carrocería. Si abre una textura de accesorio, la vista conserva la cabina en la que trabajó por última vez.
+- **Solo las piezas pintadas.** Los cristales, las luces, las piezas de plástico o cromadas y los retrovisores que no reciben pintura se dejan fuera. La vista muestra dónde va su diseño, no todos los objetos que podrían taparlo. Una pieza cuya textura no está en su proyecto se dibuja en gris liso.
 - **Cinco direcciones.** Elija <Ui id="side-view-left" />, <Ui id="side-view-right" />, <Ui id="side-view-front" />, <Ui id="side-view-back" /> o <Ui id="side-view-top" /> (vista desde arriba, útil para un techo decorado) arriba a la derecha del panel. El dibujo es plano, sin perspectiva, y siempre se ajusta al panel. No se puede girar ni ampliar.
-- **En directo.** Cada cambio que haga en el lienzo aparece en la vista un instante después. Mientras arrastra un objeto, el lienzo sigue el puntero y la vista se actualiza al soltar.
-- **Solo texturas principales.** En un camión, la vista muestra la cabina de la textura principal abierta. En un remolque, muestra la textura principal. Las texturas de accesorios (deflectores, faldones laterales, viseras, etc.) todavía no se dibujan: mientras una de ellas está abierta, la vista sigue mostrando la última textura principal en la que trabajó.
-- **Faltan las piezas montadas como accesorios.** En algunos camiones, piezas pintadas con la textura principal se montan como accesorios: las puertas, el parachoques, los guardabarros, los deflectores. Aparecen en la plantilla pero todavía no en la vista, que puede mostrar un hueco donde debería estar una puerta.
-- **Cambiar de textura.** Abra otra cabina, o una textura de otro vehículo, y la vista cambia con ella.
+- **En directo.** Cada cambio que haga en el lienzo, en la textura principal o en una textura de accesorio, aparece en la vista un instante después. Mientras arrastra un objeto, el lienzo sigue su puntero y la vista se pone al día cuando lo suelta.
+- **Cambiar de textura.** Abra otra cabina, o una textura de otro vehículo, y la vista cambia con ella. Sus elecciones de accesorios se quedan con el vehículo.
+
+### Elegir los accesorios
+
+Haga clic en <Ui id="side-view-accessories" /> en el encabezado del panel para ver los lugares del vehículo donde se puede montar un accesorio, como la puerta, el deflector de techo o el parachoques. Cada fila tiene una lista desplegable con <Ui id="side-view-accessory-none" /> y las opciones de ese lugar. Solo se dibuja una opción por lugar a la vez. El chasis siempre tiene una, así que no tiene <Ui id="side-view-accessory-none" />.
+
+<Shot name="workshop/side-view-accessories" alt="La vista lateral con la lista Accesorios abierta sobre el lienzo: una fila para los faldones laterales del camión de ejemplo, con su lista desplegable." />
+
+- **Primero la configuración del juego.** Un vehículo empieza con los accesorios que el juego monta en un vehículo nuevo. Un lugar donde el juego no monta nada pintado empieza en <Ui id="side-view-accessory-none" />.
+- **Se guarda con el proyecto.** Sus elecciones se conservan para cada vehículo y vuelven al reabrir el proyecto. No son un paso de deshacer: <Ui id="menu-edit" /> › <Ui id="cmd-undo" /> no las cambia.
+- **Misma forma, una sola opción.** Las opciones que se ven igual por fuera, como puertas que solo difieren por dentro, se muestran una sola vez.
+- **Vehículos oficiales generados antes.** Un vehículo generado desde <Ui id="vehicles-tab-game" /> antes de que se dibujaran los accesorios muestra su cabina sola, y la lista le indica que lo genere de nuevo.
+
+### Los remolques
+
+Un remolque muestra su chasis y la carrocería que elija en la lista, cada uno con su propia textura.
+
+<Shot name="workshop/side-view-trailer" alt="La vista lateral con el remolque de ejemplo desde la izquierda: el bastidor del chasis y la carrocería de lona de 13,6 m con el diseño Blue Wave Biarritz, el logotipo y las olas." />
+
+Solo se dibuja un remolque sencillo, no los dobles ni los B-doubles.
 
 La vista lateral es una guía mientras diseña. La comprobación final sigue siendo en el juego.
 
-Cuando no hay nada que dibujar, el panel explica por qué:
+Cuando no hay nada que dibujar, el panel dice por qué:
 
 - los vehículos personalizados no tienen vista lateral;
 - un vehículo oficial generado antes de la vista lateral debe generarse de nuevo desde <Ui id="vehicles-tab-game" />;
-- algunos remolques tienen una textura principal que solo lleva el color base, porque sus piezas se pintan en texturas de accesorios;
 - un proyecto abierto en un ordenador donde no está instalado el paquete de su vehículo necesita ese paquete;
 - un paquete de la comunidad o de ejemplo sin modelo para la vista lateral muestra <Ui id="side-view-none" />.
 
